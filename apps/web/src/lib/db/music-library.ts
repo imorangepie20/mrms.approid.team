@@ -303,3 +303,66 @@ export async function claimEnrichmentJob(
       }
     : null;
 }
+
+export async function findActiveImport(
+  auth0Subject: string,
+  requestedPlaylistIds: string[],
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<PlaylistImportRow>(
+    `SELECT i.id, i.requested_playlist_ids, i.status
+     FROM playlist_imports AS i
+     INNER JOIN app_users AS u ON u.id = i.user_id
+     WHERE u.auth0_subject = $1
+       AND i.requested_playlist_ids = $2
+       AND i.status IN ('pending', 'running')
+     ORDER BY i.created_at DESC
+     LIMIT 1`,
+    [auth0Subject, requestedPlaylistIds],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function getPlaylistImportById(
+  auth0Subject: string,
+  importId: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<PlaylistImportRow & { enrichment_pending_count: number }>(
+    `SELECT
+       i.id,
+       i.requested_playlist_ids,
+       i.status,
+       i.saved_playlist_count,
+       i.saved_track_count,
+       i.error_code,
+       i.started_at,
+       i.completed_at,
+       (
+         SELECT count(*)::integer
+         FROM musicbrainz_enrichment_jobs AS j
+         INNER JOIN music_tracks AS t ON t.id = j.track_id
+         WHERE t.user_id = i.user_id AND j.status IN ('pending', 'running')
+       ) AS enrichment_pending_count
+     FROM playlist_imports AS i
+     INNER JOIN app_users AS u ON u.id = i.user_id
+     WHERE u.auth0_subject = $1 AND i.id = $2`,
+    [auth0Subject, importId],
+  );
+  const row = result.rows[0];
+  return row
+    ? {
+        completedAt: row.completed_at ?? null,
+        enrichmentPendingCount: row.enrichment_pending_count,
+        errorCode: row.error_code ?? null,
+        id: row.id,
+        playlistIds: row.requested_playlist_ids,
+        savedPlaylistCount: row.saved_playlist_count ?? 0,
+        savedTrackCount: row.saved_track_count ?? 0,
+        startedAt: row.started_at ?? null,
+        status: row.status,
+      }
+    : null;
+}
