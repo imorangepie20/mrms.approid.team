@@ -107,7 +107,7 @@ npm run build
 
 Expected: all commands exit with code 0.
 
-### Task 2: Define user-scoped music state and recommendation rules
+### Task 2: Define user-scoped music state and recommendation rules ✅
 
 **Files:**
 - Create: `apps/web/src/lib/music/types.ts`
