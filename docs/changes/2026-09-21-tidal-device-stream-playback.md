@@ -24,6 +24,7 @@
 - 별도 Limited Input Device client를 `TIDAL_DEVICE_CLIENT_ID`에 설정하면 구현된 Device Code 경로가 그 client를 사용한다. 기존 카탈로그 client 설정은 유지된다.
 - 사용자 제공 APK SHA-256: `BA63087F6F53A06D8C47B5237D8E44C7EB6B3C87FD6C2C474E2406E0799D76AB`.
 - APK 확인값: Device scope `r_usr w_usr w_sub`, `/device_authorization`, `/token`, `/playbackinfo`, `playbackmode=STREAM`, `assetpresentation=FULL`. APK 내부 client 자격증명은 문서나 로그에 기록하지 않았다.
+- 사용자 승인 후 APK의 Device client 설정을 로컬 `.env.local`에만 적용했다. TIDAL Device Code 시작은 HTTP `200`, 동일 client 인증을 사용한 즉시 token poll은 `authorization_pending`을 반환해 client ID/secret 쌍이 유효함을 확인했다.
 
 ## 검증
 
@@ -40,7 +41,5 @@
 
 ## 다음 작업
 
-1. TIDAL에서 Limited Input Device가 허용된 client ID를 발급 또는 현재 앱에 해당 기능을 활성화한다.
-2. `apps/web/.env.local`에 `TIDAL_DEVICE_CLIENT_ID`와 필요 시 `TIDAL_DEVICE_CLIENT_SECRET`을 설정한다.
-3. `https://mrms.approid.team/search`에서 `TIDAL 재생 연결`을 승인한다.
-4. 한 곡의 전체 duration, seek, queue 다음 곡 전환을 실제 계정으로 검증한다.
+1. `https://mrms.approid.team/search`에서 `TIDAL 재생 연결`을 승인한다.
+2. 한 곡의 전체 duration, seek, queue 다음 곡 전환을 실제 계정으로 검증한다.
