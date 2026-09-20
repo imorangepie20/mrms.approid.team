@@ -38,6 +38,15 @@ function number(body: Record<string, unknown>, fallback: number, ...keys: string
   return fallback;
 }
 
+function httpsUrl(value: string | null) {
+  if (!value) return null;
+  if (/^https:\/\/[^\s]+$/i.test(value)) return value;
+  if (!/^[a-z][a-z\d+.-]*:\/\//i.test(value) && !/\s/.test(value)) {
+    return `https://${value}`;
+  }
+  return null;
+}
+
 async function json(response: Response) {
   return (await response.json()) as Record<string, unknown>;
 }
@@ -72,7 +81,7 @@ export async function startTidalDeviceAuthorization(
   }
   const deviceCode = text(body, "device_code", "deviceCode");
   const userCode = text(body, "user_code", "userCode");
-  const verificationUri = text(body, "verification_uri", "verificationUri");
+  const verificationUri = httpsUrl(text(body, "verification_uri", "verificationUri"));
   if (!deviceCode || !userCode || !verificationUri) {
     throw new Error("tidal_device_authorization_invalid");
   }
@@ -81,7 +90,7 @@ export async function startTidalDeviceAuthorization(
     deviceCode,
     userCode,
     verificationUri,
-    verificationUriComplete: text(body, "verification_uri_complete", "verificationUriComplete"),
+    verificationUriComplete: httpsUrl(text(body, "verification_uri_complete", "verificationUriComplete")),
     expiresAt: new Date(now() + expiresIn * 1000),
     intervalSeconds: number(body, 5, "interval"),
   };

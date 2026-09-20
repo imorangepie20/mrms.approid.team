@@ -36,8 +36,8 @@ describe("TIDAL device authorization", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       deviceCode: "device-1",
       userCode: "ABCD",
-      verificationUri: "https://link.tidal.com",
-      verificationUriComplete: "https://link.tidal.com/ABCD",
+      verificationUri: "link.tidal.com",
+      verificationUriComplete: "link.tidal.com/ABCD",
       expiresIn: 300,
       interval: 5,
     }), { status: 200 }));
