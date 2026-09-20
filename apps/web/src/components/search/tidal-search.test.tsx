@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const session = vi.hoisted(() => ({
+  pausePlayback: vi.fn().mockResolvedValue(undefined),
   playTrack: vi.fn(),
   setQueue: vi.fn(),
 }));
@@ -186,6 +187,14 @@ describe("TidalSearch", () => {
       track,
       expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
     );
+
+    await user.click(screen.getByRole("button", { name: "TIDAL 전체 재생" }));
+    expect(session.pausePlayback).toHaveBeenCalledOnce();
+    expect(screen.getByTitle(`${title} TIDAL 플레이어`)).toHaveAttribute(
+      "src",
+      `https://embed.tidal.com/${kind === "album" ? "albums" : "playlists"}/${kind}-1`,
+    );
+    await user.click(screen.getByRole("button", { name: "TIDAL 플레이어 닫기" }));
 
     await user.click(screen.getByRole("button", { name: "검색 결과로 돌아가기" }));
     expect(screen.getByRole("searchbox")).toHaveValue("bj");
