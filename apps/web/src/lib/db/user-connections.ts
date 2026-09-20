@@ -1,4 +1,10 @@
 import type { ConnectionStatus } from "@/lib/auth/connection-status";
+import { decryptToken, encryptToken } from "@/lib/auth/token-cipher";
+import {
+  readTidalOAuthConfig,
+  refreshTidalToken,
+  type TidalToken,
+} from "@/lib/tidal/oauth";
 
 import { getDatabasePool } from "./pool";
 
@@ -36,6 +42,19 @@ export type UpsertUserConnectionInput = {
   encryptedRefreshToken?: string | null;
   scope?: string | null;
   status: ConnectionStatus;
+};
+
+type UsableAccessTokenDependencies = {
+  encryptionKey?: string;
+  executor?: QueryExecutor;
+  now?: () => Date;
+  refresh?: (refreshToken: string) => Promise<TidalToken>;
+};
+
+export type UsableTidalAccessToken = {
+  accessToken: string;
+  expiresAt: Date;
+  scope: string | null;
 };
 
 function database(executor?: QueryExecutor) {
@@ -141,4 +160,65 @@ export async function markReauthenticationRequired(
   );
 
   return result.rows.length > 0;
+}
+
+export async function getUsableTidalAccessToken(
+  auth0Subject: string,
+  dependencies: UsableAccessTokenDependencies = {},
+): Promise<UsableTidalAccessToken> {
+  const connection = await getUserConnection(auth0Subject, dependencies.executor);
+  if (
+    !connection ||
+    connection.status !== "connected" ||
+    !connection.encryptedAccessToken ||
+    !connection.accessTokenExpiresAt
+  ) {
+    throw new Error("TIDAL connection is not usable.");
+  }
+
+  const encryptionKey =
+    dependencies.encryptionKey ?? process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) {
+    throw new Error("TOKEN_ENCRYPTION_KEY is required.");
+  }
+
+  const now = dependencies.now?.() ?? new Date();
+  const refreshThreshold = now.getTime() + 60_000;
+  if (connection.accessTokenExpiresAt.getTime() > refreshThreshold) {
+    return {
+      accessToken: decryptToken(connection.encryptedAccessToken, encryptionKey),
+      expiresAt: connection.accessTokenExpiresAt,
+      scope: connection.scope,
+    };
+  }
+
+  if (!connection.encryptedRefreshToken) {
+    throw new Error("TIDAL refresh token is unavailable.");
+  }
+
+  const storedRefreshToken = decryptToken(
+    connection.encryptedRefreshToken,
+    encryptionKey,
+  );
+  const refresh =
+    dependencies.refresh ??
+    ((token: string) => refreshTidalToken(token, readTidalOAuthConfig()));
+  const refreshed = await refresh(storedRefreshToken);
+  const expiresAt = new Date(now.getTime() + refreshed.expiresIn * 1000);
+  const refreshToken = refreshed.refreshToken ?? storedRefreshToken;
+  const scope = refreshed.scope ?? connection.scope;
+
+  await upsertUserConnection(
+    {
+      accessTokenExpiresAt: expiresAt,
+      auth0Subject,
+      encryptedAccessToken: encryptToken(refreshed.accessToken, encryptionKey),
+      encryptedRefreshToken: encryptToken(refreshToken, encryptionKey),
+      scope,
+      status: "connected",
+    },
+    dependencies.executor,
+  );
+
+  return { accessToken: refreshed.accessToken, expiresAt, scope };
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { decryptToken, encryptToken } from "@/lib/auth/token-cipher";
+
 import {
+  getUsableTidalAccessToken,
   getUserConnection,
   markReauthenticationRequired,
   upsertUserConnection,
@@ -66,5 +69,78 @@ describe("user TIDAL connections", () => {
       expect.stringMatching(/WHERE\s+u\.auth0_subject\s*=\s*\$1/i),
       ["auth0|listener-a"],
     );
+  });
+
+  it("returns the decrypted access token while it is valid beyond the refresh window", async () => {
+    const encryptionKey = Buffer.alloc(32, 7).toString("base64");
+    const database = queryExecutor([
+      {
+        access_token_expires_at: new Date("2026-09-20T01:02:00.000Z"),
+        auth0_subject: "auth0|listener-a",
+        encrypted_access_token: encryptToken("current-access", encryptionKey),
+        encrypted_refresh_token: encryptToken("current-refresh", encryptionKey),
+        scope: "playlists.read",
+        status: "connected",
+        updated_at: new Date("2026-09-20T00:00:00.000Z"),
+      },
+    ]);
+    const refresh = vi.fn();
+
+    const token = await getUsableTidalAccessToken("auth0|listener-a", {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-20T01:00:00.000Z"),
+      refresh,
+    });
+
+    expect(token).toEqual({
+      accessToken: "current-access",
+      expiresAt: new Date("2026-09-20T01:02:00.000Z"),
+      scope: "playlists.read",
+    });
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("refreshes an expiring token and persists rotated encrypted credentials", async () => {
+    const encryptionKey = Buffer.alloc(32, 9).toString("base64");
+    const initialRow = {
+      access_token_expires_at: new Date("2026-09-20T01:00:30.000Z"),
+      auth0_subject: "auth0|listener-a",
+      encrypted_access_token: encryptToken("old-access", encryptionKey),
+      encrypted_refresh_token: encryptToken("old-refresh", encryptionKey),
+      scope: "playlists.read",
+      status: "connected",
+      updated_at: new Date("2026-09-20T00:00:00.000Z"),
+    };
+    const updatedRow = {
+      ...initialRow,
+      access_token_expires_at: new Date("2026-09-20T03:00:00.000Z"),
+      scope: "playlists.read search.read playback user.read",
+    };
+    const database = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rows: [initialRow] })
+        .mockResolvedValueOnce({ rows: [updatedRow] }),
+    } satisfies QueryExecutor;
+    const refresh = vi.fn().mockResolvedValue({
+      accessToken: "new-access",
+      expiresIn: 7200,
+      refreshToken: "new-refresh",
+      scope: "playlists.read search.read playback user.read",
+    });
+
+    const token = await getUsableTidalAccessToken("auth0|listener-a", {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-20T01:00:00.000Z"),
+      refresh,
+    });
+
+    expect(token.accessToken).toBe("new-access");
+    expect(refresh).toHaveBeenCalledWith("old-refresh");
+    const persistedValues = database.query.mock.calls[1]?.[1] as string[];
+    expect(decryptToken(persistedValues[2], encryptionKey)).toBe("new-access");
+    expect(decryptToken(persistedValues[3], encryptionKey)).toBe("new-refresh");
   });
 });

@@ -59,21 +59,16 @@ export function createTidalAuthorizationRequest(config: TidalOAuthConfig) {
   return { state, url: url.toString(), verifier };
 }
 
-export async function exchangeTidalCode(
-  input: { code: string; verifier: string },
+async function requestToken(
+  parameters: URLSearchParams,
   config: TidalOAuthConfig,
-  fetcher: typeof fetch = fetch,
+  fetcher: typeof fetch,
+  fallbackRefreshToken: string | null = null,
 ): Promise<TidalToken> {
   const response = await fetcher(config.tokenUrl, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: config.clientId,
-      code: input.code,
-      code_verifier: input.verifier,
-      grant_type: "authorization_code",
-      redirect_uri: config.redirectUri,
-    }),
+    body: parameters,
   });
 
   if (!response.ok) {
@@ -88,7 +83,45 @@ export async function exchangeTidalCode(
   return {
     accessToken: body.access_token,
     expiresIn: body.expires_in,
-    refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : null,
+    refreshToken:
+      typeof body.refresh_token === "string"
+        ? body.refresh_token
+        : fallbackRefreshToken,
     scope: typeof body.scope === "string" ? body.scope : null,
   };
+}
+
+export async function exchangeTidalCode(
+  input: { code: string; verifier: string },
+  config: TidalOAuthConfig,
+  fetcher: typeof fetch = fetch,
+): Promise<TidalToken> {
+  return requestToken(
+    new URLSearchParams({
+      client_id: config.clientId,
+      code: input.code,
+      code_verifier: input.verifier,
+      grant_type: "authorization_code",
+      redirect_uri: config.redirectUri,
+    }),
+    config,
+    fetcher,
+  );
+}
+
+export async function refreshTidalToken(
+  refreshToken: string,
+  config: TidalOAuthConfig,
+  fetcher: typeof fetch = fetch,
+): Promise<TidalToken> {
+  return requestToken(
+    new URLSearchParams({
+      client_id: config.clientId,
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+    }),
+    config,
+    fetcher,
+    refreshToken,
+  );
 }

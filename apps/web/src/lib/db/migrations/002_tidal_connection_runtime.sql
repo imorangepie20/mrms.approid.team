@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE tidal_connections
+  ADD COLUMN IF NOT EXISTS disconnected_at TIMESTAMPTZ;
+
+COMMIT;

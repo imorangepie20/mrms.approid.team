@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createTidalAuthorizationRequest, exchangeTidalCode } from "./oauth";
+import {
+  createTidalAuthorizationRequest,
+  exchangeTidalCode,
+  refreshTidalToken,
+} from "./oauth";
 
 const config = {
   authorizeUrl: "https://login.tidal.com/authorize",
@@ -49,5 +53,40 @@ describe("TIDAL OAuth", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(JSON.stringify(token)).not.toContain("v".repeat(43));
+  });
+
+  it("refreshes with the stored refresh token and keeps a rotated token", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: "new-access",
+          expires_in: 7200,
+          refresh_token: "new-refresh",
+          scope: "playlists.read search.read playback user.read",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const token = await refreshTidalToken("old-refresh", config, fetcher);
+
+    expect(token.accessToken).toBe("new-access");
+    expect(token.refreshToken).toBe("new-refresh");
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(request.body?.toString()).toContain("grant_type=refresh_token");
+    expect(request.body?.toString()).toContain("refresh_token=old-refresh");
+  });
+
+  it("keeps the old refresh token when the server does not rotate it", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ access_token: "new-access", expires_in: 7200 }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    const token = await refreshTidalToken("old-refresh", config, fetcher);
+
+    expect(token.refreshToken).toBe("old-refresh");
   });
 });
