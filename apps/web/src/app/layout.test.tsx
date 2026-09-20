@@ -42,3 +42,12 @@ it("renders the five global navigation destinations and anonymous Auth0 actions"
   expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/api/auth/login");
   expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute("href", "/api/auth/signup");
 });
+
+it("keeps one music session provider around route content and the global player", async () => {
+  render(await RootLayout({ children: <div>route content</div> }));
+
+  const sessionRoot = screen.getByTestId("music-session-root");
+  expect(sessionRoot).toContainElement(screen.getByText("route content"));
+  expect(screen.getAllByLabelText("전역 음악 플레이어")).toHaveLength(1);
+  expect(sessionRoot).toContainElement(screen.getByLabelText("전역 음악 플레이어"));
+});

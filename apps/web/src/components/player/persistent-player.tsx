@@ -25,7 +25,7 @@ export function PersistentPlayer() {
 
   return (
     <>
-      <aside className="dashboard-player fixed inset-x-0 bottom-0 z-40 border-t text-white backdrop-blur">
+      <aside aria-label="전역 음악 플레이어" className="dashboard-player fixed inset-x-0 bottom-0 z-40 border-t text-white backdrop-blur">
         <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
           {currentTrack ? (
             <>

@@ -376,7 +376,9 @@ export function MusicSessionProvider({
 
   return (
     <MusicSessionContext.Provider value={value}>
-      {children}
+      <div className="contents" data-testid="music-session-root">
+        {children}
+      </div>
     </MusicSessionContext.Provider>
   );
 }
