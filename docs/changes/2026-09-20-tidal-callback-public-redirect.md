@@ -10,14 +10,18 @@
 
 TIDAL 토큰 교환과 저장은 성공했지만 성공 응답의 기준 URL로 `request.url`을 사용해, 역방향 프록시가 전달한 `localhost:44119`가 브라우저 리디렉션에 노출됐다. 콜백 성공 리디렉션의 기준 URL을 공개 서비스 주소인 `APP_BASE_URL`로 변경하고, 내부 요청 URL을 입력으로 사용해도 공개 주소가 반환되는 회귀 테스트를 추가했다.
 
+실제 OAuth 재검증에서는 토큰 저장과 공개 주소 이동 이후에도 온보딩 화면이 계속 1단계를 표시하는 문제를 추가로 확인했다. `tidal=connected` 성공 표시가 있으면 플레이리스트 선택 단계로 전환하도록 수정하고 UI 회귀 테스트를 추가했다.
+
 ## 검증 결과
 
 - `npm test -- src/app/api/tidal/callback/route.test.ts`: 수정 전 실패를 재현했고 수정 후 2개 테스트가 통과했다.
-- `npm test`: 19개 파일, 42개 테스트가 통과했다.
+- `npm test -- src/components/onboarding/tidal-onboarding.test.tsx`: 완료 URL에서 1단계에 머무는 실패를 재현했고 수정 후 5개 테스트가 통과했다.
+- `npm test`: 19개 파일, 43개 테스트가 통과했다.
 - `npm run lint`: 오류와 경고 없이 통과했다.
 - `npm run build`: `/api/tidal/callback`을 포함한 Next.js 프로덕션 빌드가 통과했다.
 - `http://127.0.0.1:44119/onboarding?tidal=connected`: HTTP 200을 확인했다.
 - `https://mrms.approid.team/onboarding?tidal=connected`: HTTP 200과 브라우저 렌더링을 확인했다.
+- 실제 OAuth 재연결 후 공개 완료 화면에서 `STEP 2 OF 3`과 플레이리스트 선택 UI를 확인했다.
 - PostgreSQL 최신 연결 행에서 `connected`, access/refresh token 암호문 존재, `playlists.read` 범위를 확인했다. 토큰 원문은 출력하지 않았다.
 
 ## 미검증 항목 및 다음 작업

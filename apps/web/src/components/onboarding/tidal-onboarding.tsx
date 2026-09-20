@@ -1,6 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+
+const subscribeToLocation = () => () => {};
+
+function useSuccessfulTidalCallback() {
+  return useSyncExternalStore(
+    subscribeToLocation,
+    () => new URLSearchParams(window.location.search).get("tidal") === "connected",
+    () => false,
+  );
+}
 
 type TidalPlaylist = {
   id: string;
@@ -25,6 +35,8 @@ export function TidalOnboarding({
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const callbackConnected = useSuccessfulTidalCallback();
+  const visibleStep = step === "connect" && callbackConnected ? "select" : step;
 
   const connect = async () => {
     setError(null);
@@ -72,7 +84,7 @@ export function TidalOnboarding({
     setStep("complete");
   };
 
-  if (step === "complete") {
+  if (visibleStep === "complete") {
     return (
       <section className="rounded-3xl border border-emerald-300/30 bg-emerald-400/10 p-6 text-white sm:p-10">
         <p className="text-sm font-semibold tracking-[0.18em] text-emerald-200">
@@ -95,9 +107,9 @@ export function TidalOnboarding({
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-900 p-6 text-white sm:p-10">
       <p className="text-sm font-semibold tracking-[0.18em] text-fuchsia-300">
-        {step === "connect" ? "STEP 1 OF 3" : "STEP 2 OF 3"}
+        {visibleStep === "connect" ? "STEP 1 OF 3" : "STEP 2 OF 3"}
       </p>
-      {step === "connect" ? (
+      {visibleStep === "connect" ? (
         <>
           <h1 className="mt-3 text-3xl font-black sm:text-4xl">
             TIDAL과 내 음악을 연결해요

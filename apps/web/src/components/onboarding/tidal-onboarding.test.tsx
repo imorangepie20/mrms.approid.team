@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TidalOnboarding } from "./tidal-onboarding";
+
+afterEach(() => {
+  window.history.replaceState({}, "", "/");
+});
 
 describe("TidalOnboarding", () => {
   it("does not advance when no playlist is selected", async () => {
@@ -51,6 +55,22 @@ describe("TidalOnboarding", () => {
     await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("분석할 트랙이 없습니다");
+  });
+
+  it("continues to playlist selection after a successful OAuth callback", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+
+    render(
+      <TidalOnboarding
+        connectHref="/api/tidal/connect"
+        playlists={[{ id: "p-1", name: "Morning Focus", trackCount: 38 }]}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("checkbox", { name: /Morning Focus/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("shows a retry action when TIDAL connection fails", async () => {
