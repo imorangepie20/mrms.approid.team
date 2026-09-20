@@ -54,6 +54,7 @@ type MusicSession = {
   isMuted: boolean;
   musicState: MusicState;
   nextTrack: () => Promise<void>;
+  pausePlayback: () => Promise<void>;
   playbackError: string | null;
   playbackPosition: number;
   playbackStatus: PlaybackStatus;
@@ -393,6 +394,10 @@ export function MusicSessionProvider({
     else await engine.play();
   }, [engine]);
 
+  const pausePlayback = useCallback(async () => {
+    await engine.pause();
+  }, [engine]);
+
   const seek = useCallback(async (seconds: number) => {
     await engine.seek(seconds);
   }, [engine]);
@@ -441,6 +446,7 @@ export function MusicSessionProvider({
     isMuted: volume === 0,
     musicState,
     nextTrack,
+    pausePlayback,
     playbackError: playback.errorCode,
     playbackPosition: playback.positionSeconds,
     playbackStatus: playback.status,
@@ -462,7 +468,7 @@ export function MusicSessionProvider({
     volume,
   }), [
     acceptTrack, connectTidal, currentTrack, cycleRepeatMode, initializeMms, isAuthenticated,
-    isPersonalized, musicState, nextTrack, playback, playQueueIndex, playTrack,
+    isPersonalized, musicState, nextTrack, pausePlayback, playback, playQueueIndex, playTrack,
     previousTrack, rejectTrack, repeatMode, restoreRejectedTrack, seek, setQueue,
     setVolume, shuffleEnabled, toggleMute, togglePlayback, toggleShuffle, volume,
   ]);

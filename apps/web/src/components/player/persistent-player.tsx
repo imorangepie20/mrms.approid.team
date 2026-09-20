@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 import { FullPlayerDialog } from "./full-player-dialog";
+import { TidalEmbedDialog } from "./tidal-embed-dialog";
 
 function formatTime(seconds: number) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -13,6 +14,7 @@ function formatTime(seconds: number) {
 
 export function PersistentPlayer() {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
+  const [isTidalPlayerOpen, setIsTidalPlayerOpen] = useState(false);
   const {
     currentIndex,
     currentTrack,
@@ -21,6 +23,7 @@ export function PersistentPlayer() {
     isMuted,
     isPlaying,
     nextTrack,
+    pausePlayback,
     playbackError,
     playbackPosition,
     playbackStatus,
@@ -39,6 +42,12 @@ export function PersistentPlayer() {
   const canPrevious = currentIndex !== null && (currentIndex > 0 || repeatMode === "all");
   const canNext = currentIndex !== null && (currentIndex < queue.length - 1 || repeatMode === "all");
   const repeatLabel = repeatMode === "off" ? "반복 끔" : repeatMode === "all" ? "전체 반복" : "한 곡 반복";
+  const tidalTrackId = currentTrack?.tidalTrackId;
+
+  const openTidalPlayer = () => {
+    void pausePlayback().catch(() => undefined);
+    setIsTidalPlayerOpen(true);
+  };
 
   return (
     <>
@@ -77,6 +86,16 @@ export function PersistentPlayer() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
+                {tidalTrackId ? (
+                  <button
+                    aria-label="TIDAL 전체 재생"
+                    className="hidden min-h-10 rounded-full border border-cyan-300/30 px-3 text-[11px] font-bold tracking-[0.12em] text-cyan-200 hover:bg-cyan-300/10 sm:block"
+                    type="button"
+                    onClick={openTidalPlayer}
+                  >
+                    TIDAL
+                  </button>
+                ) : null}
                 <button
                   aria-label={shuffleEnabled ? "셔플 끄기" : "셔플 켜기"}
                   aria-pressed={shuffleEnabled}
@@ -174,6 +193,14 @@ export function PersistentPlayer() {
           onToggleMute={() => void toggleMute()}
           onTogglePlayback={() => void togglePlayback()}
           onVolumeChange={(level) => void setVolume(level)}
+        />
+      ) : null}
+      {isTidalPlayerOpen && currentTrack && tidalTrackId ? (
+        <TidalEmbedDialog
+          kind="track"
+          resourceId={tidalTrackId}
+          title={currentTrack.title}
+          onClose={() => setIsTidalPlayerOpen(false)}
         />
       ) : null}
     </>

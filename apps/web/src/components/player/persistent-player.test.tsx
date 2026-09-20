@@ -137,4 +137,25 @@ describe("PersistentPlayer", () => {
     await user.click(screen.getByRole("button", { name: "음소거" }));
     expect(engine.setVolume).toHaveBeenCalledWith(0);
   });
+
+  it("pauses SDK playback before opening the TIDAL player", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+
+    await user.click(screen.getByRole("button", { name: "TIDAL 전체 재생" }));
+
+    expect(engine.pause).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog", { name: "TIDAL 플레이어" })).toBeInTheDocument();
+    expect(screen.getByTitle("Track A TIDAL 플레이어")).toHaveAttribute(
+      "src",
+      "https://embed.tidal.com/tracks/tidal-a",
+    );
+  });
 });

@@ -96,6 +96,7 @@ function SessionHarness() {
       <button type="button" onClick={session.toggleShuffle}>Shuffle</button>
       <button type="button" onClick={() => void session.setVolume(35)}>Volume 35</button>
       <button type="button" onClick={() => void session.toggleMute()}>Mute</button>
+      <button type="button" onClick={() => void session.pausePlayback()}>Pause</button>
       <p>Now playing: {session.currentTrack?.title ?? "nothing"}</p>
       <p>Index: {session.currentIndex ?? "none"}</p>
       <p>Status: {session.playbackStatus}</p>
@@ -244,5 +245,19 @@ describe("MusicSessionProvider", () => {
     expect(engine.setVolume).toHaveBeenNthCalledWith(2, 0);
     expect(engine.setVolume).toHaveBeenNthCalledWith(3, 35);
     expect(screen.getByText("Volume: 35")).toBeInTheDocument();
+  });
+
+  it("exposes an explicit playback pause action", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <SessionHarness />
+      </MusicSessionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pause" }));
+
+    expect(engine.pause).toHaveBeenCalledOnce();
   });
 });
