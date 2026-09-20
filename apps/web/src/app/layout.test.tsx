@@ -25,10 +25,10 @@ it("renders the five global navigation destinations and marks the current page",
     </RootLayout>,
   );
 
-  expect(screen.getAllByRole("link", { name: "홈" })[0]).toHaveAttribute("href", "/");
-  expect(screen.getAllByRole("link", { name: "EMS" })[0]).toHaveAttribute("href", "/ems");
-  expect(screen.getAllByRole("link", { name: "GMS" })[0]).toHaveAttribute("href", "/gms");
-  expect(screen.getAllByRole("link", { name: "MMS" })[0]).toHaveAttribute("href", "/mms");
-  expect(screen.getAllByRole("link", { name: "검색" })[0]).toHaveAttribute("href", "/search");
-  expect(screen.getAllByRole("link", { name: "EMS" })[0]).toHaveAttribute("aria-current", "page");
+  expect(screen.getByRole("link", { name: "홈MAIN" })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: "External Music SpaceEMS" })).toHaveAttribute("href", "/ems");
+  expect(screen.getByRole("link", { name: "Gateway Music SpaceGMS" })).toHaveAttribute("href", "/gms");
+  expect(screen.getByRole("link", { name: "My Music SpaceMMS" })).toHaveAttribute("href", "/mms");
+  expect(screen.getByRole("link", { name: "⌕ 검색" })).toHaveAttribute("href", "/search");
+  expect(screen.getByRole("link", { name: "External Music SpaceEMS" })).toHaveAttribute("aria-current", "page");
 });

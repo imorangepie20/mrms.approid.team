@@ -13,7 +13,7 @@ export default function OnboardingPage() {
   const { connectTidal, initializeMms } = useMusicSession();
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 pb-[var(--player-height)] text-slate-100 sm:px-6 sm:py-12 lg:px-8">
+    <main className="dashboard-page min-h-screen text-slate-100">
       <div className="mx-auto max-w-3xl">
         <TidalOnboarding
           playlists={tidalPlaylists}

@@ -1,0 +1,29 @@
+"use client";
+
+import Link from "next/link";
+
+import { catalog } from "@/lib/music/fixtures";
+import { getGatewayTracks } from "@/lib/music/recommendations";
+import { useMusicSession } from "@/providers/music-session-provider";
+
+type Space = "home" | "ems" | "gms" | "mms";
+
+const copy = {
+  ems: { name: "External Music Space", code: "EMS", lead: "외부 플랫폼에서 모인 트랙과 플레이리스트 카탈로그입니다.", tone: "violet" },
+  gms: { name: "Gateway Music Space", code: "GMS", lead: "AI가 취향을 분석해 추천한 트랙입니다. 좋아요는 MMS로, 싫어요는 영구 제외됩니다.", tone: "teal" },
+  mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
+} as const;
+
+export function MusicDashboard({ space }: { space: Space }) {
+  const { acceptTrack, isAuthenticated, isPersonalized, musicState, playTrack, rejectTrack } = useMusicSession();
+  const tracks = space === "gms" ? getGatewayTracks(catalog, musicState.mmsTrackIds, musicState.rejectedTrackIds) : space === "mms" ? catalog.filter((track) => musicState.mmsTrackIds.includes(track.id)) : catalog;
+
+  if (space === "home") return <Home />;
+  const meta = copy[space];
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "ems" ? <Filters /> : null}{space === "gms" ? <p className="notice">★ 싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" ? <Gateway tracks={tracks} active={isAuthenticated && isPersonalized} onPlay={playTrack} onAccept={acceptTrack} onReject={rejectTrack} /> : <TrackTable tracks={tracks} onPlay={playTrack} empty={space === "mms" ? "TIDAL 연결 후 선택한 트랙이 이곳에 표시됩니다." : "표시할 트랙이 없습니다."} />}</section>;
+}
+
+function Home() { const { playTrack } = useMusicSession(); return <section className="dashboard-page"><header className="space-title">Home<small>DISCOVER</small></header><div className="space-hero home-hero"><p>MUSIC PIE</p><h1>당신의 다음 장면</h1><span>좋아할 음악을 발견하고 나만의 취향 지도를 만드세요.</span><Link href="/ems">카탈로그 둘러보기</Link></div><h2 className="dash-heading">새로운 흐름</h2><div className="album-rail">{catalog.map((track) => <article key={track.id} className="album-card"><div className={`album-cover bg-gradient-to-br ${track.artworkClass}`}><button onClick={() => playTrack(track)}>▶</button></div><b>{track.title}</b><small>{track.artist}</small></article>)}</div></section>; }
+function Filters() { return <div className="filter-row"><button>전체</button><button>Tidal</button><button>Spotify</button><button>Apple Music</button><Link href="/search">⌕ 검색</Link></div>; }
+function TrackTable({ tracks, onPlay, empty }: { tracks: typeof catalog; onPlay: (track: (typeof catalog)[number]) => void; empty: string }) { return <div className="track-table"><h2>트랙 목록 <small>{tracks.length}곡</small></h2>{tracks.length ? tracks.map((track, i) => <div className="track-row" key={track.id}><i>{i + 1}</i><div className={`cover bg-gradient-to-br ${track.artworkClass}`} /><b>{track.title}<small>{track.artist}</small></b><span>{track.album}</span><em>Tidal</em><button onClick={() => onPlay(track)}>▶</button></div>) : <p className="empty-state">{empty}</p>}</div>; }
+function Gateway({ tracks, active, onPlay, onAccept, onReject }: { tracks: typeof catalog; active: boolean; onPlay: (track: (typeof catalog)[number]) => void; onAccept: (id: string) => void; onReject: (id: string) => void }) { if (!active) return <div className="empty-state">개인화 추천은 TIDAL 연결과 플레이리스트 분석 후 제공됩니다. <Link href="/onboarding">연결하기</Link></div>; return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}><button onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track.id)}>좋아요</button><button onClick={() => onReject(track.id)}>싫어요</button></div></article>)}</div></>; }
