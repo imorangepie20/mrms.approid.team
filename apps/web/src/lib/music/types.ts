@@ -15,6 +15,8 @@ export type Track = {
   album: string;
   artworkClass: string;
   artworkUrl: string;
+  durationSeconds?: number | null;
+  tidalTrackId?: string;
 };
 
 export type MusicState = {

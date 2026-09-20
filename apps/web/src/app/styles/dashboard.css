@@ -344,3 +344,254 @@
   font-weight: 600;
   letter-spacing: 0.05em;
 }
+
+.mms-page {
+  width: 100%;
+}
+
+.mms-title-short {
+  display: none;
+}
+
+.mms-overview {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto auto;
+  align-items: end;
+  gap: 32px;
+  margin: 28px 0 20px;
+  padding: 34px 36px;
+  border: 1px solid rgba(155, 92, 255, 0.3);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(168, 85, 247, 0.2), transparent 36%),
+    linear-gradient(120deg, rgba(34, 20, 51, 0.92), rgba(10, 10, 17, 0.96));
+}
+
+.mms-overview p {
+  margin: 0;
+  color: var(--brand-soft);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.mms-overview h1 {
+  margin: 8px 0 6px;
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 610;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+}
+
+.mms-overview > div > span {
+  color: #a8a2b2;
+  font-size: 15px;
+}
+
+.mms-overview dl {
+  display: flex;
+  gap: 12px;
+  margin: 0;
+}
+
+.mms-overview dl div {
+  min-width: 104px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.mms-overview dt {
+  color: #8e879a;
+  font-size: 12px;
+}
+
+.mms-overview dd {
+  margin: 3px 0 0;
+  font-size: 25px;
+  font-weight: 600;
+}
+
+.mms-actions {
+  display: flex;
+  gap: 9px;
+}
+
+.mms-actions button,
+.mms-track-tools input,
+.mms-track-tools select {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: #d8d3df;
+}
+
+.mms-actions button {
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.mms-actions button:first-child {
+  border-color: rgba(155, 92, 255, 0.54);
+  background: var(--brand);
+  color: #fff;
+}
+
+.mms-actions button:disabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.mms-connection-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 1px solid rgba(155, 92, 255, 0.22);
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.07);
+  color: #aaa4b5;
+  font-size: 13px;
+}
+
+.mms-connection-notice a {
+  margin-left: auto;
+  color: #c5a7ff;
+  font-weight: 620;
+  text-decoration: none;
+}
+
+.mms-section {
+  margin-top: 34px;
+}
+
+.mms-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 15px;
+}
+
+.mms-section-heading h2 {
+  margin: 0;
+  font-size: var(--font-section);
+  font-weight: 620;
+  letter-spacing: -0.035em;
+}
+
+.mms-section-heading p,
+.mms-section-heading > span {
+  margin: 3px 0 0;
+  color: #898292;
+  font-size: 13px;
+}
+
+.mms-playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.mms-playlist-card {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.mms-playlist-card > div {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(124, 58, 237, 0.5), rgba(13, 13, 22, 0.95));
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 34px;
+}
+
+.mms-playlist-card img {
+  object-fit: cover;
+}
+
+.mms-playlist-card h3 {
+  overflow: hidden;
+  margin: 10px 2px 0;
+  font-size: 14px;
+  font-weight: 610;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mms-playlist-card p {
+  margin: 3px 2px 1px;
+  color: #898292;
+  font-size: 12px;
+}
+
+.mms-track-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.mms-track-tools input,
+.mms-track-tools select {
+  padding: 0 13px;
+  font-size: 13px;
+}
+
+.mms-track-tools input {
+  width: min(28vw, 280px);
+}
+
+.mms-empty {
+  display: grid;
+  min-height: 270px;
+  place-items: center;
+  align-content: center;
+  padding: 32px;
+  border: 1px dashed rgba(155, 92, 255, 0.32);
+  border-radius: 16px;
+  background: rgba(155, 92, 255, 0.035);
+  text-align: center;
+}
+
+.mms-empty > span {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(155, 92, 255, 0.15);
+  color: var(--brand-soft);
+  font-size: 22px;
+}
+
+.mms-empty h3 {
+  margin: 15px 0 4px;
+  font-size: 18px;
+}
+
+.mms-empty p {
+  margin: 0;
+  color: #948d9f;
+  font-size: 14px;
+}
+
+.mms-empty a {
+  margin-top: 18px;
+  padding: 10px 15px;
+  border-radius: 9px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 630;
+  text-decoration: none;
+}

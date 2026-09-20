@@ -22,6 +22,17 @@ type SavedPlaylistRow = {
   tidal_playlist_id: string;
 };
 
+type SavedTrackRow = {
+  album_name: string;
+  artist_name: string;
+  cover_art_url: string | null;
+  duration_ms: number | null;
+  id: string;
+  tidal_artwork_url: string | null;
+  tidal_track_id: string;
+  title: string;
+};
+
 type PlaylistImportRow = {
   completed_at?: Date | null;
   error_code?: string | null;
@@ -89,6 +100,41 @@ export async function getSavedPlaylists(
     name: row.name,
     tidalArtworkUrl: row.tidal_artwork_url,
     tidalPlaylistId: row.tidal_playlist_id,
+  }));
+}
+
+export async function getSavedTracks(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<SavedTrackRow>(
+    `SELECT
+       t.id,
+       t.tidal_track_id,
+       t.title,
+       t.artist_name,
+       t.album_name,
+       t.duration_ms,
+       t.tidal_artwork_url,
+       t.cover_art_url
+     FROM music_tracks AS t
+     INNER JOIN app_users AS u ON u.id = t.user_id
+     WHERE u.auth0_subject = $1
+     ORDER BY t.created_at, t.id`,
+    [auth0Subject],
+  );
+
+  return result.rows.map((row) => ({
+    album: row.album_name,
+    artist: row.artist_name,
+    artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
+    artworkUrl: row.cover_art_url ?? row.tidal_artwork_url ?? "",
+    durationSeconds:
+      row.duration_ms === null ? null : Math.round(row.duration_ms / 1000),
+    id: row.id,
+    tidalTrackId: row.tidal_track_id,
+    title: row.title,
   }));
 }
 

@@ -12,6 +12,23 @@
 }
 
 @media (max-width: 900px) {
+  .mms-overview {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mms-page-title .mms-title-long,
+  .mms-page-title small {
+    display: none;
+  }
+
+  .mms-page-title .mms-title-short {
+    display: inline;
+  }
+
+  .mms-actions {
+    grid-column: 1 / -1;
+  }
+
   .onboarding-layout {
     grid-template-columns: 1fr;
   }
@@ -132,6 +149,52 @@
 
   .dash-heading {
     font-size: 20px;
+  }
+
+  .mms-overview {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 26px 22px;
+  }
+
+  .mms-overview dl {
+    width: 100%;
+  }
+
+  .mms-overview dl div {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .mms-actions {
+    grid-column: auto;
+  }
+
+  .mms-actions button {
+    flex: 1;
+  }
+
+  .mms-playlist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .mms-track-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mms-track-tools {
+    width: 100%;
+  }
+
+  .mms-track-tools label:first-child {
+    flex: 1;
+  }
+
+  .mms-track-tools input {
+    width: 100%;
   }
 
   .home-summary {
