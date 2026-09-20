@@ -6,6 +6,7 @@ export type Track = {
   artist: string;
   album: string;
   artworkClass: string;
+  artworkUrl: string;
 };
 
 export type MusicState = {

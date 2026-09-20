@@ -1,46 +1,36 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, it } from "vitest";
-
 import { MusicSessionProvider } from "@/providers/music-session-provider";
-
+import { PersistentPlayer } from "@/components/player/persistent-player";
 import HomePage from "./page";
 
-function renderHomePage() {
-  return render(
-    <MusicSessionProvider>
-      <HomePage />
-    </MusicSessionProvider>,
-  );
-}
+function renderPage() { return render(<MusicSessionProvider><HomePage /><PersistentPlayer /></MusicSessionProvider>); }
 
-it("renders the Music Pie discovery heading", () => {
-  renderHomePage();
-
-  expect(
-    screen.getByRole("heading", { name: /music pie/i }),
-  ).toBeInTheDocument();
+it("renders the dashboard discovery hero and catalog entry", () => {
+  renderPage();
+  expect(screen.getByRole("heading", { name: "당신의 다음 장면" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "카탈로그 둘러보기" })).toHaveAttribute("href", "/ems");
 });
 
-it("shows public discovery rails to a guest", () => {
-  renderHomePage();
+it("groups discovery into latest, personalized, and platform collections", () => {
+  renderPage();
 
-  expect(screen.getByRole("heading", { name: "최신곡" })).toBeInTheDocument();
-  expect(
-    screen.getByRole("heading", { name: "플랫폼별 플레이리스트" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "새로 도착한 소리" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "당신을 위한 다음 곡" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "플랫폼에서 건너온 선곡" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "지금 흐르는 플레이리스트" })).toBeInTheDocument();
 });
 
-it("opens a sign-in gate instead of saving for a guest", async () => {
+it("uses album artwork in discovery cards", () => {
+  renderPage();
+
+  expect(screen.getAllByAltText("Midnight City 앨범 아트").length).toBeGreaterThan(0);
+});
+
+it("plays a public discovery track without requiring sign-in", async () => {
   const user = userEvent.setup();
-
-  renderHomePage();
-
-  await user.click(
-    screen.getAllByRole("button", { name: /내 취향으로 담기 midnight city/i })[0],
-  );
-
-  expect(
-    screen.getByRole("dialog", { name: /tidal 연결/i }),
-  ).toBeInTheDocument();
+  renderPage();
+  await user.click(screen.getAllByRole("button", { name: "Midnight City 재생" })[0]);
+  expect(screen.getByRole("button", { name: "Now playing Midnight City" })).toBeInTheDocument();
 });
