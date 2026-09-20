@@ -3,6 +3,7 @@ import { decryptToken, encryptToken } from "@/lib/auth/token-cipher";
 import {
   readTidalOAuthConfig,
   refreshTidalToken,
+  toTidalDeviceOAuthConfig,
   type TidalToken,
 } from "@/lib/tidal/oauth";
 
@@ -317,7 +318,13 @@ export async function getUsableTidalAccessToken(
       );
       const refresh =
         dependencies.refresh ??
-        ((token: string) => refreshTidalToken(token, readTidalOAuthConfig()));
+        ((token: string) => {
+          const config = readTidalOAuthConfig();
+          const refreshConfig = latest.scope?.split(/\s+/).includes("r_stream")
+            ? toTidalDeviceOAuthConfig(config)
+            : config;
+          return refreshTidalToken(token, refreshConfig);
+        });
       const refreshed = await refresh(storedRefreshToken);
       const expiresAt = new Date(now.getTime() + refreshed.expiresIn * 1000);
       const refreshToken = refreshed.refreshToken ?? storedRefreshToken;

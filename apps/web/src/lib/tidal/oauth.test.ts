@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createTidalAuthorizationRequest,
   exchangeTidalCode,
+  readTidalOAuthConfig,
   refreshTidalToken,
+  toTidalDeviceOAuthConfig,
 } from "./oauth";
 
 const config = {
@@ -15,6 +17,22 @@ const config = {
 };
 
 describe("TIDAL OAuth", () => {
+  it("keeps a Limited Input Device client separate from the catalog client", () => {
+    const loaded = readTidalOAuthConfig({
+      NODE_ENV: "test",
+      TIDAL_CLIENT_ID: "catalog-client",
+      TIDAL_DEVICE_CLIENT_ID: "device-client",
+      TIDAL_DEVICE_CLIENT_SECRET: "device-secret",
+      TIDAL_REDIRECT_URI: config.redirectUri,
+    });
+
+    const device = toTidalDeviceOAuthConfig(loaded);
+
+    expect(loaded.clientId).toBe("catalog-client");
+    expect(device.clientId).toBe("device-client");
+    expect(device.clientSecret).toBe("device-secret");
+  });
+
   it("builds an authorization request with S256 PKCE and state", () => {
     const request = createTidalAuthorizationRequest(config);
     const url = new URL(request.url);
@@ -90,5 +108,22 @@ describe("TIDAL OAuth", () => {
     const token = await refreshTidalToken("old-refresh", config, fetcher);
 
     expect(token.refreshToken).toBe("old-refresh");
+  });
+
+  it("uses HTTP Basic client authentication for a confidential client refresh", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      Response.json({ access_token: "new-access", expires_in: 7200 }),
+    );
+
+    await refreshTidalToken("old-refresh", {
+      ...config,
+      clientSecret: "device-secret",
+    }, fetcher);
+
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(request.headers).toMatchObject({
+      authorization: `Basic ${Buffer.from("tidal-client:device-secret").toString("base64")}`,
+    });
+    expect(request.body?.toString()).not.toContain("client_id=");
   });
 });

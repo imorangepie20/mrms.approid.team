@@ -27,3 +27,18 @@ it("shows a device code and reports a connected token", async () => {
   );
   await waitFor(() => expect(onConnected).toHaveBeenCalledOnce());
 });
+
+it("explains when the configured client cannot use device authorization", async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({
+    code: "tidal_device_client_unsupported",
+  }, { status: 409 }));
+  const user = userEvent.setup();
+
+  render(<TidalDeviceAuthorization fetcher={fetcher} />);
+  await user.click(screen.getByRole("button", { name: "TIDAL 재생 연결" }));
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "TIDAL Limited Input Device 클라이언트 설정이 필요합니다.",
+  );
+  expect(screen.queryByRole("link", { name: "TIDAL 권한 다시 연결" })).not.toBeInTheDocument();
+});

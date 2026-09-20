@@ -5,6 +5,8 @@ export type TidalOAuthConfig = {
   clientId: string;
   clientSecret?: string;
   deviceAuthorizationUrl?: string;
+  deviceClientId?: string;
+  deviceClientSecret?: string;
   deviceScopes?: string[];
   redirectUri: string;
   scopes: string[];
@@ -35,6 +37,8 @@ export function readTidalOAuthConfig(
       "https://login.tidal.com/authorize",
     clientId,
     clientSecret: environment.TIDAL_CLIENT_SECRET?.trim(),
+    deviceClientId: environment.TIDAL_DEVICE_CLIENT_ID?.trim(),
+    deviceClientSecret: environment.TIDAL_DEVICE_CLIENT_SECRET?.trim(),
     deviceAuthorizationUrl:
       environment.TIDAL_DEVICE_AUTHORIZATION_URL?.trim() ||
       "https://auth.tidal.com/v1/oauth2/device_authorization",
@@ -76,10 +80,18 @@ async function requestToken(
   fetcher: typeof fetch,
   fallbackRefreshToken: string | null = null,
 ): Promise<TidalToken> {
+  const headers: Record<string, string> = {
+    "content-type": "application/x-www-form-urlencoded",
+  };
+  const requestBody = new URLSearchParams(parameters);
+  if (config.clientSecret) {
+    headers.authorization = `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`;
+    requestBody.delete("client_id");
+  }
   const response = await fetcher(config.tokenUrl, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: parameters,
+    headers,
+    body: requestBody,
   });
 
   if (!response.ok) {
@@ -103,6 +115,14 @@ async function requestToken(
       typeof body.user_id === "string" || typeof body.user_id === "number"
         ? String(body.user_id)
         : null,
+  };
+}
+
+export function toTidalDeviceOAuthConfig(config: TidalOAuthConfig): TidalOAuthConfig {
+  return {
+    ...config,
+    clientId: config.deviceClientId || config.clientId,
+    clientSecret: config.deviceClientSecret || config.clientSecret,
   };
 }
 

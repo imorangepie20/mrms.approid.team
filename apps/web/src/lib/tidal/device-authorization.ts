@@ -1,4 +1,4 @@
-import type { TidalOAuthConfig, TidalToken } from "./oauth";
+import { toTidalDeviceOAuthConfig, type TidalOAuthConfig, type TidalToken } from "./oauth";
 
 const DEVICE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 
@@ -14,6 +14,13 @@ export type TidalDeviceAuthorization = {
 export type TidalDevicePollResult =
   | { status: "authorization_pending" | "slow_down" }
   | { status: "connected"; token: TidalToken };
+
+export class TidalDeviceAuthorizationError extends Error {
+  constructor(public readonly code: string) {
+    super(code);
+    this.name = "TidalDeviceAuthorizationError";
+  }
+}
 
 function text(body: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
@@ -40,19 +47,29 @@ export async function startTidalDeviceAuthorization(
   fetcher: typeof fetch = fetch,
   now: () => number = Date.now,
 ): Promise<TidalDeviceAuthorization> {
+  const deviceConfig = toTidalDeviceOAuthConfig(config);
   const response = await fetcher(
     config.deviceAuthorizationUrl || "https://auth.tidal.com/v1/oauth2/device_authorization",
     {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: config.clientId,
+        client_id: deviceConfig.clientId,
         scope: (config.deviceScopes ?? config.scopes).join(" "),
       }),
     },
   );
   const body = await json(response);
-  if (!response.ok) throw new Error("tidal_device_authorization_failed");
+  if (!response.ok) {
+    const unsupportedClient =
+      body.sub_status === 1002 ||
+      text(body, "error_description")?.includes("Limited Input Device");
+    throw new TidalDeviceAuthorizationError(
+      unsupportedClient
+        ? "tidal_device_client_unsupported"
+        : "tidal_device_authorization_failed",
+    );
+  }
   const deviceCode = text(body, "device_code", "deviceCode");
   const userCode = text(body, "user_code", "userCode");
   const verificationUri = text(body, "verification_uri", "verificationUri");
@@ -75,15 +92,16 @@ export async function pollTidalDeviceAuthorization(
   config: TidalOAuthConfig,
   fetcher: typeof fetch = fetch,
 ): Promise<TidalDevicePollResult> {
+  const deviceConfig = toTidalDeviceOAuthConfig(config);
   const headers: Record<string, string> = { "content-type": "application/x-www-form-urlencoded" };
-  if (config.clientSecret) {
-    headers.authorization = `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`;
+  if (deviceConfig.clientSecret) {
+    headers.authorization = `Basic ${Buffer.from(`${deviceConfig.clientId}:${deviceConfig.clientSecret}`).toString("base64")}`;
   }
   const response = await fetcher(config.tokenUrl, {
     method: "POST",
     headers,
     body: new URLSearchParams({
-      client_id: config.clientId,
+      client_id: deviceConfig.clientId,
       device_code: deviceCode,
       grant_type: DEVICE_GRANT_TYPE,
     }),

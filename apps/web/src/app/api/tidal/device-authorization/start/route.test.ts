@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/auth0", () => ({ requireAuth0Subject: mocks.requireAuth0Subject }));
 vi.mock("@/lib/tidal/oauth", () => ({ readTidalOAuthConfig: mocks.readConfig }));
 vi.mock("@/lib/tidal/device-authorization", () => ({
+  TidalDeviceAuthorizationError: class extends Error {
+    constructor(public readonly code: string) {
+      super(code);
+    }
+  },
   startTidalDeviceAuthorization: mocks.start,
 }));
 
@@ -41,5 +46,19 @@ describe("POST /api/tidal/device-authorization/start", () => {
     mocks.requireAuth0Subject.mockRejectedValue(new Error("unauthorized"));
     expect((await POST()).status).toBe(401);
     expect(mocks.start).not.toHaveBeenCalled();
+  });
+
+  it("offers OAuth reconnect when the client cannot use device authorization", async () => {
+    const { TidalDeviceAuthorizationError } = await import("@/lib/tidal/device-authorization");
+    mocks.start.mockRejectedValue(
+      new TidalDeviceAuthorizationError("tidal_device_client_unsupported"),
+    );
+
+    const response = await POST();
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      code: "tidal_device_client_unsupported",
+    });
   });
 });

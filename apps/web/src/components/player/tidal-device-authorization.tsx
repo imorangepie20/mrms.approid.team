@@ -60,8 +60,18 @@ export function TidalDeviceAuthorization({
     setError(null);
     try {
       const response = await fetcher("/api/tidal/device-authorization/start", { method: "POST" });
-      if (!response.ok) throw new Error("tidal_device_authorization_failed");
-      const next = await response.json() as Authorization;
+      const body = await response.json() as Authorization & {
+        code?: string;
+      };
+      if (!response.ok) {
+        if (body.code === "tidal_device_client_unsupported") {
+          setError("TIDAL Limited Input Device 클라이언트 설정이 필요합니다.");
+          setStatus("idle");
+          return;
+        }
+        throw new Error("tidal_device_authorization_failed");
+      }
+      const next = body;
       setAuthorization(next);
       setStatus("pending");
       void poll(next, next.intervalSeconds);

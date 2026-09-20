@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  TidalDeviceAuthorizationError,
   pollTidalDeviceAuthorization,
   startTidalDeviceAuthorization,
 } from "./device-authorization";
@@ -10,6 +11,8 @@ const config = {
   clientId: "client-id",
   clientSecret: "client-secret",
   deviceAuthorizationUrl: "https://auth.tidal.com/v1/oauth2/device_authorization",
+  deviceClientId: "device-client-id",
+  deviceClientSecret: "device-client-secret",
   deviceScopes: ["r_usr", "r_stream"],
   redirectUri: "https://mrms.approid.team/api/tidal/callback",
   scopes: ["playlists.read", "search.read", "playback", "user.read"],
@@ -17,6 +20,18 @@ const config = {
 };
 
 describe("TIDAL device authorization", () => {
+  it("identifies clients that cannot use the device authorization grant", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: "invalid_request",
+      error_description: "Client is not a Limited Input Device client",
+      sub_status: 1002,
+    }), { status: 400 }));
+
+    await expect(startTidalDeviceAuthorization(config, fetcher)).rejects.toEqual(
+      new TidalDeviceAuthorizationError("tidal_device_client_unsupported"),
+    );
+  });
+
   it("parses camel-case device authorization fields", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       deviceCode: "device-1",
@@ -38,6 +53,7 @@ describe("TIDAL device authorization", () => {
       intervalSeconds: 5,
     });
     const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(request.body?.toString()).toContain("client_id=device-client-id");
     expect(request.body?.toString()).toContain("scope=r_usr+r_stream");
   });
 
@@ -74,6 +90,10 @@ describe("TIDAL device authorization", () => {
         scope: "r_usr r_stream",
         userId: "123",
       },
+    });
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(request.headers).toMatchObject({
+      authorization: `Basic ${Buffer.from("device-client-id:device-client-secret").toString("base64")}`,
     });
   });
 });

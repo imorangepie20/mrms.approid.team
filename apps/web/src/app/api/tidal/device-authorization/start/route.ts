@@ -1,5 +1,8 @@
 import { requireAuth0Subject } from "@/lib/auth/auth0";
-import { startTidalDeviceAuthorization } from "@/lib/tidal/device-authorization";
+import {
+  TidalDeviceAuthorizationError,
+  startTidalDeviceAuthorization,
+} from "@/lib/tidal/device-authorization";
 import { readTidalOAuthConfig } from "@/lib/tidal/oauth";
 
 export async function POST() {
@@ -11,7 +14,13 @@ export async function POST() {
   try {
     const authorization = await startTidalDeviceAuthorization(readTidalOAuthConfig());
     return Response.json(authorization, { headers: { "cache-control": "no-store" } });
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof TidalDeviceAuthorizationError &&
+      error.code === "tidal_device_client_unsupported"
+    ) {
+      return Response.json({ code: error.code }, { status: 409 });
+    }
     return Response.json({ code: "tidal_device_authorization_failed" }, { status: 502 });
   }
 }
