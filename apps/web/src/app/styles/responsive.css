@@ -1,0 +1,204 @@
+@media (hover: hover) {
+  .app-nav-item:hover,
+  .app-search:hover {
+    background: rgba(255, 255, 255, 0.055);
+    color: #eeeaf5;
+  }
+
+  .album-cover:hover button,
+  .gateway-cover:hover button {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 900px) {
+  .onboarding-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-intro {
+    min-height: auto;
+  }
+
+  .onboarding-intro ol {
+    margin-top: 38px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --mobile-navigation-height: 4.25rem;
+  }
+
+  .app-navigation {
+    display: none;
+  }
+
+  .mobile-quick-nav {
+    position: fixed;
+    right: 0;
+    bottom: var(--player-height);
+    left: 0;
+    z-index: 35;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: var(--mobile-navigation-height);
+    padding: 6px;
+    border-top: 1px solid var(--border);
+    background: #0b0b12;
+  }
+
+  .mobile-quick-nav a {
+    display: grid;
+    min-height: 44px;
+    place-items: center;
+    border-radius: 10px;
+    color: #918b9c;
+    font-size: var(--font-meta);
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+  }
+
+  .mobile-quick-nav a[aria-current="page"] {
+    background: rgba(139, 92, 246, 0.14);
+    color: #d5c8fb;
+  }
+
+  .page-shell {
+    margin-left: 0;
+    padding-bottom: calc(var(--player-height) + var(--mobile-navigation-height) + 1rem);
+  }
+
+  .dashboard-player {
+    left: 0;
+  }
+
+  .auth-controls {
+    top: 8px;
+    right: 10px;
+  }
+
+  .auth-controls a {
+    min-height: 40px;
+    padding: 0 11px;
+    font-size: 13px;
+  }
+
+  .dashboard-page {
+    padding: 0 16px 28px;
+  }
+
+  .space-title {
+    height: 58px;
+    padding-right: 150px;
+    font-size: 21px;
+  }
+
+  .space-title small {
+    font-size: 11px;
+  }
+
+  .space-hero {
+    min-height: 178px;
+    margin: 20px 0 28px;
+    padding: 26px 24px;
+  }
+
+  .space-hero h1,
+  .home-hero h1 {
+    font-size: 31px;
+  }
+
+  .space-hero span {
+    display: block;
+    max-width: 75%;
+    font-size: 15px;
+  }
+
+  .space-hero strong {
+    top: 28px;
+    right: 24px;
+    font-size: 25px;
+  }
+
+  .filter-row {
+    overflow-x: auto;
+  }
+
+  .filter-row input {
+    min-width: 120px;
+  }
+
+  .track-row {
+    grid-template-columns: 24px 38px minmax(0, 1fr) 44px;
+    padding: 10px 12px;
+  }
+
+  .track-row span,
+  .track-row em {
+    display: none;
+  }
+
+  .track-row b {
+    overflow: hidden;
+    font-size: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .track-row b small {
+    overflow: hidden;
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dash-heading {
+    font-size: 20px;
+  }
+
+  .home-summary {
+    margin-top: -12px;
+    padding: 12px 14px;
+  }
+
+  .home-summary a,
+  .collection-heading > a {
+    font-size: 13px;
+  }
+
+  .home-collection {
+    margin-top: 24px;
+  }
+
+  .collection-heading p {
+    font-size: 13px;
+  }
+
+  .onboarding-layout {
+    margin-top: 18px;
+  }
+
+  .onboarding-intro,
+  .onboarding-form > section {
+    min-height: auto;
+    padding: 28px 24px;
+  }
+
+  .onboarding-intro h1 {
+    font-size: 30px;
+  }
+
+  .onboarding-intro ol {
+    margin-top: 32px;
+  }
+
+  .account-page {
+    padding-top: 52px;
+  }
+
+  .account-panel {
+    grid-template-columns: 1fr;
+  }
+}

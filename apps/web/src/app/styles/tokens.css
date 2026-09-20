@@ -1,0 +1,33 @@
+:root {
+  --background: #08080f;
+  --foreground: #f0eef8;
+  --surface: #111119;
+  --surface-raised: #16161f;
+  --border: rgba(255, 255, 255, 0.08);
+  --brand: #8b5cf6;
+  --brand-soft: #c4b5fd;
+  --accent: #00d4c8;
+  --muted: #aaa4b6;
+  --subtle: #858096;
+  --focus-ring: #b879ff;
+  --sidebar-width: 260px;
+  --player-height: 5rem;
+  --mobile-navigation-height: 4.25rem;
+  --font-body: 1rem;
+  --font-ui: 0.875rem;
+  --font-nav: 0.9375rem;
+  --font-meta: 0.75rem;
+  --font-section: 1.375rem;
+  --font-page: 1.5rem;
+  --font-display: clamp(2.125rem, 3vw, 2.5rem);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+  --radius-feature: 1.25rem;
+}
