@@ -45,7 +45,7 @@ export default function HomePage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 pb-32 text-slate-100">
+    <main className="min-h-screen bg-slate-950 pb-[var(--player-height)] text-slate-100">
       <a
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-slate-950"
         href="#discovery"

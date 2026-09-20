@@ -3,6 +3,7 @@
 :root {
   --background: #020617;
   --foreground: #f8fafc;
+  --player-height: 5rem;
 }
 
 * {

@@ -361,7 +361,7 @@ npm run test -- src/components/music/preference-actions.test.tsx
 
 Expected: PASS; a rejected ID stays absent from the GMS list and acceptance appears in MMS.
 
-### Task 7: Add the persistent player and complete end-to-end UI verification
+### Task 7: Add the persistent player and complete end-to-end UI verification ✅
 
 **Files:**
 - Create: `apps/web/src/components/player/persistent-player.tsx`
