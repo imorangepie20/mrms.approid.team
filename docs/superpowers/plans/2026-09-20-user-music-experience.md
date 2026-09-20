@@ -268,7 +268,7 @@ npm run lint
 
 Expected: PASS; the page has bottom padding at least equal to the fixed-player height.
 
-### Task 5: Implement TIDAL onboarding and MMS initialization
+### Task 5: Implement TIDAL onboarding and MMS initialization ✅
 
 **Files:**
 - Create: `apps/web/src/app/onboarding/page.tsx`
