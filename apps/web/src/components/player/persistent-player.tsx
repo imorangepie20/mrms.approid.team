@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 import { FullPlayerDialog } from "./full-player-dialog";
-import { TidalEmbedDialog } from "./tidal-embed-dialog";
+import { TidalDeviceAuthorization } from "./tidal-device-authorization";
 
 function formatTime(seconds: number) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -14,7 +14,6 @@ function formatTime(seconds: number) {
 
 export function PersistentPlayer() {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
-  const [isTidalPlayerOpen, setIsTidalPlayerOpen] = useState(false);
   const {
     currentIndex,
     currentTrack,
@@ -23,7 +22,6 @@ export function PersistentPlayer() {
     isMuted,
     isPlaying,
     nextTrack,
-    pausePlayback,
     playbackError,
     playbackPosition,
     playbackStatus,
@@ -42,12 +40,8 @@ export function PersistentPlayer() {
   const canPrevious = currentIndex !== null && (currentIndex > 0 || repeatMode === "all");
   const canNext = currentIndex !== null && (currentIndex < queue.length - 1 || repeatMode === "all");
   const repeatLabel = repeatMode === "off" ? "반복 끔" : repeatMode === "all" ? "전체 반복" : "한 곡 반복";
-  const tidalTrackId = currentTrack?.tidalTrackId;
-
-  const openTidalPlayer = async () => {
-    await pausePlayback().catch(() => undefined);
-    setIsTidalPlayerOpen(true);
-  };
+  const needsDeviceAuthorization = playbackError === "tidal_device_authorization_required" ||
+    playbackError === "tidal_stream_scope_required";
 
   return (
     <>
@@ -86,17 +80,7 @@ export function PersistentPlayer() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                {tidalTrackId ? (
-                  <button
-                    aria-label="TIDAL 전체 재생"
-                    className="grid size-10 place-items-center rounded-full border border-cyan-300/30 text-[11px] font-bold tracking-[0.12em] text-cyan-200 hover:bg-cyan-300/10 sm:w-auto sm:px-3"
-                    type="button"
-                    onClick={() => void openTidalPlayer()}
-                  >
-                    <span className="sm:hidden">T</span>
-                    <span className="hidden sm:inline">TIDAL</span>
-                  </button>
-                ) : null}
+                {needsDeviceAuthorization ? <TidalDeviceAuthorization /> : null}
                 <button
                   aria-label={shuffleEnabled ? "셔플 끄기" : "셔플 켜기"}
                   aria-pressed={shuffleEnabled}
@@ -194,14 +178,6 @@ export function PersistentPlayer() {
           onToggleMute={() => void toggleMute()}
           onTogglePlayback={() => void togglePlayback()}
           onVolumeChange={(level) => void setVolume(level)}
-        />
-      ) : null}
-      {isTidalPlayerOpen && currentTrack && tidalTrackId ? (
-        <TidalEmbedDialog
-          kind="track"
-          resourceId={tidalTrackId}
-          title={currentTrack.title}
-          onClose={() => setIsTidalPlayerOpen(false)}
         />
       ) : null}
     </>

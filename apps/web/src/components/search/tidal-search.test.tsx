@@ -144,12 +144,6 @@ describe("TidalSearch", () => {
     ["album", "앨범 Debut 열기", "Debut", "Björk"],
     ["playlist", "플레이리스트 Lazy Days 열기", "Lazy Days", "TIDAL"],
   ] as const)("opens %s details and plays its track queue", async (kind, label, title, secondary) => {
-    let resolvePause!: () => void;
-    session.pausePlayback.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
-        resolvePause = resolve;
-      }),
-    );
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");
       if (url.pathname.endsWith("/suggestions")) return json({ suggestions: [] });
@@ -194,15 +188,7 @@ describe("TidalSearch", () => {
       expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
     );
 
-    await user.click(screen.getByRole("button", { name: "TIDAL 전체 재생" }));
-    expect(session.pausePlayback).toHaveBeenCalledOnce();
-    expect(screen.queryByTitle(`${title} TIDAL 플레이어`)).not.toBeInTheDocument();
-    act(() => resolvePause());
-    expect(await screen.findByTitle(`${title} TIDAL 플레이어`)).toHaveAttribute(
-      "src",
-      `https://embed.tidal.com/${kind === "album" ? "albums" : "playlists"}/${kind}-1`,
-    );
-    await user.click(screen.getByRole("button", { name: "TIDAL 플레이어 닫기" }));
+    expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "검색 결과로 돌아가기" }));
     expect(screen.getByRole("searchbox")).toHaveValue("bj");

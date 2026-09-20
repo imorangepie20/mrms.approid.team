@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TrackList } from "@/components/music/track-list";
-import { TidalEmbedDialog } from "@/components/player/tidal-embed-dialog";
 import type { PlayableTrack } from "@/lib/tidal/player";
 import type {
   SearchAlbum,
@@ -38,7 +37,7 @@ type CatalogDetail = CatalogSelection & {
 };
 
 export function TidalSearch() {
-  const { pausePlayback, playTrack, setQueue } = useMusicSession();
+  const { playTrack, setQueue } = useMusicSession();
   const [activeTab, setActiveTab] = useState<ResultTab>("topHits");
   const [detail, setDetail] = useState<CatalogDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +45,6 @@ export function TidalSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(emptyResults);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [tidalEmbed, setTidalEmbed] = useState<CatalogSelection | null>(null);
   const requestIdRef = useRef(0);
   const detailRequestIdRef = useRef(0);
   const detailHistoryEntryRef = useRef(false);
@@ -173,12 +171,6 @@ export function TidalSearch() {
     }
   };
 
-  const openTidalDetail = async () => {
-    if (!detail) return;
-    await pausePlayback().catch(() => undefined);
-    setTidalEmbed(detail);
-  };
-
   const hasResults = results.tracks.length > 0 ||
     results.albums.length > 0 ||
     results.playlists.length > 0 ||
@@ -186,11 +178,9 @@ export function TidalSearch() {
 
   if (detail) {
     return (
-      <>
-        <CatalogDetailPanel
+      <CatalogDetailPanel
           detail={detail}
           onBack={closeDetail}
-          onOpenTidal={() => void openTidalDetail()}
           onRetry={() => void loadDetail(detail, false)}
           onPlay={(tracks) => {
             const first = tracks[0];
@@ -200,15 +190,6 @@ export function TidalSearch() {
             void playTrack(first, source);
           }}
         />
-        {tidalEmbed ? (
-          <TidalEmbedDialog
-            kind={tidalEmbed.kind}
-            resourceId={tidalEmbed.id}
-            title={tidalEmbed.title}
-            onClose={() => setTidalEmbed(null)}
-          />
-        ) : null}
-      </>
     );
   }
 
@@ -365,7 +346,7 @@ function CatalogArtworkCard({ artworkUrl, id, kind, onOpen, secondary, tertiary,
   return <button aria-label={`${kindLabel} ${title} 열기`} className="group min-w-0 text-left" type="button" onClick={() => onOpen({ artworkUrl, id, kind, secondary, title, trackCount })}><span className="relative block aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95] transition duration-200 group-hover:border-purple-400/40 group-hover:brightness-110 group-focus-visible:outline-2 group-focus-visible:outline-offset-3 group-focus-visible:outline-[var(--focus-ring)]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "album" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</span><span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span><span className="mt-1 block truncate text-sm text-[var(--muted)]">{secondary}</span>{tertiary ? <span className="mt-1 block text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</span> : null}</button>;
 }
 
-function CatalogDetailPanel({ detail, onBack, onOpenTidal, onPlay, onRetry }: { detail: CatalogDetail; onBack: () => void; onOpenTidal: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void }) {
+function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: CatalogDetail; onBack: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const shuffleAndPlay = () => {
     const shuffled = [...detail.tracks];
@@ -397,9 +378,6 @@ function CatalogDetailPanel({ detail, onBack, onOpenTidal, onPlay, onRetry }: { 
             </button>
             <button className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-5 text-sm font-semibold text-[var(--muted)] enabled:hover:text-[var(--foreground)] disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={shuffleAndPlay}>
               셔플
-            </button>
-            <button className="min-h-11 rounded-lg border border-cyan-300/30 bg-cyan-300/[0.06] px-5 text-sm font-semibold text-cyan-100 hover:bg-cyan-300/[0.12]" type="button" onClick={onOpenTidal}>
-              TIDAL 전체 재생
             </button>
           </div>
         </div>
