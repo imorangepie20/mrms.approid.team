@@ -22,6 +22,13 @@ it("renders the Music Pie discovery heading", () => {
   ).toBeInTheDocument();
 });
 
+it("offers public discovery and a separate TIDAL connection action to a guest", () => {
+  renderHomePage();
+
+  expect(screen.getByRole("link", { name: "공개 탐색 시작" })).toHaveAttribute("href", "/ems");
+  expect(screen.getByRole("button", { name: "TIDAL 연결" })).toBeInTheDocument();
+});
+
 it("shows public discovery rails to a guest", () => {
   renderHomePage();
 

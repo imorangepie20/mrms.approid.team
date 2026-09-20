@@ -16,16 +16,16 @@ export function MusicRail({
   onRequestSignIn,
 }: MusicRailProps) {
   return (
-    <section aria-labelledby={`${title}-heading`} className="mt-12">
+    <section aria-labelledby={`${title}-heading`} className="mt-10">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 id={`${title}-heading`} className="text-xl font-bold text-white sm:text-2xl">
+          <h2 id={`${title}-heading`} className="text-xl font-bold text-slate-950 sm:text-2xl">
             {title}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">{description}</p>
+          <p className="mt-1 text-sm text-slate-600">{description}</p>
         </div>
         <button
-          className="min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium text-fuchsia-300 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+          className="min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           type="button"
         >
           모두 보기
