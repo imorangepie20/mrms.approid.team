@@ -130,30 +130,6 @@
     min-width: 120px;
   }
 
-  .track-row {
-    grid-template-columns: 24px 38px minmax(0, 1fr) 44px;
-    padding: 10px 12px;
-  }
-
-  .track-row span,
-  .track-row em {
-    display: none;
-  }
-
-  .track-row b {
-    overflow: hidden;
-    font-size: 15px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .track-row b small {
-    overflow: hidden;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
   .dash-heading {
     font-size: 20px;
   }

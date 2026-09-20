@@ -3,9 +3,10 @@
 - 프로젝트명: `music-pie`
 - 목표: 사용자의 음악 취향을 분석해서 추천하는 웹 / 앱
 - 사용자 역할과 핵심 업무: 타이달 유저, 타이달과 연결 플레이리스트를 가져와 음악취향을 분석하고 그에 맞게 추천받는다.
-- 기술 스택과 버전: 관리자 프런트엔드는 React, Vite, TypeScript, Tailwind CSS. 백엔드·인프라는 Node.js, PostgreSQL, FastAPI, Spring Boot, Tomcat, Zorin OS 홈서버로 계획되어 있으며 실제 구성과 버전은 확인한다.
-- 관리자 템플릿: `C:\Wspace\hud-admin-template` 프로젝트를 복사하여 사용한다.
-- 타이달 API 연동
+- 현재 웹 기술 스택: Next.js 16, React 19, TypeScript, Tailwind CSS, Auth0, PostgreSQL 클라이언트, TIDAL Web API와 `@tidal-music/player`.
+- 계획된 별도 백엔드·인프라: PostgreSQL, FastAPI, Spring Boot, Tomcat, Zorin OS 홈서버. 실제 도입 전 구성과 버전을 확인한다.
+- 관리자 템플릿 후보: `C:\Wspace\hud-admin-template`. 현재 사용자 웹은 `apps/web`의 Next.js 구현을 사용한다.
+- TIDAL 검색·인증·재생 연동을 제공한다.
 
 ## 확정된 초기 전략
 
@@ -29,5 +30,4 @@
 2. 트랙이 있는 어느 페이지에서도 플레이가 가능해야 하며 페이지 이동 시에도 유지 해야 한다.
 3. 음악과 관련된 배경이미지를 충분히 활용한다. 앨범아트도 충분히 활용한다.
 4. 메인 : 최신곡, 최신 플레이리스트, 추천곡, 추천플레이 리스트, 스트리밍 플랫폼 별 플레이 리스트 등으로 충분히 화면을 풍성하게 채운다. 
-
 

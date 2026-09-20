@@ -34,6 +34,7 @@ function fakeEngine() {
     play: vi.fn().mockResolvedValue(undefined),
     reset: vi.fn().mockResolvedValue(undefined),
     seek: vi.fn().mockResolvedValue(undefined),
+    setVolume: vi.fn().mockResolvedValue(undefined),
     setNext: vi.fn().mockResolvedValue(undefined),
     subscribe(listener) {
       listeners.add(listener);
@@ -100,5 +101,40 @@ describe("PersistentPlayer", () => {
     expect(
       screen.getByRole("dialog", { name: "전체 화면 플레이어" }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("0:42").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("3:05").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Track A 재생 중" })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
+  it("controls shuffle, repeat, and volume from the persistent player", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+
+    const shuffle = screen.getByRole("button", { name: "셔플 켜기" });
+    await user.click(shuffle);
+    expect(screen.getByRole("button", { name: "셔플 끄기" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await user.click(screen.getByRole("button", { name: "반복 끔" }));
+    expect(screen.getByRole("button", { name: "전체 반복" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("slider", { name: "볼륨" }), {
+      target: { value: "35" },
+    });
+    expect(engine.setVolume).toHaveBeenCalledWith(35);
+    await user.click(screen.getByRole("button", { name: "음소거" }));
+    expect(engine.setVolume).toHaveBeenCalledWith(0);
   });
 });

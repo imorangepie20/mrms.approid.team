@@ -19,6 +19,7 @@ function sdkFixture() {
     play: vi.fn().mockResolvedValue(undefined),
     reset: vi.fn().mockResolvedValue(undefined),
     seek: vi.fn().mockResolvedValue(undefined),
+    setVolumeLevel: vi.fn(),
     setCredentialsProvider: vi.fn(),
     setEventSender: vi.fn(),
     setNext: vi.fn().mockResolvedValue(undefined),
@@ -184,5 +185,16 @@ describe("TIDAL playback engine", () => {
     )).resolves.toBeUndefined();
 
     expect(eventSender).toEqual({ sendEvent: expect.any(Function) });
+  });
+
+  it("sets the SDK volume after initialization", async () => {
+    const { sdk } = sdkFixture();
+    const engine = createTidalPlaybackEngine({
+      sdkImporter: vi.fn().mockResolvedValue(sdk),
+    });
+
+    await engine.setVolume(35);
+
+    expect(sdk.setVolumeLevel).toHaveBeenCalledWith(35);
   });
 });

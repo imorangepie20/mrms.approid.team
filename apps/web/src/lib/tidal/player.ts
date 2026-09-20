@@ -1,6 +1,6 @@
 import type { Track } from "@/lib/music/types";
 
-export type PlaybackSource = "playlist" | "search" | "mms" | "gms";
+export type PlaybackSource = "playlist" | "search" | "ems" | "mms" | "gms";
 export type PlayableTrack = Track & {
   durationSeconds: number | null;
   tidalTrackId: string;
@@ -27,6 +27,7 @@ export interface PlaybackEngine {
   play(): Promise<void>;
   reset(): Promise<void>;
   seek(seconds: number): Promise<void>;
+  setVolume(level: number): Promise<void>;
   setNext(
     track: PlayableTrack | null,
     source: PlaybackQueueSource,
@@ -46,6 +47,7 @@ type PlayerSdk = {
   play(): Promise<void>;
   reset(): Promise<void>;
   seek(seconds: number): Promise<void>;
+  setVolumeLevel(level: number): void;
   setCredentialsProvider(provider: CredentialsProvider): void;
   setEventSender(sender: EventSender): void;
   setNext(mediaProduct?: MediaProduct): Promise<void>;
@@ -244,6 +246,10 @@ export function createTidalPlaybackEngine(
     },
     async seek(seconds) {
       await requireSdk().seek(seconds);
+    },
+    async setVolume(level) {
+      await initialize();
+      requireSdk().setVolumeLevel(level);
     },
     async setNext(track, source) {
       await requireSdk().setNext(track ? mediaProduct(track, source) : undefined);
