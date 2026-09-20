@@ -42,7 +42,7 @@
 | `apps/web/src/app/*` | Public home, onboarding, GMS, MMS, and protected route pages |
 | `apps/web/src/**/*.test.tsx` | Unit and interaction tests colocated with their UI or state module |
 
-### Task 1: Create the user web workspace and test harness
+### Task 1: Create the user web workspace and test harness ✅
 
 **Files:**
 - Create: `apps/web/` via Next.js initializer
