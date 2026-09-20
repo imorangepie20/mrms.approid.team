@@ -15,5 +15,19 @@ const requiredKeys: Array<keyof Auth0Environment> = [
 ];
 
 export function hasAuth0Configuration(environment: Auth0Environment) {
-  return requiredKeys.every((key) => Boolean(environment[key]?.trim()));
+  if (!requiredKeys.every((key) => Boolean(environment[key]?.trim()))) {
+    return false;
+  }
+
+  try {
+    const rawAppBaseUrl = environment.APP_BASE_URL!;
+    if (rawAppBaseUrl.includes(",")) {
+      return false;
+    }
+
+    const appBaseUrl = new URL(rawAppBaseUrl);
+    return appBaseUrl.protocol === "https:" || appBaseUrl.protocol === "http:";
+  } catch {
+    return false;
+  }
 }
