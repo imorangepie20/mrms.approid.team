@@ -5,6 +5,10 @@ import Image from "next/image";
 
 import { catalog } from "@/lib/music/fixtures";
 import { getGatewayTracks } from "@/lib/music/recommendations";
+import {
+  canUsePersonalization,
+  type PersonalizationAccess,
+} from "@/lib/auth/access-policy";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 type Space = "home" | "ems" | "gms" | "mms";
@@ -15,13 +19,24 @@ const copy = {
   mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
 } as const;
 
-export function MusicDashboard({ space }: { space: Space }) {
-  const { acceptTrack, isAuthenticated, isPersonalized, musicState, playTrack, rejectTrack } = useMusicSession();
+export function MusicDashboard({ access, space }: { access?: PersonalizationAccess; space: Space }) {
+  const { acceptTrack, musicState, playTrack, rejectTrack } = useMusicSession();
   const tracks = space === "gms" ? getGatewayTracks(catalog, musicState.mmsTrackIds, musicState.rejectedTrackIds) : space === "mms" ? catalog.filter((track) => musicState.mmsTrackIds.includes(track.id)) : catalog;
 
   if (space === "home") return <Home />;
   const meta = copy[space];
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "ems" ? <Filters /> : null}{space === "gms" ? <p className="notice">★ 싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" ? <Gateway tracks={tracks} active={isAuthenticated && isPersonalized} onPlay={playTrack} onAccept={acceptTrack} onReject={rejectTrack} /> : <TrackTable tracks={tracks} onPlay={playTrack} empty={space === "mms" ? "TIDAL 연결 후 선택한 트랙이 이곳에 표시됩니다." : "표시할 트랙이 없습니다."} />}</section>;
+  const personalizationAllowed = access ? canUsePersonalization(access) : false;
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "ems" ? <Filters /> : null}{space === "gms" && personalizationAllowed ? <p className="notice">★ 싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{(space === "gms" || space === "mms") && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway tracks={tracks} active onPlay={playTrack} onAccept={acceptTrack} onReject={rejectTrack} /> : <TrackTable tracks={tracks} onPlay={playTrack} empty={space === "mms" ? "TIDAL 연결 후 선택한 트랙이 이곳에 표시됩니다." : "표시할 트랙이 없습니다."} />}</section>;
+}
+
+function PersonalizationGate({ access, returnTo }: { access: PersonalizationAccess; returnTo: string }) {
+  if (!access.isAuthenticated) {
+    return <div className="empty-state"><b>로그인이 필요합니다.</b><p>개인 음악 공간은 사용자별로 분리됩니다.</p><a href={`/api/auth/login?returnTo=${returnTo}`}>로그인하고 계속하기</a></div>;
+  }
+
+  const reconnect = access.connectionStatus === "reauthentication_required";
+  const pending = access.connectionStatus === "authorization_pending";
+  return <div className="empty-state"><b>{reconnect ? "TIDAL 재연결이 필요합니다." : pending ? "TIDAL 연결을 확인하고 있습니다." : "TIDAL 연결이 필요합니다."}</b><p>{reconnect ? "권한이 만료되었거나 철회되었습니다." : "플레이리스트 동의를 완료하면 개인화 기능이 열립니다."}</p><Link href="/onboarding">{reconnect ? "TIDAL 다시 연결하기" : "TIDAL 연결하기"}</Link></div>;
 }
 
 function Home() {
