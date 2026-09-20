@@ -59,6 +59,20 @@ describe("TIDAL playback engine", () => {
     expect(() => provider.bus(vi.fn())).not.toThrow();
   });
 
+  it("boots the adaptive player for TIDAL DASH streams", async () => {
+    const { sdk } = sdkFixture();
+    const engine = createTidalPlaybackEngine({
+      sdkImporter: vi.fn().mockResolvedValue(sdk),
+    });
+
+    await engine.initialize();
+
+    expect(sdk.bootstrap).toHaveBeenCalledWith({
+      outputDevices: false,
+      players: [{ itemTypes: ["track"], player: "shaka" }],
+    });
+  });
+
   it("initializes once and maps SDK plus media events", async () => {
     const { events, media, sdk } = sdkFixture();
     const sdkImporter = vi.fn().mockResolvedValue(sdk);

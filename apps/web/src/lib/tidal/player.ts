@@ -38,7 +38,7 @@ export interface PlaybackEngine {
 type PlayerSdk = {
   bootstrap(options: {
     outputDevices: boolean;
-    players: Array<{ itemTypes: ["track"]; player: "browser" }>;
+    players: Array<{ itemTypes: ["track"]; player: "shaka" }>;
   }): void;
   events: EventTarget;
   getMediaElement(): HTMLMediaElement | null;
@@ -165,7 +165,7 @@ export function createTidalPlaybackEngine(
         loadedSdk.setEventSender(eventSender);
         loadedSdk.bootstrap({
           outputDevices: false,
-          players: [{ itemTypes: ["track"], player: "browser" }],
+          players: [{ itemTypes: ["track"], player: "shaka" }],
         });
         loadedSdk.events.addEventListener("playback-state-change", (event) => {
           const state = (event as CustomEvent<{ state?: string }>).detail?.state;
