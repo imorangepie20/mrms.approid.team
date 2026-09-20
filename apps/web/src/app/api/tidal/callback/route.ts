@@ -90,7 +90,9 @@ export async function GET(request: Request) {
     }
 
     return clearCookies(
-      NextResponse.redirect(new URL("/onboarding?tidal=connected", request.url)),
+      NextResponse.redirect(
+        new URL("/onboarding?tidal=connected", process.env.APP_BASE_URL),
+      ),
     );
   } catch {
     return clearCookies(new NextResponse("TIDAL connection failed.", { status: 500 }));
