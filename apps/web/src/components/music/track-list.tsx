@@ -100,6 +100,15 @@ function TrackRow({
                 onError={() => setArtworkFailed(true)}
               />
             ) : null}
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 grid place-items-center bg-black/55 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+              data-testid="track-play-overlay"
+            >
+              <svg className="size-5 drop-shadow-sm" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5.4v13.2a1 1 0 0 0 1.52.85l10.1-6.6a1 1 0 0 0 0-1.7l-10.1-6.6A1 1 0 0 0 8 5.4Z" />
+              </svg>
+            </span>
           </span>
           <span className="truncate text-sm font-[560] text-[var(--foreground)]">{track.title}</span>
         </button>

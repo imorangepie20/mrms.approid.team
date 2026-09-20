@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -65,5 +65,24 @@ describe("TrackList", () => {
     );
 
     expect(screen.getByText("아직 저장한 트랙이 없습니다.")).toBeInTheDocument();
+  });
+
+  it("reveals a play overlay on artwork hover or keyboard focus", () => {
+    render(
+      <TrackList
+        source={{ id: "mms", type: "mms" }}
+        tracks={tracks}
+      />,
+    );
+
+    const playButton = screen.getByRole("button", { name: "재생 One More Time" });
+    const overlay = within(playButton).getByTestId("track-play-overlay");
+
+    expect(overlay).toHaveAttribute("aria-hidden", "true");
+    expect(overlay).toHaveClass(
+      "opacity-0",
+      "group-hover:opacity-100",
+      "group-focus-within:opacity-100",
+    );
   });
 });
