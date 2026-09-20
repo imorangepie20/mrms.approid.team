@@ -2,7 +2,7 @@
 
 ## 목적
 
-사용자가 TIDAL 연결 후 자신의 플레이리스트를 조회하고 하나 이상 선택해 music-pie에 저장할 수 있게 한다. 선택한 플레이리스트의 트랙은 ISRC를 기준으로 MusicBrainz 메타데이터를 보강하고 실제 앨범 이미지를 표시한다. TIDAL 연결을 해제해도 이미 저장한 플레이리스트, 트랙, 보강 결과, 이미지 참조와 이를 이용한 MMS 데이터는 유지하며, 재연결 시 기존 데이터에 이어서 동기화한다.
+사용자가 TIDAL 연결 후 자신의 플레이리스트를 조회하고 하나 이상 선택해 music-pie에 저장할 수 있게 한다. 선택한 플레이리스트의 트랙은 ISRC를 기준으로 MusicBrainz 메타데이터를 보강하고 실제 앨범 이미지를 표시한다. TIDAL 카탈로그를 검색해 기존 music-pie 플레이어 UI에서 재생할 수 있게 한다. TIDAL 연결을 해제해도 이미 저장한 플레이리스트, 트랙, 보강 결과, 이미지 참조와 이를 이용한 MMS 데이터는 유지하며, 재연결 시 기존 데이터에 이어서 동기화한다.
 
 ## 범위
 
@@ -14,6 +14,8 @@
 - Cover Art Archive 앨범 이미지 대체 경로
 - 가져오기와 보강 진행 상태 및 오류 표시
 - TIDAL 연결 해제와 재연결
+- TIDAL 카탈로그 트랙·앨범·아티스트 검색
+- 기존 하단·전체화면 플레이어 UI와 TIDAL Web Player SDK 연결
 - 기존 온보딩의 가짜 플레이리스트·메모리 전용 MMS 초기화를 실제 API 흐름으로 교체
 
 ## 범위 밖
@@ -25,6 +27,7 @@
 - 이미지 바이너리의 자체 복제·저장
 - 추천 모델 학습 알고리즘 변경
 - 관리자용 수동 매칭 화면
+- 영상 재생과 출력 장치 선택
 
 ## 설계 원칙
 
@@ -64,6 +67,44 @@ TIDAL의 cursor URL은 어댑터 밖에서 조립하지 않는다. 최초 URL만
 7. 수집이 끝나면 작업을 `completed`로 바꾸고 저장된 플레이리스트·트랙 수를 기록한다.
 
 한 페이지 저장이 실패하면 해당 페이지 트랜잭션만 롤백하고 가져오기 작업은 `failed`가 된다. 이전에 완료한 페이지와 기존 스냅샷은 유지한다. 같은 선택을 다시 요청하면 upsert와 고유 키를 통해 안전하게 재개한다.
+
+### 검색 서비스
+
+`src/lib/tidal/search.ts`는 TIDAL `searchResults`와 `searchSuggestions` 응답을 music-pie 검색 타입으로 변환한다. 검색 API는 서버에서 현재 사용자의 유효한 access token을 사용하고 다음 규칙을 적용한다.
+
+- 빈 문자열과 공백뿐인 문자열은 외부 요청 없이 빈 결과를 반환한다.
+- 검색어는 trim하며 URL 문자열을 직접 이어 붙이지 않고 URL query parameter로 전달한다.
+- 첫 화면에는 track, album, artist 결과를 구분해 반환한다.
+- track 결과는 TIDAL track ID, 제목, 아티스트, 앨범, 재생 시간, artwork URL을 포함한다.
+- 페이지네이션은 `links.next` cursor를 그대로 사용한다.
+- 검색 결과의 opaque ID를 파싱하거나 숫자로 변환하지 않는다.
+
+`GET /api/tidal/search?q=...`는 `search.read` 권한으로 검색 결과를 반환한다. `GET /api/tidal/search/suggestions?q=...`는 입력 중 추천을 반환한다. UI는 마지막 요청만 화면에 반영하도록 이전 요청을 `AbortController`로 취소한다.
+
+### TIDAL 재생 엔진
+
+기존 `PersistentPlayer`, `FullPlayerDialog`, 재생 버튼의 화면 구조는 유지한다. `src/lib/tidal/player.ts`가 브라우저에서 `@tidal-music/player`를 동적 import하고 한 번만 bootstrap하는 singleton adapter 역할을 맡는다.
+
+- `load`, `play`, `pause`, `seek`, `setNext`, `reset`을 music-pie 인터페이스로 감싼다.
+- SDK의 playback state, ended, media product transition, error 이벤트를 구독한다.
+- `HTMLMediaElement`의 `timeupdate`, `durationchange`, `waiting`, `playing` 이벤트를 애플리케이션 상태로 변환한다.
+- track을 불러올 때 `productId`는 TIDAL track ID, `productType`은 `track`, `sourceType`은 `playlist`, `search`, `mms`, `gms` 중 실제 진입 경로를 사용한다.
+- 다음 트랙은 `setNext`로 준비하고 종료 이벤트에서 queue를 전진시킨다.
+- 서버 렌더링 중에는 SDK를 import하거나 초기화하지 않는다.
+
+`MusicSessionProvider`는 UI 상태의 소유자이되 실제 재생 여부를 추정하지 않는다. 재생 엔진 이벤트를 받아 `idle`, `loading`, `playing`, `paused`, `stalled`, `error` 상태와 실제 초 단위 위치·길이를 보관한다.
+
+### 재생 credentials 브리지
+
+기존 서버 저장 OAuth 흐름을 유지한다. `GET /api/tidal/playback-credentials`는 Auth0 세션과 사용자 연결을 검증하고 `@tidal-music/player`의 `CredentialsProvider`가 요구하는 최소 credentials를 반환한다.
+
+- access token이 충분히 유효하면 복호화해 반환한다.
+- 만료됐거나 만료 60초 전이면 서버에서 refresh한 뒤 회전된 token을 암호화 저장한다.
+- refresh token은 브라우저 응답에 포함하지 않는다.
+- `clientId`, `token`, `expires`, `grantedScopes`, `requestedScopes`만 반환한다.
+- `playback` 권한이 없으면 안정적인 `tidal_playback_scope_required` 오류를 반환한다.
+
+OAuth 기본 요청 권한은 `playlists.read search.read playback user.read`다. 기존 연결이 이 집합을 충족하지 않으면 재연결 상태를 표시한다.
 
 ### MusicBrainz 보강 서비스
 
@@ -178,6 +219,18 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 
 연결되지 않았으면 `409 { "code": "tidal_not_connected" }`, 재인증이 필요하면 `401 { "code": "tidal_reauthentication_required" }`를 반환한다.
 
+### `GET /api/tidal/search`
+
+`q`와 선택적 cursor를 받아 track·album·artist 결과를 반환한다. 빈 검색어는 외부 요청 없이 빈 배열을 반환한다. 결과 track은 바로 player queue에 넣을 수 있는 `PlayableTrack` 형태다.
+
+### `GET /api/tidal/search/suggestions`
+
+두 글자 이상의 검색어에 대한 자동완성 후보를 반환한다. 더 짧은 입력은 외부 요청 없이 빈 배열을 반환한다.
+
+### `GET /api/tidal/playback-credentials`
+
+공식 Player SDK용 access credentials를 반환한다. refresh가 필요하면 서버에서 먼저 갱신하며 refresh token은 반환하지 않는다.
+
 ### `POST /api/playlists/import`
 
 ```json
@@ -208,6 +261,9 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 6. 빈 플레이리스트는 선택할 수 있지만 가져온 트랙 수가 0임을 명확히 표시한다. 모든 선택 항목이 비었으면 MMS 완료로 전환하지 않는다.
 7. 계정 화면의 “TIDAL 연결 해제”는 확인 대화상자에서 “저장한 음악과 MMS는 유지되고 이후 동기화만 중단됨”을 알린다.
 8. 연결 해제 후 MMS와 저장 라이브러리는 계속 열리고, 동기화 버튼만 재연결 CTA로 바뀐다.
+9. 검색 화면은 track·album·artist 결과를 구분하고 track의 재생 버튼을 누르면 기존 하단 플레이어가 열린다.
+10. 하단 플레이어는 페이지 이동 중 유지되며 실제 재생 위치, 길이, 일시 정지, 이전·다음 트랙을 반영한다.
+11. 전체화면 플레이어는 같은 재생 엔진 상태를 공유하고 별도의 audio element를 만들지 않는다.
 
 ## 오류 처리
 
@@ -218,6 +274,10 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 - MusicBrainz 503/네트워크 오류: 최대 5회 지수형 재시도 후 `failed`로 바꾼다.
 - 이미지 404/로드 실패: 데이터 상태를 실패로 바꾸지 않고 UI placeholder를 사용한다.
 - DB 쓰기 실패: 토큰이나 외부 응답 body를 로그에 넣지 않고 안정적인 오류 코드만 기록한다.
+- 검색 요청 역전: 취소되거나 이전 검색어에 속한 응답은 현재 결과를 덮어쓰지 않는다.
+- Player SDK 초기화 실패: 기존 UI에 재시도 가능한 오류를 표시하고 중복 bootstrap하지 않는다.
+- 재생 credentials 갱신 실패: 연결을 `reauthentication_required`로 바꾸고 현재 queue를 보존한다.
+- 재생 asset 로드 실패: 실패한 트랙을 표시하고 자동으로 무한 다음 넘김을 수행하지 않는다.
 
 ## 테스트 전략
 
@@ -229,6 +289,9 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 - MusicBrainz 0개·1개·복수 recording 판정
 - 대표 release의 유일성 판정
 - 앨범 이미지 우선순위
+- 검색 응답의 track·album·artist 정규화와 cursor 유지
+- TIDAL Player SDK adapter의 상태·종료·오류 이벤트 변환
+- 퍼센트 UI와 초 단위 seek 변환
 
 ### repository 테스트
 
@@ -248,6 +311,10 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 - 보강 실패가 MMS 진입을 막지 않음
 - 연결 해제 확인 문구와 저장 데이터 유지 상태
 - 이미지 실패 placeholder
+- 검색 결과 재생이 기존 하단 플레이어를 여는 동작
+- 빠른 연속 검색에서 마지막 응답만 표시되는 동작
+- 브라우저 라우팅 후 동일 재생 세션 유지
+- playback credentials가 refresh token을 노출하지 않는 동작
 
 ### 검증
 
@@ -257,6 +324,8 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 - `npm run build`
 - 실제 PostgreSQL에 expand migration 적용 후 두 사용자 격리 확인
 - 실제 TIDAL 계정으로 playlist pagination·재가져오기·재연결 확인
+- 실제 TIDAL 계정으로 검색 결과 track의 load·play·pause·seek·next 확인
+- OAuth token의 `playlists.read search.read playback user.read` 권한 확인
 - MusicBrainz 호출 간격과 `User-Agent` 확인
 
 ## 완료 기준
@@ -268,3 +337,5 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 - 연결 해제 후 토큰은 제거되지만 저장한 플레이리스트·트랙·보강 결과·MMS는 유지된다.
 - 재연결과 재가져오기에서 중복 데이터가 생기지 않는다.
 - 다른 사용자의 플레이리스트, 트랙, 가져오기 작업을 읽거나 변경할 수 없다.
+- TIDAL 검색 결과를 기존 하단·전체화면 플레이어에서 재생할 수 있다.
+- 페이지 이동 후에도 클라이언트 세션의 현재 트랙과 재생 상태가 유지된다.
