@@ -1,0 +1,6 @@
+BEGIN;
+
+DROP TABLE IF EXISTS tidal_connections;
+DROP TABLE IF EXISTS app_users;
+
+COMMIT;
