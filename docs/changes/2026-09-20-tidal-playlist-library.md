@@ -1,0 +1,8 @@
+# TIDAL 플레이리스트 저장과 MusicBrainz 보강
+
+- 날짜·작업명: 2026-09-20 TIDAL 플레이리스트 선택·저장, MusicBrainz 보강, 이미지 참조, 연결 해제 후 데이터 유지
+- 변경 이유: 온보딩의 고정 플레이리스트 fixture와 메모리 전용 MMS 초기화를 실제 사용자 TIDAL 데이터 흐름으로 교체하고, 다시 가져오기와 연결 해제에도 사용자별 음악 라이브러리가 유지되게 할 필요가 있었다.
+- 최종 동작·관련 경로: `apps/web/src/lib/db/migrations/002_tidal_connection_runtime.sql`과 `003_user_music_library.sql`에 토큰 수명주기, 플레이리스트·트랙·가져오기·MusicBrainz 작업 스키마를 추가했다. `/api/tidal/playlists`, `/api/playlists/import`, `/api/playlists/import/[importId]`, `/api/musicbrainz/enrich`가 실제 목록 조회, 선택 저장, 진행 조회와 ISRC 보강을 담당한다. 온보딩은 서버가 보고한 저장 트랙 수가 1개 이상이면 MMS 진입을 열고 MusicBrainz 보강은 백그라운드에서 계속한다. 앨범 이미지는 TIDAL URL을 우선 사용하고 보강 성공 시 Cover Art Archive URL을 저장한다. `/api/tidal/disconnect`는 트랜잭션 안에서 access/refresh token, 만료 시각과 scope를 제거하고 진행 중 가져오기를 `paused`로 바꾸지만 플레이리스트·트랙·보강 결과·이미지 참조와 MMS 데이터는 삭제하지 않는다.
+- 실제 검증 결과: `npm.cmd run test -- src/lib/db/music-library.test.ts src/app/api/tidal/disconnect/route.test.ts src/components/account/tidal-connection-actions.test.tsx src/app/account/page.test.tsx` 4개 파일·10개 테스트 통과. `npm.cmd run test` 30개 파일·88개 테스트 통과. `npm.cmd run lint` 경고·오류 없이 통과. `npm.cmd run build` 통과했으며 playlist import/status, MusicBrainz enrichment, TIDAL disconnect 라우트가 빌드 결과에 포함됐다.
+- 미검증 항목·이유: 실제 TIDAL 계정의 대용량·다중 페이지 플레이리스트 응답과 운영 PostgreSQL에서의 동시 가져오기·전역 MusicBrainz 요청 간격은 로컬 환경에 실제 외부 계정 및 운영 동시성 조건이 없어 검증하지 않았다. 실제 OAuth callback부터 MMS 진입까지의 브라우저 E2E도 별도 실제 계정 검증이 필요하다.
+- 다음 작업·시작 위치: `docs/superpowers/plans/2026-09-20-tidal-search-player.md` 계획에서 TIDAL 검색 결과와 기존 하단·전체화면 플레이어를 실제 Web Player SDK에 연결한다. 배포 전에는 실제 계정으로 가져오기, 재연결, 중단된 import 재개와 이미지 fallback을 확인한다.

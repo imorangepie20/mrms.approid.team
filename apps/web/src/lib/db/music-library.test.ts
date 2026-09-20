@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   claimEnrichmentJob,
   createImport,
+  disconnectTidal,
   getSavedPlaylists,
   upsertPlaylistPage,
   type TransactionExecutor,
@@ -117,5 +118,28 @@ describe("music library repository", () => {
     const sql = query.mock.calls[0]?.[0] ?? "";
     expect(sql).toMatch(/auth0_subject\s*=\s*\$1/i);
     expect(sql).toMatch(/FOR UPDATE(?: OF j)? SKIP LOCKED/i);
+  });
+
+  it("clears tokens and pauses TIDAL imports without deleting saved music", async () => {
+    const query = vi.fn(async (text: string, values?: unknown[]) => {
+      void values;
+      if (text.includes("playlist_count")) {
+        return { rows: [{ playlist_count: 3, track_count: 80 }] };
+      }
+      return { rows: [] };
+    });
+    const database = { query } as unknown as TransactionExecutor;
+
+    await expect(disconnectTidal("auth0|listener-a", database)).resolves.toEqual({
+      playlistCount: 3,
+      status: "disconnected",
+      trackCount: 80,
+    });
+
+    const sql = query.mock.calls.map(([text]) => text).join("\n");
+    expect(sql).toMatch(/encrypted_access_token\s*=\s*NULL/i);
+    expect(sql).toMatch(/encrypted_refresh_token\s*=\s*NULL/i);
+    expect(sql).toMatch(/status\s*=\s*'paused'/i);
+    expect(sql).not.toMatch(/DELETE FROM (user_playlists|music_tracks)/i);
   });
 });

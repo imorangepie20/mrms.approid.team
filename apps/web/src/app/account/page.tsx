@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { auth0 } from "@/lib/auth/auth0";
+import { TidalConnectionActions } from "@/components/account/tidal-connection-actions";
+import { getUserConnection } from "@/lib/db/user-connections";
 
 type AccountUser = {
   email?: string | null;
@@ -32,7 +34,10 @@ export function AccountPageContent({
           <p>TIDAL</p>
           <strong>{isConnected ? "TIDAL 연결됨" : "TIDAL 연결 필요"}</strong>
           {isConnected ? (
-            <span>개인화 음악 기능을 사용할 수 있습니다.</span>
+            <>
+              <span>개인화 음악 기능을 사용할 수 있습니다.</span>
+              <TidalConnectionActions />
+            </>
           ) : (
             <Link href="/onboarding">TIDAL 연결 계속하기</Link>
           )}
@@ -49,9 +54,11 @@ export default async function AccountPage() {
     redirect("/api/auth/login?returnTo=/account");
   }
 
+  const connection = await getUserConnection(session.user.sub);
+
   return (
     <AccountPageContent
-      tidalStatus="not_connected"
+      tidalStatus={connection?.status === "connected" ? "connected" : "not_connected"}
       user={{ email: session.user.email, name: session.user.name }}
     />
   );

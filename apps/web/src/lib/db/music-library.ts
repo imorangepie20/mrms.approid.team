@@ -487,3 +487,57 @@ export async function countRemainingEnrichmentJobs(
   );
   return result.rows[0]?.count ?? 0;
 }
+
+export async function disconnectTidal(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+) {
+  return inTransaction(executor, async (transaction) => {
+    await transaction.query(
+      `UPDATE tidal_connections AS connection
+       SET status = 'disconnected',
+           encrypted_access_token = NULL,
+           encrypted_refresh_token = NULL,
+           access_token_expires_at = NULL,
+           scope = NULL,
+           disconnected_at = now(),
+           updated_at = now()
+       FROM app_users AS app_user
+       WHERE app_user.auth0_subject = $1
+         AND connection.user_id = app_user.id`,
+      [auth0Subject],
+    );
+
+    await transaction.query(
+      `UPDATE playlist_imports AS i
+       SET status = 'paused', updated_at = now()
+       FROM app_users AS app_user
+       WHERE app_user.auth0_subject = $1
+         AND i.user_id = app_user.id
+         AND i.status IN ('pending', 'running')`,
+      [auth0Subject],
+    );
+
+    const counts = await transaction.query<{
+      playlist_count: number;
+      track_count: number;
+    }>(
+      `SELECT
+         (SELECT count(*)::integer
+          FROM user_playlists AS playlist
+          WHERE playlist.user_id = app_user.id) AS playlist_count,
+         (SELECT count(*)::integer
+          FROM music_tracks AS track
+          WHERE track.user_id = app_user.id) AS track_count
+       FROM app_users AS app_user
+       WHERE app_user.auth0_subject = $1`,
+      [auth0Subject],
+    );
+    const retained = counts.rows[0];
+    return {
+      playlistCount: retained?.playlist_count ?? 0,
+      status: "disconnected" as const,
+      trackCount: retained?.track_count ?? 0,
+    };
+  });
+}
