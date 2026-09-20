@@ -9,12 +9,14 @@ type TidalPlaylist = {
 };
 
 type TidalOnboardingProps = {
+  connectHref?: string;
   playlists: TidalPlaylist[];
   onConnect?: () => Promise<void>;
   onCreateMms?: (selectedPlaylistIds: string[]) => void;
 };
 
 export function TidalOnboarding({
+  connectHref,
   playlists,
   onConnect = async () => {},
   onCreateMms = () => {},
@@ -104,14 +106,23 @@ export function TidalOnboarding({
             연결 후 가져올 플레이리스트를 고르면 MMS와 첫 추천을 만들 수 있어요.
           </p>
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
-          <button
-            className="mt-7 min-h-11 rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200 disabled:cursor-wait disabled:opacity-70"
-            disabled={isConnecting}
-            type="button"
-            onClick={connect}
-          >
-            {isConnecting ? "연결하는 중" : error ? "다시 시도" : "TIDAL 연결하기"}
-          </button>
+          {connectHref ? (
+            <a
+              className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+              href={connectHref}
+            >
+              TIDAL 연결하기
+            </a>
+          ) : (
+            <button
+              className="mt-7 min-h-11 rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200 disabled:cursor-wait disabled:opacity-70"
+              disabled={isConnecting}
+              type="button"
+              onClick={connect}
+            >
+              {isConnecting ? "연결하는 중" : error ? "다시 시도" : "TIDAL 연결하기"}
+            </button>
+          )}
         </>
       ) : (
         <>

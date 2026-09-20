@@ -10,7 +10,7 @@ const tidalPlaylists = [
 ];
 
 export default function OnboardingPage() {
-  const { connectTidal, initializeMms } = useMusicSession();
+  const { initializeMms } = useMusicSession();
 
   return (
     <main className="dashboard-page onboarding-page min-h-screen text-slate-100">
@@ -28,8 +28,8 @@ export default function OnboardingPage() {
         </section>
         <div className="onboarding-form">
         <TidalOnboarding
+          connectHref="/api/tidal/connect"
           playlists={tidalPlaylists}
-          onConnect={() => connectTidal()}
           onCreateMms={(selectedPlaylistIds) => {
             const initialTrackIds = tidalPlaylists
               .filter((playlist) => selectedPlaylistIds.includes(playlist.id))

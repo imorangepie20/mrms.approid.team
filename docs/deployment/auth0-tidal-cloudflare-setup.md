@@ -53,4 +53,21 @@ AUTH0_CLIENT_SECRET=
 APP_BASE_URL=https://mrms.approid.team
 ```
 
-TIDAL callback URL, endpoint, scope, token refresh 정책은 TIDAL 개발자 문서와 실제 권한을 확인한 후 별도 연동 작업에서 등록한다. 추정한 endpoint나 비밀값을 이 저장소의 환경 파일에 넣지 않는다.
+TIDAL 공식 Authorization 문서와 Web API OAS에서 다음 계약을 확인했다.
+
+```dotenv
+TIDAL_CLIENT_ID=
+TIDAL_AUTHORIZE_URL=https://login.tidal.com/authorize
+TIDAL_TOKEN_URL=https://auth.tidal.com/v1/oauth2/token
+TIDAL_REDIRECT_URI=https://mrms.approid.team/api/tidal/callback
+TIDAL_SCOPES=playlists.read
+TOKEN_ENCRYPTION_KEY=
+```
+
+- Authorization Code flow에는 S256 PKCE가 필수다.
+- `playlists.read`는 사용자가 만든 플레이리스트 목록을 읽는 third-party scope다.
+- token 응답은 `access_token`, `expires_in`, 선택적 `refresh_token`, `scope`를 제공한다.
+- refresh token flow는 지원되지만 자동 갱신은 별도 작업에서 구현한다.
+- 사용자가 TIDAL 연결을 해제하면 해당 사용자의 개인 데이터와 token을 삭제하는 경로를 제공해야 한다.
+
+비밀값은 `.env.local` 또는 운영 비밀 관리 시스템에만 저장하고 저장소·응답·로그에 기록하지 않는다.
