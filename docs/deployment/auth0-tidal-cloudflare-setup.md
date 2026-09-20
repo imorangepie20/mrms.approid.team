@@ -43,6 +43,14 @@ nslookup mrms.approid.team 1.1.1.1
 
 ## Auth0와 TIDAL 후속 설정
 
-Auth0 Regular Web Application의 callback URL은 `https://mrms.approid.team/api/auth/callback`, logout URL과 web origin은 `https://mrms.approid.team`으로 등록한다.
+Auth0 Regular Web Application의 callback URL은 `https://mrms.approid.team/api/auth/callback`, logout URL과 web origin은 `https://mrms.approid.team`으로 등록한다. 서버의 `.env.local`에는 다음 v4 SDK 값을 설정한다.
+
+```dotenv
+AUTH0_SECRET=
+AUTH0_DOMAIN=
+AUTH0_CLIENT_ID=
+AUTH0_CLIENT_SECRET=
+APP_BASE_URL=https://mrms.approid.team
+```
 
 TIDAL callback URL, endpoint, scope, token refresh 정책은 TIDAL 개발자 문서와 실제 권한을 확인한 후 별도 연동 작업에서 등록한다. 추정한 endpoint나 비밀값을 이 저장소의 환경 파일에 넣지 않는다.
