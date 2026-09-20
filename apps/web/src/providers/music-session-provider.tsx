@@ -76,8 +76,12 @@ export function MusicSessionProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
   }, []);
 
-  const initializeMms = useCallback((selectedPlaylistIds: string[]) => {
-    if (selectedPlaylistIds.length > 0) {
+  const initializeMms = useCallback((initialTrackIds: string[]) => {
+    if (initialTrackIds.length > 0) {
+      setMusicState((state) => ({
+        ...state,
+        mmsTrackIds: [...new Set([...state.mmsTrackIds, ...initialTrackIds])],
+      }));
       setIsPersonalized(true);
     }
   }, []);

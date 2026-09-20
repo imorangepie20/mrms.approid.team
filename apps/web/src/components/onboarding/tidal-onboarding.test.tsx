@@ -20,10 +20,12 @@ describe("TidalOnboarding", () => {
 
   it("creates MMS after a playlist is selected", async () => {
     const user = userEvent.setup();
+    const createMms = vi.fn();
 
     render(
       <TidalOnboarding
         playlists={[{ id: "p-1", name: "밤 산책", trackCount: 24 }]}
+        onCreateMms={createMms}
       />,
     );
 
@@ -32,6 +34,7 @@ describe("TidalOnboarding", () => {
     await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
 
     expect(screen.getByText(/MMS와 첫 추천이 준비됐어요/i)).toBeInTheDocument();
+    expect(createMms).toHaveBeenCalledWith(["p-1"]);
   });
 
   it("does not create MMS from a playlist with no tracks", async () => {
