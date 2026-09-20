@@ -9,37 +9,43 @@ import {
 } from "./music-library";
 
 function queryExecutor(rows: unknown[] = []) {
+  const query = vi.fn(async (text: string, values?: unknown[]) => {
+    void text;
+    void values;
+    return { rows };
+  });
   return {
-    query: vi.fn().mockResolvedValue({ rows }),
-  } satisfies TransactionExecutor;
+    database: { query } as unknown as TransactionExecutor,
+    query,
+  };
 }
 
 describe("music library repository", () => {
   it("scopes saved playlists to the requesting Auth0 subject", async () => {
-    const database = queryExecutor([]);
+    const { database, query } = queryExecutor([]);
 
     await expect(
       getSavedPlaylists("auth0|listener-b", database),
     ).resolves.toEqual([]);
 
-    expect(database.query).toHaveBeenCalledWith(
+    expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/WHERE\s+u\.auth0_subject\s*=\s*\$1/i),
       ["auth0|listener-b"],
     );
   });
 
   it("preserves duplicate tracks by upserting each playlist position", async () => {
-    const database = {
-      query: vi.fn(async (text: string) => {
-        if (text.includes("INSERT INTO user_playlists")) {
-          return { rows: [{ id: "playlist-row" }] };
-        }
-        if (text.includes("INSERT INTO music_tracks")) {
-          return { rows: [{ id: "track-row" }] };
-        }
-        return { rows: [] };
-      }),
-    } satisfies TransactionExecutor;
+    const query = vi.fn(async (text: string, values?: unknown[]) => {
+      void values;
+      if (text.includes("INSERT INTO user_playlists")) {
+        return { rows: [{ id: "playlist-row" }] };
+      }
+      if (text.includes("INSERT INTO music_tracks")) {
+        return { rows: [{ id: "track-row" }] };
+      }
+      return { rows: [] };
+    });
+    const database = { query } as unknown as TransactionExecutor;
 
     const result = await upsertPlaylistPage(
       {
@@ -68,7 +74,7 @@ describe("music library repository", () => {
       database,
     );
 
-    const relationshipCalls = database.query.mock.calls.filter(([sql]) =>
+    const relationshipCalls = query.mock.calls.filter(([sql]) =>
       sql.includes("INSERT INTO user_playlist_tracks"),
     );
     expect(relationshipCalls).toHaveLength(2);
@@ -80,7 +86,7 @@ describe("music library repository", () => {
   });
 
   it("creates imports only through the user selected by Auth0 subject", async () => {
-    const database = queryExecutor([
+    const { database, query } = queryExecutor([
       {
         id: "import-row",
         requested_playlist_ids: ["playlist-a"],
@@ -95,20 +101,20 @@ describe("music library repository", () => {
     );
 
     expect(result.id).toBe("import-row");
-    expect(database.query).toHaveBeenCalledWith(
+    expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/WHERE\s+auth0_subject\s*=\s*\$1/i),
       ["auth0|listener-a", ["playlist-a"]],
     );
   });
 
   it("claims one due enrichment job with a lock scoped to the user", async () => {
-    const database = queryExecutor([]);
+    const { database, query } = queryExecutor([]);
 
     await expect(
       claimEnrichmentJob("auth0|listener-a", database),
     ).resolves.toBeNull();
 
-    const sql = database.query.mock.calls[0]?.[0] ?? "";
+    const sql = query.mock.calls[0]?.[0] ?? "";
     expect(sql).toMatch(/auth0_subject\s*=\s*\$1/i);
     expect(sql).toMatch(/FOR UPDATE(?: OF j)? SKIP LOCKED/i);
   });

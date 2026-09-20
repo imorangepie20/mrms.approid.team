@@ -38,8 +38,8 @@ type JsonApiResource = JsonApiIdentifier & {
 };
 
 type JsonApiDocument = {
-  data?: JsonApiResource[];
-  included?: JsonApiResource[];
+  data?: unknown;
+  included?: unknown;
   links?: { next?: unknown };
 };
 

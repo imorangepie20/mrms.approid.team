@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { TidalApiError } from "@/lib/tidal/api";
 
 import {
-  ImportError,
   startPlaylistImport,
   type ImportDependencies,
 } from "./import-playlists";
@@ -43,7 +42,7 @@ describe("playlist import service", () => {
         deps,
       ),
     ).rejects.toEqual(
-      expect.objectContaining<ImportError>({ code: "playlist_selection_required" }),
+      expect.objectContaining({ code: "playlist_selection_required" }),
     );
     expect(deps.listPlaylists).not.toHaveBeenCalled();
   });
@@ -57,7 +56,7 @@ describe("playlist import service", () => {
         deps,
       ),
     ).rejects.toEqual(
-      expect.objectContaining<ImportError>({ code: "playlist_not_owned" }),
+      expect.objectContaining({ code: "playlist_not_owned" }),
     );
     expect(deps.createImport).not.toHaveBeenCalled();
   });
@@ -78,7 +77,7 @@ describe("playlist import service", () => {
         deps,
       ),
     ).rejects.toEqual(
-      expect.objectContaining<ImportError>({ code: "tidal_retryable" }),
+      expect.objectContaining({ code: "tidal_retryable" }),
     );
     expect(deps.savePage).toHaveBeenCalledTimes(1);
     expect(deps.updateImport).toHaveBeenLastCalledWith(

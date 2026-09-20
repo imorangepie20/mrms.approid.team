@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  TidalApiError,
   listUserPlaylists,
   parsePlaylistItems,
 } from "./api";
@@ -140,7 +139,7 @@ describe("TIDAL JSON:API adapter", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(null, { status }));
 
     await expect(listUserPlaylists(credentials, fetcher)).rejects.toEqual(
-      expect.objectContaining<TidalApiError>({ kind }),
+      expect.objectContaining({ kind }),
     );
   });
 
@@ -154,7 +153,7 @@ describe("TIDAL JSON:API adapter", () => {
         "https://attacker.example/steal-access-token",
       ),
     ).rejects.toEqual(
-      expect.objectContaining<TidalApiError>({ kind: "invalid_response" }),
+      expect.objectContaining({ kind: "invalid_response" }),
     );
     expect(fetcher).not.toHaveBeenCalled();
   });

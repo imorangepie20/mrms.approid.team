@@ -366,3 +366,124 @@ export async function getPlaylistImportById(
       }
     : null;
 }
+
+export async function reserveMusicBrainzRequest(
+  executor?: TransactionExecutor,
+) {
+  return inTransaction(executor, async (transaction) => {
+    const result = await transaction.query<{ reserved: boolean }>(
+      `WITH rate_lock AS MATERIALIZED (
+         SELECT pg_advisory_xact_lock(hashtext('musicbrainz-rate-limit'))
+       ), reserved AS (
+         UPDATE musicbrainz_rate_limits AS r
+         SET next_request_at = now() + interval '1 second'
+         FROM rate_lock
+         WHERE r.service = 'musicbrainz' AND r.next_request_at <= now()
+         RETURNING true AS reserved
+       )
+       SELECT reserved FROM reserved`,
+    );
+    return result.rows[0]?.reserved ?? false;
+  });
+}
+
+export async function completeEnrichmentJob(
+  auth0Subject: string,
+  trackId: string,
+  decision: {
+    coverArtUrl: string | null;
+    recordingId: string | null;
+    releaseGroupId: string | null;
+    releaseId: string | null;
+    status: "not_found" | "matched" | "ambiguous";
+  },
+  executor?: TransactionExecutor,
+) {
+  return inTransaction(executor, async (transaction) => {
+    const result = await transaction.query<{ track_id: string }>(
+      `WITH updated_track AS (
+         UPDATE music_tracks AS t
+         SET mb_recording_id = $3,
+             mb_release_id = $4,
+             mb_release_group_id = $5,
+             mb_status = $6,
+             cover_art_url = $7,
+             updated_at = now()
+         FROM app_users AS u
+         WHERE u.auth0_subject = $1 AND t.user_id = u.id AND t.id = $2
+         RETURNING t.id
+       )
+       UPDATE musicbrainz_enrichment_jobs AS j
+       SET status = 'completed', last_error_code = NULL, updated_at = now()
+       FROM updated_track AS t
+       WHERE j.track_id = t.id
+       RETURNING j.track_id`,
+      [
+        auth0Subject,
+        trackId,
+        decision.recordingId,
+        decision.releaseId,
+        decision.releaseGroupId,
+        decision.status,
+        decision.coverArtUrl,
+      ],
+    );
+    return result.rows.length === 1;
+  });
+}
+
+export async function releaseEnrichmentJob(
+  auth0Subject: string,
+  trackId: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  await database.query(
+    `UPDATE musicbrainz_enrichment_jobs AS j
+     SET status = 'pending',
+         attempt_count = GREATEST(j.attempt_count - 1, 0),
+         updated_at = now()
+     FROM music_tracks AS t
+     INNER JOIN app_users AS u ON u.id = t.user_id
+     WHERE u.auth0_subject = $1 AND t.id = $2 AND j.track_id = t.id`,
+    [auth0Subject, trackId],
+  );
+}
+
+export async function retryEnrichmentJob(
+  auth0Subject: string,
+  trackId: string,
+  attemptCount: number,
+  errorCode: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const retrySeconds = Math.min(2 ** Math.max(attemptCount - 1, 0), 60);
+  await database.query(
+    `UPDATE musicbrainz_enrichment_jobs AS j
+     SET status = CASE WHEN $3 >= 5 THEN 'failed' ELSE 'pending' END,
+         next_attempt_at = now() + $5 * interval '1 second',
+         last_error_code = $4,
+         updated_at = now()
+     FROM music_tracks AS t
+     INNER JOIN app_users AS u ON u.id = t.user_id
+     WHERE u.auth0_subject = $1 AND t.id = $2 AND j.track_id = t.id`,
+    [auth0Subject, trackId, attemptCount, errorCode, retrySeconds],
+  );
+}
+
+export async function countRemainingEnrichmentJobs(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<{ count: number }>(
+    `SELECT count(*)::integer AS count
+     FROM musicbrainz_enrichment_jobs AS j
+     INNER JOIN music_tracks AS t ON t.id = j.track_id
+     INNER JOIN app_users AS u ON u.id = t.user_id
+     WHERE u.auth0_subject = $1 AND j.status IN ('pending', 'running')`,
+    [auth0Subject],
+  );
+  return result.rows[0]?.count ?? 0;
+}
