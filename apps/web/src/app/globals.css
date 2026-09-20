@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617;
-  --foreground: #f8fafc;
+  --background: #f6f9ff;
+  --foreground: #17213a;
+  --surface: #ffffff;
+  --surface-muted: #edf4ff;
+  --border: #d9e4f6;
+  --brand: #2563eb;
+  --brand-soft: #dbeafe;
+  --sky: #38bdf8;
+  --focus-ring: #0284c7;
   --player-height: 5rem;
+  --mobile-navigation-height: 4.5rem;
 }
 
 * {
@@ -19,4 +27,46 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page-shell {
+  padding-bottom: calc(var(--player-height) + var(--mobile-navigation-height) + 1.5rem);
+}
+
+.app-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.app-mobile-navigation {
+  position: fixed;
+  right: 0;
+  bottom: var(--player-height);
+  left: 0;
+  z-index: 35;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: var(--mobile-navigation-height);
+  align-items: center;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  padding: 0.5rem;
+  backdrop-filter: blur(18px);
+}
+
+@media (min-width: 768px) {
+  .page-shell {
+    padding-bottom: calc(var(--player-height) + 1.5rem);
+  }
 }

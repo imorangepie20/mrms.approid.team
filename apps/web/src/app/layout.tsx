@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { MusicSessionProvider } from "@/providers/music-session-provider";
 import { PersistentPlayer } from "@/components/player/persistent-player";
+import { AppNavigation } from "@/components/navigation/app-navigation";
 
 import "./globals.css";
 
@@ -23,13 +24,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="ko" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <MusicSessionProvider>
-          {children}
+          <AppNavigation />
+          <main className="page-shell flex-1">{children}</main>
           <PersistentPlayer />
         </MusicSessionProvider>
       </body>
