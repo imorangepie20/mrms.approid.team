@@ -113,6 +113,7 @@ export async function pollTidalDeviceAuthorization(
       client_id: deviceConfig.clientId,
       device_code: deviceCode,
       grant_type: DEVICE_GRANT_TYPE,
+      scope: (config.deviceScopes ?? config.scopes).join(" "),
     }),
   });
   const body = await json(response);
@@ -133,7 +134,7 @@ export async function pollTidalDeviceAuthorization(
       accessToken,
       expiresIn,
       refreshToken: text(body, "refresh_token"),
-      scope: text(body, "scope"),
+      scope: text(body, "scope") ?? (config.deviceScopes ?? config.scopes).join(" "),
       userId: typeof userId === "string" || typeof userId === "number" ? String(userId) : null,
     },
   };

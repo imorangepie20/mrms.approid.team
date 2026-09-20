@@ -95,5 +95,23 @@ describe("TIDAL device authorization", () => {
     expect(request.headers).toMatchObject({
       authorization: `Basic ${Buffer.from("device-client-id:device-client-secret").toString("base64")}`,
     });
+    expect(request.body?.toString()).toContain("scope=r_usr+w_usr+w_sub");
+  });
+
+  it("preserves the requested device scopes when TIDAL omits scope from the token response", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({
+      access_token: "access",
+      expires_in: 3600,
+      refresh_token: "refresh",
+      scope: "",
+      user_id: 123,
+    }));
+
+    const result = await pollTidalDeviceAuthorization("device-1", config, fetcher);
+
+    expect(result).toMatchObject({
+      status: "connected",
+      token: { scope: "r_usr w_usr w_sub" },
+    });
   });
 });
