@@ -310,7 +310,7 @@ npm run test -- src/components/onboarding/tidal-onboarding.test.tsx
 
 Expected: PASS for empty selection, selected playlist, and a rejected connection promise with retry UI.
 
-### Task 6: Implement GMS decisions, MMS, and permanent exclusion management
+### Task 6: Implement GMS decisions, MMS, and permanent exclusion management ✅
 
 **Files:**
 - Create: `apps/web/src/app/gms/page.tsx`

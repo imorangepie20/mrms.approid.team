@@ -23,6 +23,7 @@ type MusicSession = {
   togglePlayback: () => void;
   acceptTrack: (trackId: string) => void;
   rejectTrack: (trackId: string) => void;
+  restoreRejectedTrack: (trackId: string) => void;
   connectTidal: (selectedPlaylistIds?: string[]) => Promise<void>;
 };
 
@@ -56,6 +57,13 @@ export function MusicSessionProvider({ children }: { children: ReactNode }) {
     setMusicState((state) => applyPreference(state, trackId, "reject"));
   }, []);
 
+  const restoreRejectedTrack = useCallback((trackId: string) => {
+    setMusicState((state) => ({
+      ...state,
+      rejectedTrackIds: state.rejectedTrackIds.filter((id) => id !== trackId),
+    }));
+  }, []);
+
   const connectTidal = useCallback(async (selectedPlaylistIds: string[] = []) => {
     void selectedPlaylistIds;
     setIsAuthenticated(true);
@@ -72,6 +80,7 @@ export function MusicSessionProvider({ children }: { children: ReactNode }) {
       togglePlayback,
       acceptTrack,
       rejectTrack,
+      restoreRejectedTrack,
       connectTidal,
     }),
     [
@@ -83,6 +92,7 @@ export function MusicSessionProvider({ children }: { children: ReactNode }) {
       musicState,
       playTrack,
       rejectTrack,
+      restoreRejectedTrack,
       togglePlayback,
     ],
   );
