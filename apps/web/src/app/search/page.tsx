@@ -1,5 +1,5 @@
-import { MusicDashboard } from "@/components/dashboard/music-dashboard";
+import { TidalSearch } from "@/components/search/tidal-search";
 
 export default function SearchPage() {
-  return <MusicDashboard space="ems" />;
+  return <TidalSearch />;
 }
