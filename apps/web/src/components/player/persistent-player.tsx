@@ -44,8 +44,8 @@ export function PersistentPlayer() {
   const repeatLabel = repeatMode === "off" ? "반복 끔" : repeatMode === "all" ? "전체 반복" : "한 곡 반복";
   const tidalTrackId = currentTrack?.tidalTrackId;
 
-  const openTidalPlayer = () => {
-    void pausePlayback().catch(() => undefined);
+  const openTidalPlayer = async () => {
+    await pausePlayback().catch(() => undefined);
     setIsTidalPlayerOpen(true);
   };
 
@@ -89,11 +89,12 @@ export function PersistentPlayer() {
                 {tidalTrackId ? (
                   <button
                     aria-label="TIDAL 전체 재생"
-                    className="hidden min-h-10 rounded-full border border-cyan-300/30 px-3 text-[11px] font-bold tracking-[0.12em] text-cyan-200 hover:bg-cyan-300/10 sm:block"
+                    className="grid size-10 place-items-center rounded-full border border-cyan-300/30 text-[11px] font-bold tracking-[0.12em] text-cyan-200 hover:bg-cyan-300/10 sm:w-auto sm:px-3"
                     type="button"
-                    onClick={openTidalPlayer}
+                    onClick={() => void openTidalPlayer()}
                   >
-                    TIDAL
+                    <span className="sm:hidden">T</span>
+                    <span className="hidden sm:inline">TIDAL</span>
                   </button>
                 ) : null}
                 <button

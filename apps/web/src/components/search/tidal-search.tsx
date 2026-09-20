@@ -173,6 +173,12 @@ export function TidalSearch() {
     }
   };
 
+  const openTidalDetail = async () => {
+    if (!detail) return;
+    await pausePlayback().catch(() => undefined);
+    setTidalEmbed(detail);
+  };
+
   const hasResults = results.tracks.length > 0 ||
     results.albums.length > 0 ||
     results.playlists.length > 0 ||
@@ -184,10 +190,7 @@ export function TidalSearch() {
         <CatalogDetailPanel
           detail={detail}
           onBack={closeDetail}
-          onOpenTidal={() => {
-            void pausePlayback().catch(() => undefined);
-            setTidalEmbed(detail);
-          }}
+          onOpenTidal={() => void openTidalDetail()}
           onRetry={() => void loadDetail(detail, false)}
           onPlay={(tracks) => {
             const first = tracks[0];

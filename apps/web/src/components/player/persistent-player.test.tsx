@@ -24,6 +24,12 @@ const track: PlayableTrack = {
   tidalTrackId: "tidal-a",
   title: "Track A",
 };
+const localTrack = {
+  ...track,
+  id: "local-a",
+  tidalTrackId: undefined,
+  title: "Local Track",
+};
 
 function fakeEngine() {
   const listeners = new Set<(event: PlaybackEvent) => void>();
@@ -55,6 +61,15 @@ function PlaybackStarter() {
       onClick={() => void playTrack(track, { id: "search", type: "search" })}
     >
       Start playback
+    </button>
+  );
+}
+
+function LocalPlaybackStarter() {
+  const { playTrack } = useMusicSession();
+  return (
+    <button type="button" onClick={() => void playTrack(localTrack)}>
+      Start local playback
     </button>
   );
 }
@@ -140,6 +155,38 @@ describe("PersistentPlayer", () => {
 
   it("pauses SDK playback before opening the TIDAL player", async () => {
     const engine = fakeEngine();
+    let resolvePause!: () => void;
+    vi.mocked(engine.pause).mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolvePause = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+
+    const tidalButton = screen.getByRole("button", { name: "TIDAL 전체 재생" });
+    expect(tidalButton).not.toHaveClass("hidden");
+    await user.click(tidalButton);
+
+    expect(engine.pause).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog", { name: "TIDAL 플레이어" })).not.toBeInTheDocument();
+    act(() => resolvePause());
+    expect(await screen.findByRole("dialog", { name: "TIDAL 플레이어" })).toBeInTheDocument();
+    expect(screen.getByTitle("Track A TIDAL 플레이어")).toHaveAttribute(
+      "src",
+      "https://embed.tidal.com/tracks/tidal-a",
+    );
+  });
+
+  it("opens the TIDAL player even when SDK pause fails", async () => {
+    const engine = fakeEngine();
+    vi.mocked(engine.pause).mockRejectedValueOnce(new Error("pause_failed"));
     const user = userEvent.setup();
     render(
       <MusicSessionProvider engine={engine}>
@@ -151,11 +198,20 @@ describe("PersistentPlayer", () => {
 
     await user.click(screen.getByRole("button", { name: "TIDAL 전체 재생" }));
 
-    expect(engine.pause).toHaveBeenCalledOnce();
-    expect(screen.getByRole("dialog", { name: "TIDAL 플레이어" })).toBeInTheDocument();
-    expect(screen.getByTitle("Track A TIDAL 플레이어")).toHaveAttribute(
-      "src",
-      "https://embed.tidal.com/tracks/tidal-a",
+    expect(await screen.findByRole("dialog", { name: "TIDAL 플레이어" })).toBeInTheDocument();
+  });
+
+  it("does not offer TIDAL playback for a track without a TIDAL id", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <LocalPlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
     );
+    await user.click(screen.getByRole("button", { name: "Start local playback" }));
+
+    expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
   });
 });

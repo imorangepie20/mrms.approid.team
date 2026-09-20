@@ -25,7 +25,7 @@
 - Embed 다이얼로그 테스트: iframe, 외부 링크, 닫기 확인
 - 전역 플레이어 테스트: SDK 일시 정지 후 트랙 Embed 열기 확인
 - 검색 테스트: 앨범·플레이리스트 Embed URL 확인
-- 전체 테스트: `46`개 파일, `145`개 테스트 통과
+- 전체 테스트: `46`개 파일, `147`개 테스트 통과
 - ESLint 통과
 - production build와 TypeScript 통과
 - `git diff --check` 통과
