@@ -32,7 +32,7 @@
 ## 설계 원칙
 
 1. 모든 사용자 데이터 조회·변경은 Auth0 `sub`로 내부 `app_users.id`를 확인한 뒤 그 `user_id` 범위에서 수행한다.
-2. 브라우저는 TIDAL access token이나 refresh token을 받지 않는다. 외부 API 호출은 서버에서만 수행한다.
+2. 플레이리스트·검색·보강 API 호출은 서버에서 수행한다. 브라우저에는 Player SDK 초기화에 필요한 단기 access token만 인증된 playback credentials endpoint로 제공하고 refresh token은 제공하지 않는다.
 3. 원본 TIDAL ID와 ISRC는 출처 식별자이고, music-pie 내부 UUID를 관계의 기본 키로 사용한다.
 4. 동일 사용자의 같은 TIDAL 플레이리스트·트랙은 upsert해 재가져오기와 재연결에서 중복을 만들지 않는다.
 5. MusicBrainz는 ISRC가 있을 때만 조회하고 모호한 결과를 임의로 확정하지 않는다.
@@ -133,7 +133,7 @@ MusicBrainz 호출은 프로세스 전체에서 초당 1회 이하가 되도록 
 
 ## 데이터 모델
 
-기존 `001_user_tidal_connections.sql` 뒤에 `002_user_music_library.sql`을 추가한다.
+기존 `001_user_tidal_connections.sql`은 수정하지 않는다. 연결 해제 시각은 `002_tidal_connection_runtime.sql`로 확장하고, 음악 라이브러리 table은 그 뒤의 `003_user_music_library.sql`로 추가한다. 내 플레이리스트 목록은 별도 TIDAL user ID를 저장하지 않고 `filter[owners.id]=me`로 조회한다.
 
 ### `user_playlists`
 
