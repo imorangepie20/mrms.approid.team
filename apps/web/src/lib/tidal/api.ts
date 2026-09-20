@@ -114,6 +114,12 @@ function nextLink(document: JsonApiDocument) {
   return typeof next === "string" && next.length > 0 ? next : null;
 }
 
+function resolvePageUrl(next: string, apiBaseUrl: string) {
+  const base = new URL(`${apiBaseUrl.replace(/\/$/, "")}/`);
+  if (/^https?:\/\//i.test(next)) return new URL(next);
+  return new URL(next.replace(/^\//, ""), base);
+}
+
 export async function tidalGet(
   url: URL,
   token: string,
@@ -218,13 +224,25 @@ export async function* getPlaylistTrackPages(
   credentials: TidalApiCredentials,
   fetcher: typeof fetch = fetch,
 ) {
+  yield* getCatalogTrackPages("playlist", playlistId, credentials, fetcher);
+}
+
+export async function* getCatalogTrackPages(
+  kind: "album" | "playlist",
+  itemId: string,
+  credentials: TidalApiCredentials,
+  fetcher: typeof fetch = fetch,
+) {
   const apiOrigin = new URL(credentials.apiBaseUrl).origin;
   let url: URL | null = new URL(
-    `playlists/${encodeURIComponent(playlistId)}/relationships/items`,
+    `${kind === "album" ? "albums" : "playlists"}/${encodeURIComponent(itemId)}/relationships/items`,
     `${credentials.apiBaseUrl.replace(/\/$/, "")}/`,
   );
   url.searchParams.set("countryCode", credentials.countryCode);
-  url.searchParams.set("include", "items");
+  url.searchParams.set(
+    "include",
+    "items,items.albums,items.artists,items.albums.coverArt",
+  );
   let position = 0;
 
   while (url) {
@@ -233,6 +251,6 @@ export async function* getPlaylistTrackPages(
     const page = parsePlaylistItems(document, position);
     yield page;
     position += asResourceArray(document.data).length;
-    url = page.next ? new URL(page.next) : null;
+    url = page.next ? resolvePageUrl(page.next, credentials.apiBaseUrl) : null;
   }
 }

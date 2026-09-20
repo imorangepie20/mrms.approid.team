@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TrackList } from "@/components/music/track-list";
 import type { PlayableTrack } from "@/lib/tidal/player";
@@ -22,16 +22,42 @@ const emptyResults: TidalSearchResult = {
 };
 
 type ResultTab = "topHits" | "tracks" | "albums" | "playlists";
+type CatalogSelection = {
+  artworkUrl: string;
+  id: string;
+  kind: "album" | "playlist";
+  secondary: string;
+  title: string;
+  trackCount?: number;
+};
+type CatalogDetail = CatalogSelection & {
+  error: string | null;
+  status: "loading" | "ready" | "error";
+  tracks: PlayableTrack[];
+};
 
 export function TidalSearch() {
   const { playTrack, setQueue } = useMusicSession();
   const [activeTab, setActiveTab] = useState<ResultTab>("topHits");
+  const [detail, setDetail] = useState<CatalogDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(emptyResults);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const requestIdRef = useRef(0);
+  const detailRequestIdRef = useRef(0);
+  const detailHistoryEntryRef = useRef(false);
+
+  useEffect(() => {
+    const closeFromHistory = () => {
+      detailRequestIdRef.current += 1;
+      detailHistoryEntryRef.current = false;
+      setDetail(null);
+    };
+    window.addEventListener("popstate", closeFromHistory);
+    return () => window.removeEventListener("popstate", closeFromHistory);
+  }, []);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -103,10 +129,69 @@ export function TidalSearch() {
     void playTrack(track, source);
   };
 
+  const loadDetail = useCallback(async (
+    selection: CatalogSelection,
+    pushHistory: boolean,
+  ) => {
+    const requestId = ++detailRequestIdRef.current;
+    setDetail({ ...selection, error: null, status: "loading", tracks: [] });
+    if (pushHistory) {
+      window.history.pushState({ tidalCatalogDetail: true }, "");
+      detailHistoryEntryRef.current = true;
+    }
+    try {
+      const response = await fetch(
+        `/api/tidal/catalog?type=${selection.kind}&id=${encodeURIComponent(selection.id)}`,
+      );
+      if (!response.ok) throw new Error("catalog_failed");
+      const body = await response.json() as { tracks: PlayableTrack[] };
+      if (requestId !== detailRequestIdRef.current) return;
+      setDetail({ ...selection, error: null, status: "ready", tracks: body.tracks });
+    } catch {
+      if (requestId !== detailRequestIdRef.current) return;
+      setDetail({
+        ...selection,
+        error: "트랙을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        status: "error",
+        tracks: [],
+      });
+    }
+  }, []);
+
+  const openDetail = (selection: CatalogSelection) => {
+    void loadDetail(selection, true);
+  };
+
+  const closeDetail = () => {
+    detailRequestIdRef.current += 1;
+    setDetail(null);
+    if (detailHistoryEntryRef.current) {
+      detailHistoryEntryRef.current = false;
+      window.history.back();
+    }
+  };
+
   const hasResults = results.tracks.length > 0 ||
     results.albums.length > 0 ||
     results.playlists.length > 0 ||
     results.topHits.length > 0;
+
+  if (detail) {
+    return (
+      <CatalogDetailPanel
+        detail={detail}
+        onBack={closeDetail}
+        onRetry={() => void loadDetail(detail, false)}
+        onPlay={(tracks) => {
+          const first = tracks[0];
+          if (!first) return;
+          const source = { id: `${detail.kind}:${detail.id}`, type: "search" as const };
+          setQueue(tracks, source);
+          void playTrack(first, source);
+        }}
+      />
+    );
+  }
 
   return (
     <section className="w-full pb-10 pt-8 sm:py-10">
@@ -166,15 +251,15 @@ export function TidalSearch() {
       </div>
 
       <div className="mt-5" role="tabpanel">
-        {activeTab === "topHits" ? <TopResults hits={results.topHits} onPlay={selectTrack} /> : null}
+        {activeTab === "topHits" ? <TopResults hits={results.topHits} onOpen={openDetail} onPlay={selectTrack} /> : null}
         {activeTab === "tracks" ? (
           <TrackList
             source={{ id: `search:${query.trim()}`, type: "search" }}
             tracks={results.tracks}
           />
         ) : null}
-        {activeTab === "albums" ? <AlbumResults albums={results.albums} /> : null}
-        {activeTab === "playlists" ? <PlaylistResults playlists={results.playlists} /> : null}
+        {activeTab === "albums" ? <AlbumResults albums={results.albums} onOpen={openDetail} /> : null}
+        {activeTab === "playlists" ? <PlaylistResults onOpen={openDetail} playlists={results.playlists} /> : null}
         {!isLoading && query.trim() && results[activeTab].length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-12 text-center text-sm text-[var(--subtle)]">검색 결과가 없습니다.</p>
         ) : null}
@@ -183,17 +268,17 @@ export function TidalSearch() {
   );
 }
 
-function TopResults({ hits, onPlay }: { hits: SearchTopHit[]; onPlay: (track: PlayableTrack) => void }) {
+function TopResults({ hits, onOpen, onPlay }: { hits: SearchTopHit[]; onOpen: (selection: CatalogSelection) => void; onPlay: (track: PlayableTrack) => void }) {
   return (
     <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
       {hits.map((hit) => (
-        <TopResultRow hit={hit} key={`${hit.kind}:${hit.id}`} onPlay={onPlay} />
+        <TopResultRow hit={hit} key={`${hit.kind}:${hit.id}`} onOpen={onOpen} onPlay={onPlay} />
       ))}
     </div>
   );
 }
 
-function TopResultRow({ hit, onPlay }: { hit: SearchTopHit; onPlay: (track: PlayableTrack) => void }) {
+function TopResultRow({ hit, onOpen, onPlay }: { hit: SearchTopHit; onOpen: (selection: CatalogSelection) => void; onPlay: (track: PlayableTrack) => void }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const metadata = hit.kind === "track"
     ? `트랙 · ${hit.artist}`
@@ -231,19 +316,78 @@ function TopResultRow({ hit, onPlay }: { hit: SearchTopHit; onPlay: (track: Play
       {content}
     </button>
   ) : (
-    <article className="flex min-h-20 items-center gap-4 px-2 py-3">{content}</article>
+    <button
+      aria-label={`${hit.kind === "album" ? "앨범" : "플레이리스트"} ${hit.title} 열기`}
+      className="flex min-h-20 w-full items-center gap-4 px-2 py-3 text-left transition-colors hover:bg-white/[0.025] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[var(--focus-ring)]"
+      type="button"
+      onClick={() => onOpen({
+        artworkUrl: hit.artworkUrl,
+        id: hit.id,
+        kind: hit.kind,
+        secondary: hit.kind === "album" ? hit.artist : hit.curator,
+        title: hit.title,
+        trackCount: hit.kind === "playlist" ? hit.trackCount : undefined,
+      })}
+    >{content}</button>
   );
 }
 
-function AlbumResults({ albums }: { albums: SearchAlbum[] }) {
-  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <CatalogArtworkCard artworkUrl={album.artworkUrl} key={album.id} kind="앨범" secondary={album.artist} title={album.title} />)}</div>;
+function AlbumResults({ albums, onOpen }: { albums: SearchAlbum[]; onOpen: (selection: CatalogSelection) => void }) {
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <CatalogArtworkCard artworkUrl={album.artworkUrl} id={album.id} key={album.id} kind="album" onOpen={onOpen} secondary={album.artist} title={album.title} />)}</div>;
 }
 
-function PlaylistResults({ playlists }: { playlists: SearchPlaylist[] }) {
-  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{playlists.map((playlist) => <CatalogArtworkCard artworkUrl={playlist.artworkUrl} key={playlist.id} kind="플레이리스트" secondary={playlist.curator} tertiary={`${playlist.trackCount}곡`} title={playlist.title} />)}</div>;
+function PlaylistResults({ onOpen, playlists }: { onOpen: (selection: CatalogSelection) => void; playlists: SearchPlaylist[] }) {
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{playlists.map((playlist) => <CatalogArtworkCard artworkUrl={playlist.artworkUrl} id={playlist.id} key={playlist.id} kind="playlist" onOpen={onOpen} secondary={playlist.curator} tertiary={`${playlist.trackCount}곡`} title={playlist.title} trackCount={playlist.trackCount} />)}</div>;
 }
 
-function CatalogArtworkCard({ artworkUrl, kind, secondary, tertiary, title }: { artworkUrl: string; kind: "앨범" | "플레이리스트"; secondary: string; tertiary?: string; title: string }) {
+function CatalogArtworkCard({ artworkUrl, id, kind, onOpen, secondary, tertiary, title, trackCount }: CatalogSelection & { onOpen: (selection: CatalogSelection) => void; tertiary?: string }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
-  return <article className="min-w-0"><div className="relative aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "앨범" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</div><h2 className="mt-3 truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</h2><p className="mt-1 truncate text-sm text-[var(--muted)]">{secondary}</p>{tertiary ? <p className="mt-1 text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</p> : null}</article>;
+  const kindLabel = kind === "album" ? "앨범" : "플레이리스트";
+  return <button aria-label={`${kindLabel} ${title} 열기`} className="group min-w-0 text-left" type="button" onClick={() => onOpen({ artworkUrl, id, kind, secondary, title, trackCount })}><span className="relative block aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95] transition duration-200 group-hover:border-purple-400/40 group-hover:brightness-110 group-focus-visible:outline-2 group-focus-visible:outline-offset-3 group-focus-visible:outline-[var(--focus-ring)]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "album" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</span><span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span><span className="mt-1 block truncate text-sm text-[var(--muted)]">{secondary}</span>{tertiary ? <span className="mt-1 block text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</span> : null}</button>;
+}
+
+function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: CatalogDetail; onBack: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void }) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const shuffleAndPlay = () => {
+    const shuffled = [...detail.tracks];
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    onPlay(shuffled);
+  };
+
+  return (
+    <section className="w-full pb-10 pt-6 sm:py-8">
+      <button className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-[var(--muted)] hover:bg-white/[0.04] hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" type="button" onClick={onBack}>
+        <svg aria-hidden="true" className="size-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>
+        검색 결과로 돌아가기
+      </button>
+
+      <header className="mt-5 grid gap-6 border-b border-[var(--border)] pb-8 sm:grid-cols-[minmax(180px,240px)_1fr] sm:items-end">
+        <div className="relative aspect-square w-full max-w-60 overflow-hidden rounded-xl bg-gradient-to-br from-[#24153d] to-[#4c1d95]">
+          {detail.artworkUrl && failedArtworkUrl !== detail.artworkUrl ? <Image alt="" className="object-cover" fill priority sizes="(max-width: 640px) 240px, 240px" src={detail.artworkUrl} onError={() => setFailedArtworkUrl(detail.artworkUrl)} /> : null}
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm text-[var(--muted)]">{detail.kind === "album" ? "앨범" : "플레이리스트"} · TIDAL</p>
+          <h1 className="mt-2 text-3xl font-[620] tracking-[-0.035em] text-[var(--foreground)] sm:text-4xl">{detail.title}</h1>
+          <p className="mt-2 text-sm text-[var(--muted)]">{detail.secondary}{detail.status === "ready" ? ` · ${detail.tracks.length}곡` : detail.trackCount ? ` · ${detail.trackCount}곡` : ""}</p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <button className="min-h-11 rounded-lg bg-[var(--brand)] px-5 text-sm font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={() => onPlay(detail.tracks)}>
+              전체 재생
+            </button>
+            <button className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-5 text-sm font-semibold text-[var(--muted)] enabled:hover:text-[var(--foreground)] disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={shuffleAndPlay}>
+              셔플
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="mt-7">
+        {detail.status === "loading" ? <div aria-label="트랙 불러오는 중" className="space-y-2" role="status">{[0, 1, 2, 3].map((row) => <div className="h-[68px] animate-pulse rounded-lg bg-white/[0.035]" key={row} />)}</div> : null}
+        {detail.status === "error" ? <div className="rounded-xl border border-red-400/20 bg-red-400/[0.06] px-5 py-6" role="alert"><p className="m-0 text-sm text-red-200">{detail.error}</p><button className="mt-4 min-h-10 rounded-lg border border-red-300/25 px-4 text-sm font-semibold text-red-100" type="button" onClick={onRetry}>다시 시도</button></div> : null}
+        {detail.status === "ready" ? <TrackList emptyMessage="표시할 트랙이 없습니다." source={{ id: `${detail.kind}:${detail.id}`, type: "search" }} tracks={detail.tracks} /> : null}
+      </div>
+    </section>
+  );
 }

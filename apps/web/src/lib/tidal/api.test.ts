@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  getCatalogTrackPages,
   listUserPlaylists,
   parsePlaylistItems,
 } from "./api";
@@ -127,6 +128,52 @@ describe("TIDAL JSON:API adapter", () => {
       },
     });
     expect(page.next).toBeNull();
+  });
+
+  it.each([
+    ["album", "albums/album%3Aopaque/relationships/items", "items,items.albums,items.artists,items.albums.coverArt"],
+    ["playlist", "playlists/playlist%3Aopaque/relationships/items", "items,items.albums,items.artists,items.albums.coverArt"],
+  ] as const)("loads %s tracks from its items relationship", async (kind, pathname, include) => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json(trackDocument));
+    const pages = [];
+
+    for await (const page of getCatalogTrackPages(
+      kind,
+      `${kind}:opaque`,
+      credentials,
+      fetcher,
+    )) {
+      pages.push(page);
+    }
+
+    expect(pages[0]?.tracks[0]?.track.title).toBe("Track");
+    const requestUrl = new URL(fetcher.mock.calls[0]?.[0] as string);
+    expect(requestUrl.pathname).toBe(`/v2/${pathname}`);
+    expect(requestUrl.searchParams.get("include")).toBe(include);
+  });
+
+  it("follows same-origin relative cursors for multi-page playlists", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(Response.json({
+        ...trackDocument,
+        links: { next: "/playlists/playlist-1/relationships/items?page[cursor]=next" },
+      }))
+      .mockResolvedValueOnce(Response.json({ ...trackDocument, links: { next: null } }));
+    const pages = [];
+
+    for await (const page of getCatalogTrackPages(
+      "playlist",
+      "playlist-1",
+      credentials,
+      fetcher,
+    )) {
+      pages.push(page);
+    }
+
+    expect(pages).toHaveLength(2);
+    expect(String(fetcher.mock.calls[1]?.[0])).toBe(
+      "https://openapi.tidal.com/v2/playlists/playlist-1/relationships/items?page[cursor]=next",
+    );
   });
 
   it.each([

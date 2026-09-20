@@ -138,4 +138,57 @@ describe("TidalSearch", () => {
     expect(screen.getByRole("img", { name: "Lazy Days 플레이리스트 커버" })).toBeInTheDocument();
     expect(screen.getByText("100곡")).toBeInTheDocument();
   });
+
+  it.each([
+    ["album", "앨범 Debut 열기", "Debut", "Björk"],
+    ["playlist", "플레이리스트 Lazy Days 열기", "Lazy Days", "TIDAL"],
+  ] as const)("opens %s details and plays its track queue", async (kind, label, title, secondary) => {
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname.endsWith("/suggestions")) return json({ suggestions: [] });
+      if (url.pathname.endsWith("/catalog")) return json({ tracks: [track] });
+      return json({
+        albums: [{
+          artist: "Björk",
+          artworkUrl: "https://resources.tidal.com/album.jpg",
+          id: "album-1",
+          title: "Debut",
+        }],
+        next: null,
+        playlists: [{
+          artworkUrl: "https://resources.tidal.com/playlist.jpg",
+          curator: "TIDAL",
+          id: "playlist-1",
+          title: "Lazy Days",
+          trackCount: 100,
+        }],
+        topHits: [],
+        tracks: [],
+      });
+    }));
+    const user = userEvent.setup();
+    render(<TidalSearch />);
+
+    await user.type(screen.getByRole("searchbox"), "bj");
+    await user.click(screen.getByRole("tab", { name: kind === "album" ? "앨범" : "플레이리스트" }));
+    await user.click(await screen.findByRole("button", { name: label }));
+
+    expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`^${secondary} ·`))).toBeInTheDocument();
+    expect(screen.getByText("Human Behaviour")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "전체 재생" }));
+
+    expect(session.setQueue).toHaveBeenCalledWith(
+      [track],
+      expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
+    );
+    expect(session.playTrack).toHaveBeenCalledWith(
+      track,
+      expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "검색 결과로 돌아가기" }));
+    expect(screen.getByRole("searchbox")).toHaveValue("bj");
+    expect(screen.getByRole("tab", { name: kind === "album" ? "앨범" : "플레이리스트" })).toHaveAttribute("aria-selected", "true");
+  });
 });
