@@ -217,7 +217,7 @@ npm run test -- src/providers/music-session-provider.test.tsx
 
 Expected: PASS; changing rendered child content does not clear playback state.
 
-### Task 4: Build public discovery and the progressive sign-in gate
+### Task 4: Build public discovery and the progressive sign-in gate ✅
 
 **Files:**
 - Create: `apps/web/src/components/music/track-card.tsx`
