@@ -26,7 +26,7 @@ export function PersistentPlayer() {
   return (
     <>
       <aside aria-label="전역 음악 플레이어" className="dashboard-player fixed inset-x-0 bottom-0 z-40 border-t text-white backdrop-blur">
-        <div className="mx-auto flex min-h-20 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-h-20 w-full items-center gap-3 px-4 sm:px-6 lg:px-8">
           {currentTrack ? (
             <>
               <button
@@ -58,7 +58,7 @@ export function PersistentPlayer() {
               <div className="flex shrink-0 items-center gap-1">
                 <button
                   aria-label="이전 트랙"
-                  className="grid size-11 place-items-center rounded-full hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+                  className="grid size-11 place-items-center rounded-full hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   type="button"
                   onClick={() => void previousTrack()}
                 >
@@ -66,7 +66,7 @@ export function PersistentPlayer() {
                 </button>
                 <button
                   aria-label={isPlaying ? "일시 정지" : "재생"}
-                  className="grid size-11 place-items-center rounded-full bg-fuchsia-400 font-black text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+                  className="grid size-11 place-items-center rounded-full bg-[var(--brand)] font-black text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   type="button"
                   onClick={() => void togglePlayback()}
                 >
@@ -74,7 +74,7 @@ export function PersistentPlayer() {
                 </button>
                 <button
                   aria-label="다음 트랙"
-                  className="grid size-11 place-items-center rounded-full hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+                  className="grid size-11 place-items-center rounded-full hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   type="button"
                   onClick={() => void nextTrack()}
                 >

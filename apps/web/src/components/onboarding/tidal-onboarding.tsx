@@ -183,7 +183,7 @@ export function TidalOnboarding({
         <p className="text-sm font-semibold tracking-[0.18em] text-emerald-200">
           READY TO DISCOVER
         </p>
-        <h1 className="mt-3 text-3xl font-black">MMS와 첫 추천이 준비됐어요</h1>
+        <h1 className="onboarding-title mt-3">MMS와 첫 추천이 준비됐어요</h1>
         <p className="mt-3 max-w-xl leading-7 text-emerald-50/85">
           {completedImport.savedTrackCount}곡을 저장했습니다. 앨범 정보 보강은
           백그라운드에서 계속됩니다.
@@ -205,7 +205,7 @@ export function TidalOnboarding({
       </p>
       {visibleStep === "connect" ? (
         <>
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+          <h1 className="onboarding-title mt-3">
             TIDAL과 내 음악을 연결해요
           </h1>
           <p className="mt-4 max-w-xl leading-7 text-slate-300">
@@ -214,14 +214,14 @@ export function TidalOnboarding({
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
           {connectHref ? (
             <a
-              className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+              className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
               href={connectHref}
             >
               TIDAL 연결하기
             </a>
           ) : (
             <button
-              className="mt-7 min-h-11 rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200 disabled:cursor-wait disabled:opacity-70"
+              className="mt-7 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
               disabled={isConnecting}
               type="button"
               onClick={connect}
@@ -232,7 +232,7 @@ export function TidalOnboarding({
         </>
       ) : (
         <>
-          <h1 className="mt-3 text-3xl font-black sm:text-4xl">
+          <h1 className="onboarding-title mt-3">
             취향을 담을 플레이리스트를 선택해요
           </h1>
           <p className="mt-4 leading-7 text-slate-300">
@@ -273,7 +273,7 @@ export function TidalOnboarding({
           ) : null}
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
           <button
-            className="mt-7 min-h-11 rounded-xl bg-fuchsia-400 px-5 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200 disabled:cursor-wait disabled:opacity-70"
+            className="mt-7 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
             disabled={visibleStep === "importing"}
             type="button"
             onClick={() => void createMms()}

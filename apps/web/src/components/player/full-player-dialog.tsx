@@ -68,7 +68,7 @@ export function FullPlayerDialog({
           onChange={(event) => onPlaybackPositionChange(Number(event.target.value))}
         />
         <button
-          className="mt-6 min-h-12 rounded-xl bg-fuchsia-400 px-6 font-black text-slate-950"
+          className="mt-6 min-h-12 rounded-xl bg-[var(--brand)] px-6 font-black text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white"
           type="button"
           onClick={onTogglePlayback}
         >
@@ -80,7 +80,7 @@ export function FullPlayerDialog({
             {queue.map((item, index) => (
               <li key={item.referenceId}>
                 <button
-                  className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+                  className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   type="button"
                   onClick={() => onSelectTrack(index)}
                 >

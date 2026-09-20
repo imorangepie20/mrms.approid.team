@@ -20,6 +20,7 @@ function sdkFixture() {
     reset: vi.fn().mockResolvedValue(undefined),
     seek: vi.fn().mockResolvedValue(undefined),
     setCredentialsProvider: vi.fn(),
+    setEventSender: vi.fn(),
     setNext: vi.fn().mockResolvedValue(undefined),
   };
   return { events, media, sdk };
@@ -151,5 +152,37 @@ describe("TIDAL playback engine", () => {
       sourceId: "search:query",
       sourceType: "search",
     });
+  });
+
+  it("installs an event sender before loading a track", async () => {
+    const { sdk } = sdkFixture();
+    let eventSender: { sendEvent(): void } | null = null;
+    sdk.setEventSender.mockImplementation((sender) => {
+      eventSender = sender;
+    });
+    sdk.load.mockImplementation(async () => {
+      if (!eventSender) {
+        throw new Error("Playback not allowed without an event sender.");
+      }
+    });
+    const engine = createTidalPlaybackEngine({
+      sdkImporter: vi.fn().mockResolvedValue(sdk),
+    });
+
+    await expect(engine.load(
+      {
+        album: "Album",
+        artist: "Artist",
+        artworkClass: "artwork-violet",
+        artworkUrl: "",
+        durationSeconds: 185,
+        id: "search-track",
+        tidalTrackId: "track-1",
+        title: "Track",
+      },
+      { id: "search:query", referenceId: "ref-1", type: "search" },
+    )).resolves.toBeUndefined();
+
+    expect(eventSender).toEqual({ sendEvent: expect.any(Function) });
   });
 });

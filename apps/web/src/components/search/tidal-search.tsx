@@ -3,27 +3,28 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-import { TrackCard } from "@/components/music/track-card";
 import type { PlayableTrack } from "@/lib/tidal/player";
 import type {
   SearchAlbum,
-  SearchArtist,
+  SearchPlaylist,
+  SearchTopHit,
   TidalSearchResult,
 } from "@/lib/tidal/search";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 const emptyResults: TidalSearchResult = {
   albums: [],
-  artists: [],
   next: null,
+  playlists: [],
+  topHits: [],
   tracks: [],
 };
 
-type ResultTab = "tracks" | "albums" | "artists";
+type ResultTab = "topHits" | "tracks" | "albums" | "playlists";
 
 export function TidalSearch() {
   const { playTrack, setQueue } = useMusicSession();
-  const [activeTab, setActiveTab] = useState<ResultTab>("tracks");
+  const [activeTab, setActiveTab] = useState<ResultTab>("topHits");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [query, setQuery] = useState("");
@@ -101,33 +102,37 @@ export function TidalSearch() {
     void playTrack(track, source);
   };
 
+  const hasResults = results.tracks.length > 0 ||
+    results.albums.length > 0 ||
+    results.playlists.length > 0 ||
+    results.topHits.length > 0;
+
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <section className="w-full pb-10 pt-8 sm:py-10">
       <header className="max-w-2xl">
-        <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-700">TIDAL CATALOG</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">듣고 싶은 음악을 바로 찾아보세요</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">트랙, 앨범, 아티스트를 검색하고 결과에서 바로 재생할 수 있습니다.</p>
+        <h1 className="text-2xl font-[560] tracking-[-0.025em] text-[var(--foreground)] sm:text-3xl">듣고 싶은 음악을 바로 찾아보세요</h1>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">트랙, 앨범, 플레이리스트를 검색하고 결과에서 바로 재생할 수 있습니다.</p>
       </header>
 
-      <div className="relative mt-7 max-w-2xl">
+      <div className="relative mt-6 max-w-2xl">
         <label className="sr-only" htmlFor="tidal-search">TIDAL 음악 검색</label>
         <input
           autoComplete="off"
-          className="min-h-14 w-full rounded-2xl border border-slate-300 bg-white px-5 pr-16 text-base text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-100"
+          className="min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 pr-14 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--subtle)] focus:border-[var(--brand)] focus:ring-3 focus:ring-purple-500/15"
           id="tidal-search"
           maxLength={200}
-          placeholder="곡, 앨범 또는 아티스트"
+          placeholder="트랙, 앨범 또는 플레이리스트"
           role="searchbox"
           type="search"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
         />
         <span aria-hidden="true" className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-xl text-slate-400">⌕</span>
-        {suggestions.length > 0 ? (
-          <div aria-label="검색어 추천" className="absolute z-10 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl" role="listbox">
+        {suggestions.length > 0 && !hasResults ? (
+          <div aria-label="검색어 추천" className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.34)]" role="listbox">
             {suggestions.map((suggestion) => (
               <button
-                className="block min-h-11 w-full rounded-xl px-3 text-left text-sm text-slate-700 hover:bg-violet-50 focus-visible:outline-2 focus-visible:outline-violet-500"
+                className="block min-h-11 w-full rounded-xl px-3 text-left text-sm text-[var(--muted)] hover:bg-purple-500/15 hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
                 key={suggestion}
                 aria-selected={false}
                 role="option"
@@ -144,46 +149,144 @@ export function TidalSearch() {
       {error ? <p className="mt-5 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">{error}</p> : null}
       <p aria-live="polite" className="sr-only">{isLoading ? "검색 중" : ""}</p>
 
-      <div aria-label="검색 결과 종류" className="mt-9 flex gap-2 border-b border-slate-200" role="tablist">
-        {(["tracks", "albums", "artists"] as const).map((tab) => (
+      <div aria-label="검색 결과 종류" className="mt-8 flex gap-1 border-b border-[var(--border)]" role="tablist">
+        {(["topHits", "tracks", "albums", "playlists"] as const).map((tab) => (
           <button
             aria-selected={activeTab === tab}
-            className={`min-h-11 border-b-2 px-4 text-sm font-semibold ${activeTab === tab ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-900"}`}
+            className={`min-h-10 border-b px-3 text-sm font-medium ${activeTab === tab ? "border-[var(--brand)] text-[var(--brand-soft)]" : "border-transparent text-[var(--subtle)] hover:text-[var(--foreground)]"}`}
             key={tab}
             role="tab"
             type="button"
             onClick={() => setActiveTab(tab)}
           >
-            {{ tracks: "트랙", albums: "앨범", artists: "아티스트" }[tab]}
+            {{ topHits: "통합 결과", tracks: "트랙", albums: "앨범", playlists: "플레이리스트" }[tab]}
           </button>
         ))}
       </div>
 
-      <div className="mt-6" role="tabpanel">
+      <div className="mt-5" role="tabpanel">
+        {activeTab === "topHits" ? <TopResults hits={results.topHits} onPlay={selectTrack} /> : null}
         {activeTab === "tracks" ? <TrackResults tracks={results.tracks} onPlay={selectTrack} /> : null}
         {activeTab === "albums" ? <AlbumResults albums={results.albums} /> : null}
-        {activeTab === "artists" ? <ArtistResults artists={results.artists} /> : null}
+        {activeTab === "playlists" ? <PlaylistResults playlists={results.playlists} /> : null}
         {!isLoading && query.trim() && results[activeTab].length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-slate-300 px-5 py-12 text-center text-sm text-slate-500">검색 결과가 없습니다.</p>
+          <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-12 text-center text-sm text-[var(--subtle)]">검색 결과가 없습니다.</p>
         ) : null}
       </div>
     </section>
   );
 }
 
+function TopResults({ hits, onPlay }: { hits: SearchTopHit[]; onPlay: (track: PlayableTrack) => void }) {
+  return (
+    <div className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+      {hits.map((hit) => (
+        <TopResultRow hit={hit} key={`${hit.kind}:${hit.id}`} onPlay={onPlay} />
+      ))}
+    </div>
+  );
+}
+
+function TopResultRow({ hit, onPlay }: { hit: SearchTopHit; onPlay: (track: PlayableTrack) => void }) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const metadata = hit.kind === "track"
+    ? `트랙 · ${hit.artist}`
+    : hit.kind === "album"
+      ? `앨범 · ${hit.artist}`
+      : `플레이리스트 · ${hit.curator} · ${hit.trackCount}곡`;
+  const content = (
+    <>
+      <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-[#24153d] to-[#4c1d95]">
+        {hit.artworkUrl && failedArtworkUrl !== hit.artworkUrl ? (
+          <Image
+            alt=""
+            className="object-cover"
+            fill
+            sizes="56px"
+            src={hit.artworkUrl}
+            onError={() => setFailedArtworkUrl(hit.artworkUrl)}
+          />
+        ) : null}
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[15px] font-[560] text-[var(--foreground)]">{hit.title}</span>
+        <span className="mt-1 block truncate text-sm text-[var(--muted)]">{metadata}</span>
+      </span>
+    </>
+  );
+
+  return hit.kind === "track" ? (
+    <button
+      aria-label={`재생 ${hit.title}`}
+      className="flex min-h-20 w-full items-center gap-4 px-2 py-3 text-left transition-colors hover:bg-white/[0.025] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[var(--focus-ring)]"
+      type="button"
+      onClick={() => onPlay(hit)}
+    >
+      {content}
+    </button>
+  ) : (
+    <article className="flex min-h-20 items-center gap-4 px-2 py-3">{content}</article>
+  );
+}
+
 function TrackResults({ tracks, onPlay }: { tracks: PlayableTrack[]; onPlay: (track: PlayableTrack) => void }) {
-  return <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{tracks.map((track) => <TrackCard key={track.id} onPlay={onPlay} showSave={false} track={track} />)}</div>;
+  return (
+    <div className="overflow-hidden border-y border-[var(--border)]">
+      <table className="w-full table-fixed border-collapse text-left">
+        <thead>
+          <tr className="h-11 text-[11px] font-medium tracking-[0.08em] text-[var(--subtle)]">
+            <th className="w-10 px-2 text-center" scope="col">#</th>
+            <th className="w-[48%] px-2" scope="col">TITLE</th>
+            <th className="w-[25%] px-2" scope="col">ARTIST</th>
+            <th className="hidden w-[22%] px-2 md:table-cell" scope="col">ALBUM</th>
+            <th className="hidden w-16 px-2 text-right sm:table-cell" scope="col">TIME</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-[var(--border)]">
+          {tracks.map((track, index) => (
+            <TrackRow index={index} key={track.id} onPlay={onPlay} track={track} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TrackRow({ index, onPlay, track }: { index: number; onPlay: (track: PlayableTrack) => void; track: PlayableTrack }) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  return (
+    <tr className="group h-[68px] transition-colors hover:bg-white/[0.025]">
+      <td className="px-2 text-center text-sm text-[var(--subtle)]">{index + 1}</td>
+      <td className="px-2">
+        <button className="flex w-full min-w-0 items-center gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]" aria-label={`재생 ${track.title}`} type="button" onClick={() => onPlay(track)}>
+          <span className={`relative size-11 shrink-0 overflow-hidden rounded-md bg-gradient-to-br ${track.artworkClass}`}>
+            {track.artworkUrl && failedArtworkUrl !== track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} className="object-cover" fill sizes="44px" src={track.artworkUrl} onError={() => setFailedArtworkUrl(track.artworkUrl)} /> : null}
+          </span>
+          <span className="truncate text-sm font-[560] text-[var(--foreground)]">{track.title}</span>
+        </button>
+      </td>
+      <td className="truncate px-2 text-sm text-[var(--muted)]">{track.artist}</td>
+      <td className="hidden truncate px-2 text-sm text-[var(--muted)] md:table-cell">{track.album}</td>
+      <td className="hidden px-2 text-right text-sm tabular-nums text-[var(--muted)] sm:table-cell">{formatDuration(track.durationSeconds)}</td>
+    </tr>
+  );
+}
+
+function formatDuration(seconds: number | null) {
+  if (seconds === null) return "—";
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
 function AlbumResults({ albums }: { albums: SearchAlbum[] }) {
-  return <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <AlbumCard album={album} key={album.id} />)}</div>;
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <CatalogArtworkCard artworkUrl={album.artworkUrl} key={album.id} kind="앨범" secondary={album.artist} title={album.title} />)}</div>;
 }
 
-function AlbumCard({ album }: { album: SearchAlbum }) {
+function PlaylistResults({ playlists }: { playlists: SearchPlaylist[] }) {
+  return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{playlists.map((playlist) => <CatalogArtworkCard artworkUrl={playlist.artworkUrl} key={playlist.id} kind="플레이리스트" secondary={playlist.curator} tertiary={`${playlist.trackCount}곡`} title={playlist.title} />)}</div>;
+}
+
+function CatalogArtworkCard({ artworkUrl, kind, secondary, tertiary, title }: { artworkUrl: string; kind: "앨범" | "플레이리스트"; secondary: string; tertiary?: string; title: string }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
-  return <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-sky-500">{album.artworkUrl && failedArtworkUrl !== album.artworkUrl ? <Image alt={`${album.title} 앨범 아트`} className="object-cover" fill sizes="(min-width: 1024px) 256px, 50vw" src={album.artworkUrl} onError={() => setFailedArtworkUrl(album.artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-xs font-bold tracking-[0.2em] text-white/85">MUSIC PIE</span>}</div><h2 className="mt-3 truncate font-semibold text-slate-950">{album.title}</h2><p className="mt-1 truncate text-sm text-slate-600">{album.artist}</p></article>;
-}
-
-function ArtistResults({ artists }: { artists: SearchArtist[] }) {
-  return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{artists.map((artist) => <article className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm" key={artist.id}><h2 className="font-semibold text-slate-950">{artist.name}</h2></article>)}</div>;
+  return <article className="min-w-0"><div className="relative aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "앨범" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</div><h2 className="mt-3 truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</h2><p className="mt-1 truncate text-sm text-[var(--muted)]">{secondary}</p>{tertiary ? <p className="mt-1 text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</p> : null}</article>;
 }

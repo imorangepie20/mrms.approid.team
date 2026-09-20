@@ -19,7 +19,13 @@ describe("GET /api/tidal/search", () => {
     process.env.TIDAL_COUNTRY_CODE = "KR";
     mocks.requireSubject.mockResolvedValue("auth0|listener");
     mocks.getToken.mockResolvedValue({ accessToken: "secret" });
-    mocks.search.mockResolvedValue({ albums: [], artists: [], next: null, tracks: [] });
+    mocks.search.mockResolvedValue({
+      albums: [],
+      next: null,
+      playlists: [],
+      topHits: [],
+      tracks: [],
+    });
   });
 
   it("passes a bounded query and same-origin cursor to the adapter", async () => {

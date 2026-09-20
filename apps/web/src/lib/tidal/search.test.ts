@@ -19,6 +19,13 @@ const searchDocument = {
       relationships: {
         albums: { data: [{ id: "album:opaque", type: "albums" }] },
         artists: { data: [{ id: "artist:opaque", type: "artists" }] },
+        playlists: { data: [{ id: "playlist:opaque", type: "playlists" }] },
+        topHits: { data: [
+          { id: "artist:opaque", type: "artists" },
+          { id: "album:opaque", type: "albums" },
+          { id: "track:opaque", type: "tracks" },
+          { id: "playlist:opaque", type: "playlists" },
+        ] },
         tracks: { data: [{ id: "track:opaque", type: "tracks" }] },
       },
       type: "searchResults",
@@ -50,6 +57,24 @@ const searchDocument = {
     },
     {
       attributes: {
+        name: "Björk Essentials",
+        numberOfTrackItems: 25,
+      },
+      id: "playlist:opaque",
+      relationships: {
+        coverArt: { data: [{ id: "playlist-art:opaque", type: "artworks" }] },
+      },
+      type: "playlists",
+    },
+    {
+      attributes: {
+        files: [{ href: "https://resources.tidal.com/playlist-640.jpg", meta: { height: 640, width: 640 } }],
+      },
+      id: "playlist-art:opaque",
+      type: "artworks",
+    },
+    {
+      attributes: {
         files: [
           { href: "https://resources.tidal.com/80.jpg", meta: { height: 80, width: 80 } },
           { href: "https://resources.tidal.com/640.jpg", meta: { height: 640, width: 640 } },
@@ -74,7 +99,7 @@ describe("TIDAL search adapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("normalizes opaque track, album, artist, artwork, and cursor values", async () => {
+  it("normalizes opaque track, album, playlist, artwork, and cursor values", async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json(searchDocument));
 
     const result = await searchTidalCatalog("  Björk  ", credentials, fetcher);
@@ -92,13 +117,27 @@ describe("TIDAL search adapter", () => {
       id: "album:opaque",
       title: "Debut",
     });
-    expect(result.artists[0]).toEqual({ id: "artist:opaque", name: "Björk" });
+    expect(result.playlists[0]).toEqual({
+      artworkUrl: "https://resources.tidal.com/playlist-640.jpg",
+      curator: "TIDAL",
+      id: "playlist:opaque",
+      title: "Björk Essentials",
+      trackCount: 25,
+    });
+    expect(result.topHits.map((hit) => [hit.kind, hit.id])).toEqual([
+      ["album", "album:opaque"],
+      ["track", "track:opaque"],
+      ["playlist", "playlist:opaque"],
+    ]);
     expect(result.next).toBe(searchDocument.links.next);
 
     const requestUrl = new URL(fetcher.mock.calls[0]?.[0] as URL);
+    expect(fetcher).toHaveBeenCalledTimes(1);
     expect(requestUrl.pathname).toBe("/v2/searchResults");
     expect(requestUrl.searchParams.get("filter[query]")).toBe("Björk");
-    expect(requestUrl.searchParams.get("include")).toBe("tracks,albums,artists");
+    expect(requestUrl.searchParams.get("include")).toBe(
+      "topHits,tracks,albums,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,playlists.coverArt",
+    );
   });
 
   it("rejects a cursor outside the configured API origin", async () => {
@@ -115,7 +154,7 @@ describe("TIDAL search adapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("fetches a track relationship document once when included metadata is incomplete", async () => {
+  it("does not fan out detail requests when included track metadata is incomplete", async () => {
     const incomplete = {
       data: [{
         id: "search",
@@ -124,28 +163,16 @@ describe("TIDAL search adapter", () => {
       }],
       included: [{ attributes: { title: "Human Behaviour" }, id: "track:opaque", type: "tracks" }],
     };
-    const relationships = {
-      data: {
-        attributes: { duration: "PT4M2S", title: "Human Behaviour" },
-        id: "track:opaque",
-        relationships: {
-          albums: { data: [{ id: "album:opaque", type: "albums" }] },
-          artists: { data: [{ id: "artist:opaque", type: "artists" }] },
-        },
-        type: "tracks",
-      },
-      included: searchDocument.included.slice(1),
-    };
-    const fetcher = vi.fn()
-      .mockResolvedValueOnce(Response.json(incomplete))
-      .mockResolvedValueOnce(Response.json(relationships));
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(incomplete));
 
     const result = await searchTidalCatalog("Björk", credentials, fetcher);
 
-    expect(result.tracks[0]).toMatchObject({ album: "Debut", artist: "Björk" });
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    const detailUrl = new URL(fetcher.mock.calls[1]?.[0] as URL);
-    expect(detailUrl.pathname).toContain("/tracks/track%3Aopaque");
+    expect(result.tracks[0]).toMatchObject({
+      album: "Unknown Album",
+      artist: "Unknown Artist",
+      artworkUrl: "",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("requests direct search suggestions without history", async () => {

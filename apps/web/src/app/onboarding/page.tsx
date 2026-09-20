@@ -9,7 +9,7 @@ export default function OnboardingPage() {
       <div className="onboarding-layout">
         <section className="onboarding-intro">
           <p>PERSONAL MUSIC SPACE</p>
-          <h1>당신의 음악으로 시작하는 공간</h1>
+          <h1 className="onboarding-title">당신의 음악으로 시작하는 공간</h1>
           <span>플레이리스트를 가져오면, 좋아하는 소리를 바탕으로 MMS와 첫 추천을 준비합니다.</span>
           <ol>
             <li><b>01</b><div><strong>TIDAL 연결</strong><small>허용한 범위 안에서만 음악 정보를 불러옵니다.</small></div></li>

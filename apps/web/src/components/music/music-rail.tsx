@@ -19,10 +19,10 @@ export function MusicRail({
     <section aria-labelledby={`${title}-heading`} className="mt-10">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 id={`${title}-heading`} className="text-xl font-bold text-slate-950 sm:text-2xl">
+          <h2 id={`${title}-heading`} className="text-xl font-bold text-[var(--foreground)] sm:text-2xl">
             {title}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">{description}</p>
+          <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
         </div>
         <button
           className="min-h-11 shrink-0 rounded-lg px-3 text-sm font-medium text-blue-700 transition hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"

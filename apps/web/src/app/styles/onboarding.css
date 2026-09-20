@@ -8,26 +8,29 @@
 .onboarding-intro {
   min-height: 500px;
   padding: 42px;
-  border: 1px solid rgba(139, 92, 246, 0.28);
+  border: 1px solid rgba(155, 92, 255, 0.32);
   border-radius: 20px;
   background: linear-gradient(115deg, rgba(34, 16, 60, 0.9), rgba(8, 14, 28, 0.78)), url("https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1200&q=85") center / cover;
 }
 
 .onboarding-intro > p {
   margin: 0;
-  color: #c389ff;
+  color: var(--brand-soft);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
 }
 
-.onboarding-intro h1 {
-  margin: 18px 0;
+.onboarding-title {
   color: #f5f3ff;
-  font-size: clamp(32px, 3vw, 38px);
-  font-weight: 620;
+  font-size: 36px;
+  font-weight: 560;
   letter-spacing: -0.04em;
   line-height: 1.16;
+}
+
+.onboarding-intro .onboarding-title {
+  margin: 18px 0;
 }
 
 .onboarding-intro > span {
@@ -53,7 +56,7 @@
 }
 
 .onboarding-intro li > b {
-  color: #c389ff;
+  color: var(--brand-soft);
   font-size: 12px;
   letter-spacing: 0.08em;
 }
@@ -81,8 +84,3 @@
   background: var(--surface);
   box-shadow: none;
 }
-
-.onboarding-form h1 {
-  letter-spacing: -0.04em;
-}
-

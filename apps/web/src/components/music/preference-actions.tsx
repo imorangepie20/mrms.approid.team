@@ -19,7 +19,7 @@ export function GatewayTrack({ track }: { track: Track }) {
           이 트랙은 이후 추천 후보에 포함되지 않습니다.
         </p>
         <button
-          className="mt-4 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+          className="mt-4 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-semibold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           type="button"
           onClick={() => {
             restoreRejectedTrack(track.id);
@@ -41,14 +41,14 @@ export function GatewayTrack({ track }: { track: Track }) {
       </p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <button
-          className="min-h-11 rounded-xl border border-white/20 px-4 font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+          className="min-h-11 rounded-xl border border-white/20 px-4 font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           type="button"
           onClick={() => playTrack(track)}
         >
           재생
         </button>
         <button
-          className="min-h-11 rounded-xl bg-fuchsia-400 px-4 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+          className="min-h-11 rounded-xl bg-[var(--brand)] px-4 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           type="button"
           onClick={() => {
             acceptTrack(track.id);
@@ -58,7 +58,7 @@ export function GatewayTrack({ track }: { track: Track }) {
           MMS에 담기
         </button>
         <button
-          className="min-h-11 rounded-xl border border-white/20 px-4 font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+          className="min-h-11 rounded-xl border border-white/20 px-4 font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
           type="button"
           onClick={() => setIsConfirmOpen(true)}
         >

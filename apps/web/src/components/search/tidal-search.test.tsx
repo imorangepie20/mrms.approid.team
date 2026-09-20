@@ -52,10 +52,10 @@ describe("TidalSearch", () => {
     fireEvent.change(searchbox, { target: { value: "abc" } });
     await waitFor(() => expect(pending.has("abc")).toBe(true));
     await act(async () => pending.get("abc")?.(Response.json({
-      albums: [], artists: [], next: null, tracks: [track],
+      albums: [], next: null, playlists: [], topHits: [{ ...track, kind: "track" }], tracks: [track],
     })));
     await act(async () => pending.get("ab")?.(Response.json({
-      albums: [], artists: [], next: null,
+      albums: [], next: null, playlists: [], topHits: [],
       tracks: [{ ...track, id: "old", tidalTrackId: "old", title: "Old result" }],
     })));
 
@@ -75,14 +75,52 @@ describe("TidalSearch", () => {
               id: "album-1",
               title: "Debut",
             }],
-            artists: [], next: null, tracks: [track],
+            next: null,
+            playlists: [{
+              artworkUrl: "https://resources.tidal.com/playlist.jpg",
+              curator: "TIDAL",
+              id: "playlist-1",
+              title: "Lazy Days",
+              trackCount: 100,
+            }],
+            topHits: [
+              { ...track, kind: "track" },
+              {
+                artist: "Björk",
+                artworkUrl: "https://resources.tidal.com/album.jpg",
+                id: "album-1",
+                kind: "album",
+                title: "Debut",
+              },
+              {
+                artworkUrl: "https://resources.tidal.com/playlist.jpg",
+                curator: "TIDAL",
+                id: "playlist-1",
+                kind: "playlist",
+                title: "Lazy Days",
+                trackCount: 100,
+              },
+            ],
+            tracks: [track],
           });
     }));
     const user = userEvent.setup();
     render(<TidalSearch />);
 
     await user.type(screen.getByRole("searchbox"), "bj");
-    await user.click(await screen.findByRole("button", { name: "재생 Human Behaviour" }));
+    expect(await screen.findByRole("tab", { name: "통합 결과" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("tab", { name: "아티스트" })).not.toBeInTheDocument();
+    expect(await screen.findByText("앨범 · Björk")).toBeInTheDocument();
+    expect(screen.getByText("플레이리스트 · TIDAL · 100곡")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "트랙" }));
+    const playButton = screen.getByRole("button", { name: "재생 Human Behaviour" });
+    expect(screen.getByRole("columnheader", { name: "TITLE" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "ARTIST" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "ALBUM" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "TIME" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    await user.click(playButton);
 
     expect(session.setQueue).toHaveBeenCalledWith(
       [track],
@@ -95,5 +133,9 @@ describe("TidalSearch", () => {
 
     await user.click(screen.getByRole("tab", { name: "앨범" }));
     expect(screen.getByRole("img", { name: "Debut 앨범 아트" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "플레이리스트" }));
+    expect(screen.getByRole("img", { name: "Lazy Days 플레이리스트 커버" })).toBeInTheDocument();
+    expect(screen.getByText("100곡")).toBeInTheDocument();
   });
 });

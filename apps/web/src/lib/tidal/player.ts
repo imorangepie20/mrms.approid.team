@@ -47,6 +47,7 @@ type PlayerSdk = {
   reset(): Promise<void>;
   seek(seconds: number): Promise<void>;
   setCredentialsProvider(provider: CredentialsProvider): void;
+  setEventSender(sender: EventSender): void;
   setNext(mediaProduct?: MediaProduct): Promise<void>;
 };
 
@@ -70,6 +71,14 @@ type PlaybackCredentials = {
 type CredentialsProvider = {
   bus(listener: (event: CustomEvent<{ type: "CredentialsUpdatedMessage" }>) => void): void;
   getCredentials(): Promise<PlaybackCredentials>;
+};
+
+type EventSender = {
+  sendEvent(event: unknown): void;
+};
+
+const eventSender: EventSender = {
+  sendEvent() {},
 };
 
 type EngineDependencies = {
@@ -151,6 +160,7 @@ export function createTidalPlaybackEngine(
       .then((loadedSdk) => {
         sdk = loadedSdk;
         loadedSdk.setCredentialsProvider(credentialsProvider);
+        loadedSdk.setEventSender(eventSender);
         loadedSdk.bootstrap({
           outputDevices: false,
           players: [{ itemTypes: ["track"], player: "browser" }],

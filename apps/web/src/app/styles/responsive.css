@@ -45,7 +45,7 @@
     min-height: var(--mobile-navigation-height);
     padding: 6px;
     border-top: 1px solid var(--border);
-    background: #0b0b12;
+    background: #0a0a10;
   }
 
   .mobile-quick-nav a {
@@ -61,8 +61,8 @@
   }
 
   .mobile-quick-nav a[aria-current="page"] {
-    background: rgba(139, 92, 246, 0.14);
-    color: #d5c8fb;
+    background: rgba(155, 92, 255, 0.16);
+    color: var(--brand-soft);
   }
 
   .page-shell {
@@ -186,7 +186,7 @@
     padding: 28px 24px;
   }
 
-  .onboarding-intro h1 {
+  .onboarding-title {
     font-size: 30px;
   }
 

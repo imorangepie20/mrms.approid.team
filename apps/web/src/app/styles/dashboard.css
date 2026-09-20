@@ -8,7 +8,7 @@
   align-items: center;
   border-bottom: 1px solid var(--border);
   font-size: var(--font-page);
-  font-weight: 620;
+  font-weight: 580;
   letter-spacing: -0.035em;
 }
 
@@ -25,14 +25,14 @@
   min-height: 200px;
   margin: 28px 0 36px;
   padding: 40px;
-  border: 1px solid rgba(139, 92, 246, 0.28);
+  border: 1px solid rgba(155, 92, 255, 0.32);
   border-radius: 20px;
   background: linear-gradient(100deg, rgba(58, 22, 67, 0.9), rgba(9, 16, 28, 0.88)), url("https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?auto=format&fit=crop&w=1600&q=80") center / cover;
 }
 
 .space-hero p {
   margin: 0;
-  color: #c389ff;
+  color: var(--brand-soft);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -92,8 +92,8 @@
 }
 
 .gms-hero {
-  border-color: rgba(0, 212, 200, 0.28);
-  background: linear-gradient(100deg, rgba(0, 64, 66, 0.92), rgba(11, 15, 40, 0.7)), url("https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1600&q=80") center / cover;
+  border-color: rgba(217, 70, 239, 0.3);
+  background: linear-gradient(100deg, rgba(87, 24, 107, 0.92), rgba(18, 11, 40, 0.72)), url("https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=1600&q=80") center / cover;
 }
 
 .gms-hero p {
@@ -122,8 +122,8 @@
 }
 
 .filter-row button:first-child {
-  background: #321d5e;
-  color: #d7c5ff;
+  background: rgba(124, 58, 237, 0.38);
+  color: var(--brand-soft);
 }
 
 .filter-row input {
@@ -135,7 +135,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: #101018;
+  background: var(--surface);
 }
 
 .track-table h2 {
@@ -197,7 +197,7 @@
 
 .track-row em {
   padding: 4px 8px;
-  border: 1px solid rgba(0, 212, 200, 0.3);
+  border: 1px solid rgba(217, 70, 239, 0.34);
   border-radius: 999px;
   color: var(--accent);
   font-size: 12px;
@@ -223,10 +223,10 @@
 
 .notice {
   padding: 16px;
-  border: 1px solid rgba(0, 212, 200, 0.2);
+  border: 1px solid rgba(217, 70, 239, 0.24);
   border-radius: 14px;
-  background: rgba(0, 212, 200, 0.06);
-  color: #b1d8d6;
+  background: rgba(217, 70, 239, 0.08);
+  color: #f0abfc;
 }
 
 .empty-state {
@@ -351,17 +351,17 @@
 .gateway-card > div:last-child button {
   min-height: 42px;
   flex: 1;
-  border: 1px solid #50378c;
+  border: 1px solid rgba(155, 92, 255, 0.5);
   border-radius: 9px;
-  background: #301d5a;
-  color: #cfbcff;
+  background: rgba(124, 58, 237, 0.36);
+  color: var(--brand-soft);
   font-size: 14px;
   font-weight: 600;
 }
 
 .gateway-card > div:last-child button + button {
   border-color: rgba(255, 255, 255, 0.09);
-  background: #1a1a22;
+  background: var(--surface-raised);
   color: #aaa4b6;
 }
 
@@ -373,7 +373,7 @@
   padding: 14px 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(17, 17, 25, 0.84);
+  background: rgba(17, 17, 24, 0.88);
   color: #aaa4b6;
 }
 
@@ -384,7 +384,7 @@
 }
 
 .home-summary b {
-  color: #f0eef8;
+  color: var(--foreground);
   font-size: 24px;
   font-weight: 620;
 }

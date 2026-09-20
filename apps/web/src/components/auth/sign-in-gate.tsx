@@ -53,7 +53,7 @@ export function SignInGate({ isOpen, onClose, connectHref }: SignInGateProps) {
           <button
             ref={closeButtonRef}
             aria-label="로그인 안내 닫기"
-            className="grid size-11 place-items-center rounded-full border border-white/20 text-xl transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+            className="grid size-11 place-items-center rounded-full border border-white/20 text-xl transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
             type="button"
             onClick={onClose}
           >
@@ -66,13 +66,13 @@ export function SignInGate({ isOpen, onClose, connectHref }: SignInGateProps) {
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row-reverse">
           <a
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-fuchsia-400 px-5 font-semibold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--brand)] px-5 font-semibold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
             href={connectHref}
           >
             내 취향으로 추천받기
           </a>
           <button
-            className="min-h-11 rounded-xl border border-white/20 px-5 font-medium text-slate-100 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+            className="min-h-11 rounded-xl border border-white/20 px-5 font-medium text-slate-100 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
             type="button"
             onClick={onClose}
           >
