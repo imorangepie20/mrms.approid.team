@@ -45,7 +45,10 @@ export async function startTidalDeviceAuthorization(
     {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ client_id: config.clientId, scope: config.scopes.join(" ") }),
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        scope: (config.deviceScopes ?? config.scopes).join(" "),
+      }),
     },
   );
   const body = await json(response);

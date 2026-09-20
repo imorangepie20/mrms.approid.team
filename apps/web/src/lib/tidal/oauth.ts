@@ -5,6 +5,7 @@ export type TidalOAuthConfig = {
   clientId: string;
   clientSecret?: string;
   deviceAuthorizationUrl?: string;
+  deviceScopes?: string[];
   redirectUri: string;
   scopes: string[];
   tokenUrl: string;
@@ -37,6 +38,9 @@ export function readTidalOAuthConfig(
     deviceAuthorizationUrl:
       environment.TIDAL_DEVICE_AUTHORIZATION_URL?.trim() ||
       "https://auth.tidal.com/v1/oauth2/device_authorization",
+    deviceScopes: (environment.TIDAL_DEVICE_SCOPES || "r_usr w_usr w_sub r_stream playback entitlements.read")
+      .split(/\s+/)
+      .filter(Boolean),
     redirectUri,
     scopes: (environment.TIDAL_SCOPES || "playlists.read")
       .split(/\s+/)

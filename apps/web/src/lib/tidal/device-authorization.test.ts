@@ -10,8 +10,9 @@ const config = {
   clientId: "client-id",
   clientSecret: "client-secret",
   deviceAuthorizationUrl: "https://auth.tidal.com/v1/oauth2/device_authorization",
+  deviceScopes: ["r_usr", "r_stream"],
   redirectUri: "https://mrms.approid.team/api/tidal/callback",
-  scopes: ["r_usr", "r_stream"],
+  scopes: ["playlists.read", "search.read", "playback", "user.read"],
   tokenUrl: "https://auth.tidal.com/v1/oauth2/token",
 };
 
@@ -36,6 +37,8 @@ describe("TIDAL device authorization", () => {
       expiresAt: new Date(301_000),
       intervalSeconds: 5,
     });
+    const request = fetcher.mock.calls[0]?.[1] as RequestInit;
+    expect(request.body?.toString()).toContain("scope=r_usr+r_stream");
   });
 
   it.each(["authorization_pending", "slow_down"] as const)(
