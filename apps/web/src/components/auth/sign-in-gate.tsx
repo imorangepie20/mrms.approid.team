@@ -5,10 +5,10 @@ import { useEffect, useRef } from "react";
 type SignInGateProps = {
   isOpen: boolean;
   onClose: () => void;
-  onConnect: () => void;
+  connectHref: string;
 };
 
-export function SignInGate({ isOpen, onClose, onConnect }: SignInGateProps) {
+export function SignInGate({ isOpen, onClose, connectHref }: SignInGateProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -65,13 +65,12 @@ export function SignInGate({ isOpen, onClose, onConnect }: SignInGateProps) {
           받아보세요.
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row-reverse">
-          <button
-            className="min-h-11 rounded-xl bg-fuchsia-400 px-5 font-semibold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
-            type="button"
-            onClick={onConnect}
+          <a
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-fuchsia-400 px-5 font-semibold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
+            href={connectHref}
           >
             내 취향으로 추천받기
-          </button>
+          </a>
           <button
             className="min-h-11 rounded-xl border border-white/20 px-5 font-medium text-slate-100 transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
             type="button"

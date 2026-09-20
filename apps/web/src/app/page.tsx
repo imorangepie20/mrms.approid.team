@@ -5,7 +5,6 @@ import { useState } from "react";
 import { SignInGate } from "@/components/auth/sign-in-gate";
 import { MusicRail } from "@/components/music/music-rail";
 import { catalog } from "@/lib/music/fixtures";
-import { useMusicSession } from "@/providers/music-session-provider";
 
 const rails = [
   {
@@ -37,13 +36,6 @@ const rails = [
 
 export default function HomePage() {
   const [isSignInGateOpen, setIsSignInGateOpen] = useState(false);
-  const { connectTidal } = useMusicSession();
-
-  const connectAndClose = async () => {
-    await connectTidal();
-    setIsSignInGateOpen(false);
-  };
-
   return (
     <main className="min-h-screen bg-slate-950 pb-[var(--player-height)] text-slate-100">
       <a
@@ -95,7 +87,7 @@ export default function HomePage() {
       <SignInGate
         isOpen={isSignInGateOpen}
         onClose={() => setIsSignInGateOpen(false)}
-        onConnect={connectAndClose}
+        connectHref="/onboarding"
       />
     </main>
   );

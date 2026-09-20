@@ -9,7 +9,7 @@ export function GatewayTrack({ track }: { track: Track }) {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [wasRejected, setWasRejected] = useState(false);
   const [wasAccepted, setWasAccepted] = useState(false);
-  const { acceptTrack, rejectTrack, restoreRejectedTrack } = useMusicSession();
+  const { acceptTrack, playTrack, rejectTrack, restoreRejectedTrack } = useMusicSession();
 
   if (wasRejected) {
     return (
@@ -40,6 +40,13 @@ export function GatewayTrack({ track }: { track: Track }) {
         {track.artist} · {track.album}
       </p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+        <button
+          className="min-h-11 rounded-xl border border-white/20 px-4 font-semibold transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
+          type="button"
+          onClick={() => playTrack(track)}
+        >
+          재생
+        </button>
         <button
           className="min-h-11 rounded-xl bg-fuchsia-400 px-4 font-bold text-slate-950 transition hover:bg-fuchsia-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-200"
           type="button"

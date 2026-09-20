@@ -18,9 +18,17 @@ function RouteOne() {
 }
 
 function NowPlaying() {
-  const { currentTrack } = useMusicSession();
+  const { currentTrack, playbackPosition, setPlaybackPosition } = useMusicSession();
 
-  return <p>Now playing: {currentTrack?.title ?? "nothing"}</p>;
+  return (
+    <>
+      <p>Now playing: {currentTrack?.title ?? "nothing"}</p>
+      <p>Position: {playbackPosition}</p>
+      <button type="button" onClick={() => setPlaybackPosition(42)}>
+        Set position
+      </button>
+    </>
+  );
 }
 
 function ProviderHarness() {
@@ -44,9 +52,12 @@ describe("MusicSessionProvider", () => {
     render(<ProviderHarness />);
 
     await user.click(screen.getByRole("button", { name: /play midnight city/i }));
+    await user.click(screen.getByRole("button", { name: /set position/i }));
     expect(screen.getByText(/now playing: midnight city/i)).toBeInTheDocument();
+    expect(screen.getByText("Position: 42")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /switch route/i }));
     expect(screen.getByText(/now playing: midnight city/i)).toBeInTheDocument();
+    expect(screen.getByText("Position: 42")).toBeInTheDocument();
   });
 });

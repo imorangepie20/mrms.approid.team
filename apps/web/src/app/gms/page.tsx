@@ -8,9 +8,9 @@ import { getGatewayTracks } from "@/lib/music/recommendations";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 export default function GatewayMusicPage() {
-  const { isAuthenticated, musicState } = useMusicSession();
+  const { isPersonalized, musicState } = useMusicSession();
 
-  if (!isAuthenticated) {
+  if (!isPersonalized) {
     return <ProtectedNotice destination="GMS 추천" />;
   }
 
@@ -21,7 +21,7 @@ export default function GatewayMusicPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 pb-[var(--player-height)] text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <p className="text-sm font-semibold tracking-[0.18em] text-fuchsia-300">GMS</p>
         <h1 className="mt-2 text-3xl font-black">당신을 위한 추천</h1>

@@ -6,18 +6,22 @@ type FullPlayerDialogProps = {
   currentTrack: Track;
   isPlaying: boolean;
   queue: Track[];
+  playbackPosition: number;
   onClose: () => void;
   onSelectTrack: (track: Track) => void;
   onTogglePlayback: () => void;
+  onPlaybackPositionChange: (position: number) => void;
 };
 
 export function FullPlayerDialog({
   currentTrack,
   isPlaying,
   queue,
+  playbackPosition,
   onClose,
   onSelectTrack,
   onTogglePlayback,
+  onPlaybackPositionChange,
 }: FullPlayerDialogProps) {
   return (
     <div
@@ -56,9 +60,9 @@ export function FullPlayerDialog({
           className="mt-8 w-full accent-fuchsia-400"
           max="100"
           min="0"
-          readOnly
           type="range"
-          value="32"
+          value={playbackPosition}
+          onChange={(event) => onPlaybackPositionChange(Number(event.target.value))}
         />
         <button
           className="mt-6 min-h-12 rounded-xl bg-fuchsia-400 px-6 font-black text-slate-950"

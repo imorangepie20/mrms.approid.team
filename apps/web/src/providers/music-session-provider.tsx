@@ -15,16 +15,20 @@ import type { MusicState, Track } from "@/lib/music/types";
 
 type MusicSession = {
   isAuthenticated: boolean;
+  isPersonalized: boolean;
   currentTrack: Track | null;
   isPlaying: boolean;
+  playbackPosition: number;
   queue: Track[];
   musicState: MusicState;
   playTrack: (track: Track) => void;
   togglePlayback: () => void;
+  setPlaybackPosition: (position: number) => void;
   acceptTrack: (trackId: string) => void;
   rejectTrack: (trackId: string) => void;
   restoreRejectedTrack: (trackId: string) => void;
   connectTidal: (selectedPlaylistIds?: string[]) => Promise<void>;
+  initializeMms: (selectedPlaylistIds: string[]) => void;
 };
 
 const MusicSessionContext = createContext<MusicSession | null>(null);
@@ -36,13 +40,16 @@ const initialMusicState: MusicState = {
 
 export function MusicSessionProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPersonalized, setIsPersonalized] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackPosition, setPlaybackPosition] = useState(0);
   const [musicState, setMusicState] = useState(initialMusicState);
 
   const playTrack = useCallback((track: Track) => {
     setCurrentTrack(track);
     setIsPlaying(true);
+    setPlaybackPosition(0);
   }, []);
 
   const togglePlayback = useCallback(() => {
@@ -69,26 +76,39 @@ export function MusicSessionProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(true);
   }, []);
 
+  const initializeMms = useCallback((selectedPlaylistIds: string[]) => {
+    if (selectedPlaylistIds.length > 0) {
+      setIsPersonalized(true);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       isAuthenticated,
+      isPersonalized,
       currentTrack,
       isPlaying,
+      playbackPosition,
       queue: catalog,
       musicState,
       playTrack,
       togglePlayback,
+      setPlaybackPosition,
       acceptTrack,
       rejectTrack,
       restoreRejectedTrack,
       connectTidal,
+      initializeMms,
     }),
     [
       acceptTrack,
       connectTidal,
       currentTrack,
       isAuthenticated,
+      isPersonalized,
       isPlaying,
+      playbackPosition,
+      initializeMms,
       musicState,
       playTrack,
       rejectTrack,

@@ -7,9 +7,9 @@ import { ProtectedNotice } from "@/app/gms/page";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 export default function MyMusicShelfPage() {
-  const { isAuthenticated, musicState, restoreRejectedTrack } = useMusicSession();
+  const { isPersonalized, musicState, restoreRejectedTrack } = useMusicSession();
 
-  if (!isAuthenticated) {
+  if (!isPersonalized) {
     return <ProtectedNotice destination="MMS" />;
   }
 
@@ -19,7 +19,7 @@ export default function MyMusicShelfPage() {
   );
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-slate-950 px-4 py-8 pb-[var(--player-height)] text-slate-100 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
         <p className="text-sm font-semibold tracking-[0.18em] text-fuchsia-300">MMS</p>
         <h1 className="mt-2 text-3xl font-black">나만의 Music Mix Shelf</h1>

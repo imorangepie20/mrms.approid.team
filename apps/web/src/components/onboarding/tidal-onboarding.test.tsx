@@ -34,6 +34,22 @@ describe("TidalOnboarding", () => {
     expect(screen.getByText(/MMS와 첫 추천이 준비됐어요/i)).toBeInTheDocument();
   });
 
+  it("does not create MMS from a playlist with no tracks", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TidalOnboarding
+        playlists={[{ id: "empty", name: "빈 플레이리스트", trackCount: 0 }]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "TIDAL 연결하기" }));
+    await user.click(screen.getByRole("checkbox", { name: /빈 플레이리스트/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("분석할 트랙이 없습니다");
+  });
+
   it("shows a retry action when TIDAL connection fails", async () => {
     const user = userEvent.setup();
     const connect = vi.fn().mockRejectedValue(new Error("connection failed"));

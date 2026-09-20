@@ -8,7 +8,7 @@ import { FullPlayerDialog } from "./full-player-dialog";
 
 export function PersistentPlayer() {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
-  const { currentTrack, isPlaying, playTrack, queue, togglePlayback } =
+  const { currentTrack, isPlaying, playTrack, playbackPosition, queue, setPlaybackPosition, togglePlayback } =
     useMusicSession();
 
   const selectAdjacentTrack = (offset: number) => {
@@ -48,9 +48,9 @@ export function PersistentPlayer() {
                   className="w-full accent-fuchsia-400"
                   max="100"
                   min="0"
-                  readOnly
                   type="range"
-                  value="32"
+                  value={playbackPosition}
+                  onChange={(event) => setPlaybackPosition(Number(event.target.value))}
                 />
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -92,6 +92,8 @@ export function PersistentPlayer() {
           queue={queue}
           onClose={() => setIsFullPlayerOpen(false)}
           onSelectTrack={playTrack}
+          playbackPosition={playbackPosition}
+          onPlaybackPositionChange={setPlaybackPosition}
           onTogglePlayback={togglePlayback}
         />
       ) : null}

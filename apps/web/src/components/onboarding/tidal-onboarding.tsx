@@ -11,11 +11,13 @@ type TidalPlaylist = {
 type TidalOnboardingProps = {
   playlists: TidalPlaylist[];
   onConnect?: () => Promise<void>;
+  onCreateMms?: (selectedPlaylistIds: string[]) => void;
 };
 
 export function TidalOnboarding({
   playlists,
   onConnect = async () => {},
+  onCreateMms = () => {},
 }: TidalOnboardingProps) {
   const [step, setStep] = useState<"connect" | "select" | "complete">("connect");
   const [selectedPlaylistIds, setSelectedPlaylistIds] = useState<string[]>([]);
@@ -51,7 +53,20 @@ export function TidalOnboarding({
       return;
     }
 
+    const usablePlaylistIds = playlists
+      .filter(
+        (playlist) =>
+          selectedPlaylistIds.includes(playlist.id) && playlist.trackCount > 0,
+      )
+      .map((playlist) => playlist.id);
+
+    if (usablePlaylistIds.length === 0) {
+      setError("선택한 플레이리스트에 분석할 트랙이 없습니다.");
+      return;
+    }
+
     setError(null);
+    onCreateMms(usablePlaylistIds);
     setStep("complete");
   };
 
