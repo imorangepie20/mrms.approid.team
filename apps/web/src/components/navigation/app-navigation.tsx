@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AuthControls } from "@/components/auth/auth-controls";
+
+type NavigationUser = {
+  email?: string | null;
+  name?: string | null;
+};
+
 const items = [
   { href: "/", label: "홈", sub: "MAIN" },
   { href: "/mms", label: "My Music Space", sub: "MMS" },
@@ -10,7 +17,7 @@ const items = [
   { href: "/ems", label: "External Music Space", sub: "EMS" },
 ];
 
-export function AppNavigation() {
+export function AppNavigation({ user = null }: { user?: NavigationUser | null }) {
   const pathname = usePathname();
   const isCurrent = (href: string) => pathname === href;
 
@@ -31,6 +38,7 @@ export function AppNavigation() {
           <Link key={item.href} aria-current={isCurrent(item.href) ? "page" : undefined} href={item.href}>{item.sub}</Link>
         ))}
       </nav>
+      <AuthControls user={user} />
     </>
   );
 }

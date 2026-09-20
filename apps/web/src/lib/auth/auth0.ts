@@ -14,3 +14,20 @@ export const auth0 = new Auth0Client({
   },
   secret: process.env.AUTH0_SECRET,
 });
+
+type Auth0SessionReader = () => Promise<{
+  user: { sub?: string | null };
+} | null>;
+
+export async function requireAuth0Subject(
+  readSession: Auth0SessionReader = () => auth0.getSession(),
+) {
+  const session = await readSession();
+  const subject = session?.user.sub;
+
+  if (!subject) {
+    throw new Error("Authentication required.");
+  }
+
+  return subject;
+}
