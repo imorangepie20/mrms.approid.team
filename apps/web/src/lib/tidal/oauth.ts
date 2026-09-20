@@ -42,7 +42,7 @@ export function readTidalOAuthConfig(
     deviceAuthorizationUrl:
       environment.TIDAL_DEVICE_AUTHORIZATION_URL?.trim() ||
       "https://auth.tidal.com/v1/oauth2/device_authorization",
-    deviceScopes: (environment.TIDAL_DEVICE_SCOPES || "r_usr w_usr w_sub r_stream playback entitlements.read")
+    deviceScopes: (environment.TIDAL_DEVICE_SCOPES || "r_usr w_usr w_sub")
       .split(/\s+/)
       .filter(Boolean),
     redirectUri,
@@ -124,6 +124,11 @@ export function toTidalDeviceOAuthConfig(config: TidalOAuthConfig): TidalOAuthCo
     clientId: config.deviceClientId || config.clientId,
     clientSecret: config.deviceClientSecret || config.clientSecret,
   };
+}
+
+export function hasTidalDeviceSessionScopes(scope: string | null | undefined) {
+  const granted = new Set((scope ?? "").split(/[\s,]+/).filter(Boolean));
+  return granted.has("r_stream") || ["r_usr", "w_usr", "w_sub"].every((item) => granted.has(item));
 }
 
 export async function exchangeTidalCode(

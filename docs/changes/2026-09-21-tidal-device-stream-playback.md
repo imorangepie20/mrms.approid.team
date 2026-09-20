@@ -13,6 +13,7 @@
 - 브라우저 재생 엔진을 `HTMLAudioElement`와 `hls.js` 기반으로 교체하면서 queue, shuffle, seek, volume, 반복, 다음 곡 동작을 유지했다.
 - 기존 Embed 전체 재생 UI를 제거하고 Device Code 연결 UI를 추가했다.
 - provider가 현재 client를 Limited Input Device client로 인정하지 않을 때 `tidal_device_client_unsupported`를 반환하고 설정 필요 상태를 표시한다.
+- 사용자 제공 Android APK의 동작을 정적 분석한 결과, 실제 성공 앱은 `r_stream` 없이 `r_usr w_usr w_sub`로 Device Code 인증 후 `FULL + STREAM` playbackinfo를 호출한다. Music Pie의 `r_stream` 단독 선검사를 이 호환 scope 조합도 허용하도록 수정했다.
 
 ## 실제 외부 검증 결과
 
@@ -21,6 +22,8 @@
 - 기존 Authorization Code 요청에 신형 카탈로그 scope와 legacy streaming scope를 혼합한 실험: TIDAL 로그인 화면에서 오류 `1002`.
 - 따라서 현재 client ID만으로 실제 `FULL` manifest 발급과 장시간 재생은 검증하지 못했다.
 - 별도 Limited Input Device client를 `TIDAL_DEVICE_CLIENT_ID`에 설정하면 구현된 Device Code 경로가 그 client를 사용한다. 기존 카탈로그 client 설정은 유지된다.
+- 사용자 제공 APK SHA-256: `BA63087F6F53A06D8C47B5237D8E44C7EB6B3C87FD6C2C474E2406E0799D76AB`.
+- APK 확인값: Device scope `r_usr w_usr w_sub`, `/device_authorization`, `/token`, `/playbackinfo`, `playbackmode=STREAM`, `assetpresentation=FULL`. APK 내부 client 자격증명은 문서나 로그에 기록하지 않았다.
 
 ## 검증
 

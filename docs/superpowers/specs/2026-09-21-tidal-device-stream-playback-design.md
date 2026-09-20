@@ -9,7 +9,7 @@
 ## 성공 조건
 
 - 로그인 사용자가 TIDAL Device Code 연결을 완료할 수 있다.
-- 서버가 `r_stream`을 포함한 실제 발급 scope와 TIDAL 사용자 ID를 암호화된 기존 연결 저장소에 보관한다.
+- 서버가 실제 동작이 확인된 Device Code scope(`r_usr w_usr w_sub`, 또는 provider가 명시적으로 발급한 `r_stream`)와 TIDAL 사용자 ID를 암호화된 기존 연결 저장소에 보관한다.
 - 트랙 재생 시 서버가 `assetpresentation=FULL`로 `playbackinfo`를 요청한다.
 - 응답이 `FULL`이고 재생 가능한 direct 또는 HLS URL일 때 기존 플레이어 UI에서 곡 전체를 재생한다.
 - `PREVIEW`, DRM, 비어 있는 manifest, 지원하지 않는 DASH는 전체 재생 성공으로 처리하지 않는다.
@@ -19,7 +19,7 @@
 ## 전제와 한계
 
 - 사용자는 해당 곡을 재생할 수 있는 TIDAL 계정과 구독 권한을 가진다.
-- TIDAL Device Code endpoint가 현재 client ID를 허용하고, 발급 토큰에 `r_stream` 또는 동등한 streaming scope를 포함해야 한다.
+- TIDAL Device Code endpoint가 현재 client ID를 허용해야 한다. 실제 Android 기준 앱은 `r_usr w_usr w_sub`로 전체 재생에 성공하므로 `r_stream`만을 필수 조건으로 선검사하지 않는다.
 - v1 `playbackinfo`는 공개 Web SDK 계약이 아닌 legacy 경로다. TIDAL 변경으로 중단될 수 있다.
 - 암호화된 manifest 또는 DRM 라이선스 우회는 구현하지 않는다. `encryptionType`이 암호화를 나타내면 재생을 거부한다.
 - 재생 URL은 저장하거나 다운로드하지 않고 현재 재생 세션에서만 사용한다.

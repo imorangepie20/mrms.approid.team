@@ -1,4 +1,5 @@
 import type { UsableTidalAccessToken } from "@/lib/db/user-connections";
+import { hasTidalDeviceSessionScopes } from "@/lib/tidal/oauth";
 
 export type TidalPlaybackStream = {
   assetPresentation: "FULL";
@@ -87,7 +88,7 @@ export async function resolveTidalPlaybackStream(
   options: ResolveOptions = {},
 ): Promise<TidalPlaybackStream> {
   if (!/^\d+$/.test(trackId)) throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
-  if (!scopes(token).includes("r_stream")) {
+  if (!hasTidalDeviceSessionScopes(scopes(token).join(" "))) {
     throw new TidalPlaybackStreamError("tidal_stream_scope_required");
   }
   const quality = (options.quality ?? "LOSSLESS").toUpperCase();

@@ -8,7 +8,7 @@ import {
 const token = {
   accessToken: "access",
   expiresAt: new Date("2026-09-22T00:00:00.000Z"),
-  scope: "r_usr r_stream",
+  scope: "r_usr w_usr w_sub",
   userId: "123",
 };
 
@@ -50,8 +50,8 @@ describe("TIDAL playback stream resolver", () => {
     );
   });
 
-  it("accepts streaming scope from a JWT claim", async () => {
-    const payload = Buffer.from(JSON.stringify({ scope: "r_usr r_stream", cc: "KR" })).toString("base64url");
+  it("accepts the legacy session scopes used by the working Android client", async () => {
+    const payload = Buffer.from(JSON.stringify({ scope: "r_usr w_usr w_sub", cc: "KR" })).toString("base64url");
     const fetcher = vi.fn().mockResolvedValue(response({
       assetPresentation: "FULL",
       manifest: "https://audio.example/42.flac",

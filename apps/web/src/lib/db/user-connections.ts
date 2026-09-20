@@ -1,6 +1,7 @@
 import type { ConnectionStatus } from "@/lib/auth/connection-status";
 import { decryptToken, encryptToken } from "@/lib/auth/token-cipher";
 import {
+  hasTidalDeviceSessionScopes,
   readTidalOAuthConfig,
   refreshTidalToken,
   toTidalDeviceOAuthConfig,
@@ -320,7 +321,7 @@ export async function getUsableTidalAccessToken(
         dependencies.refresh ??
         ((token: string) => {
           const config = readTidalOAuthConfig();
-          const refreshConfig = latest.scope?.split(/\s+/).includes("r_stream")
+          const refreshConfig = hasTidalDeviceSessionScopes(latest.scope)
             ? toTidalDeviceOAuthConfig(config)
             : config;
           return refreshTidalToken(token, refreshConfig);
