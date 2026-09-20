@@ -19,6 +19,7 @@ describe("playback credentials", () => {
       accessToken: "access",
       expiresAt: new Date(1_795_000_000_000),
       scope: "playlists.read search.read playback user.read",
+      userId: "12345",
     });
 
     const credentials = await getPlaybackCredentials("auth0|listener", {
@@ -32,6 +33,7 @@ describe("playback credentials", () => {
       grantedScopes: ["playlists.read", "search.read", "playback", "user.read"],
       requestedScopes: ["playlists.read", "search.read", "playback", "user.read"],
       token: "access",
+      userId: "12345",
     });
     expect(credentials).not.toHaveProperty("refreshToken");
   });
@@ -53,5 +55,23 @@ describe("playback credentials", () => {
         code: "tidal_playback_scope_required",
       }),
     );
+  });
+
+  it("rejects legacy connections that do not have a TIDAL user id", async () => {
+    const getAccessToken = vi.fn().mockResolvedValue({
+      accessToken: "access",
+      expiresAt: new Date(1_795_000_000_000),
+      scope: "playback",
+      userId: null,
+    });
+
+    await expect(
+      getPlaybackCredentials("auth0|listener", {
+        getAccessToken,
+        readConfig: () => config,
+      }),
+    ).rejects.toEqual(expect.objectContaining({
+      code: "tidal_playback_user_required",
+    }));
   });
 });

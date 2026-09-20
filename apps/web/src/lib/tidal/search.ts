@@ -43,7 +43,37 @@ type Document = {
 };
 
 function resources(value: unknown): Resource[] {
-  return Array.isArray(value) ? (value as Resource[]) : [];
+  if (Array.isArray(value)) return value as Resource[];
+  return typeof value === "object" && value !== null ? [value as Resource] : [];
+}
+
+async function tidalGetResource(
+  url: URL,
+  token: string,
+  fetcher: typeof fetch,
+): Promise<Document> {
+  const response = await fetcher(url, {
+    headers: {
+      accept: "application/vnd.api+json",
+      authorization: `Bearer ${token}`,
+    },
+  });
+  if (response.status === 401 || response.status === 403) {
+    throw new TidalApiError("reauthenticate");
+  }
+  if (response.status === 429 || response.status >= 500) {
+    throw new TidalApiError("retryable");
+  }
+  if (!response.ok) throw new TidalApiError("invalid_response");
+  const document = (await response.json()) as Document;
+  if (
+    typeof document.data !== "object" ||
+    document.data === null ||
+    Array.isArray(document.data)
+  ) {
+    throw new TidalApiError("invalid_response");
+  }
+  return document;
 }
 
 function key(identifier: Identifier) {
@@ -171,7 +201,7 @@ async function completeTrackRelationships(
     const url = new URL(`tracks/${encodeURIComponent(id)}`, base);
     url.searchParams.set("countryCode", credentials.countryCode);
     url.searchParams.set("include", "albums,artists,albums.coverArt");
-    return tidalGet(url, credentials.accessToken, fetcher);
+    return tidalGetResource(url, credentials.accessToken, fetcher);
   }));
   for (const detail of detailDocuments) {
     for (const resource of [

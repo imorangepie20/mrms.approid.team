@@ -80,6 +80,7 @@ export async function GET(request: Request) {
               : null,
             scope: token.scope,
             status: "connected",
+            tidalUserId: token.userId,
           });
         },
       },

@@ -3,7 +3,11 @@ import { getUsableTidalAccessToken } from "@/lib/db/user-connections";
 import { readTidalOAuthConfig, type TidalOAuthConfig } from "./oauth";
 
 export class PlaybackCredentialsError extends Error {
-  constructor(public readonly code: "tidal_playback_scope_required") {
+  constructor(
+    public readonly code:
+      | "tidal_playback_scope_required"
+      | "tidal_playback_user_required",
+  ) {
     super(code);
   }
 }
@@ -28,6 +32,9 @@ export async function getPlaybackCredentials(
   if (!grantedScopes.includes("playback")) {
     throw new PlaybackCredentialsError("tidal_playback_scope_required");
   }
+  if (!token.userId) {
+    throw new PlaybackCredentialsError("tidal_playback_user_required");
+  }
 
   return {
     clientId: config.clientId,
@@ -35,5 +42,6 @@ export async function getPlaybackCredentials(
     grantedScopes,
     requestedScopes: config.scopes,
     token: token.accessToken,
+    userId: token.userId,
   };
 }

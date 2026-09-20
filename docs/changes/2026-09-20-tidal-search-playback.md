@@ -7,7 +7,9 @@
 ## 변경 내용
 
 - 만료 임박 access token을 서버에서 직렬화해 갱신하고 `playback` scope를 확인하는 playback credentials API를 추가했다.
+- Player SDK가 사용자 재생 권한을 판정할 수 있도록 OAuth token 응답의 `user_id`를 `tidal_connections.tidal_user_id`에 저장하는 `004_tidal_player_user_id.sql` migration을 추가했다.
 - `@tidal-music/player`를 브라우저에서만 동적 import하는 singleton adapter를 추가했다.
+- SDK credentials provider의 `bus`, `userId` 계약과 SDK의 `errorCode` payload를 adapter에서 변환한다.
 - `MusicSessionProvider`를 실제 SDK 이벤트 기반 reducer로 바꾸고 loading, playing, paused, stalled, error 상태와 초 단위 position·duration을 관리한다.
 - queue 항목별 `referenceId`와 index를 사용해 같은 TIDAL track ID가 중복되어도 previous, next, ended 전환이 정확하게 동작하도록 했다.
 - TIDAL `searchResults`와 `searchSuggestions` JSON:API 응답을 track, album, artist 결과로 정규화하는 서버 adapter와 API routes를 추가했다.
@@ -26,6 +28,7 @@
 ## 미검증 항목
 
 - 이 작업 환경에서는 실제 TIDAL 사용자 세션과 재생 가능한 계정이 제공되지 않아 실제 검색 결과·음원 asset을 사용한 브라우저 재생은 확인하지 않았다.
+- 실제 PostgreSQL에 `004_tidal_player_user_id.sql` migration을 적용하지 않았다. migration 적용 후 TIDAL을 다시 연결해야 기존 연결에도 `tidal_user_id`가 채워진다.
 - 실제 계정의 play, pause, seek, previous, next, ended 자동 전환과 `/search`에서 `/mms`로 이동한 뒤 재생 위치 유지는 브라우저 수동 검증이 남아 있다.
 - 새로고침 뒤 SDK가 새 브라우저 session에서 다시 초기화되는 동작은 adapter 단위 테스트와 build로만 검증했다.
 

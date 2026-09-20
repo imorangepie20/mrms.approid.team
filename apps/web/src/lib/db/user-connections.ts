@@ -22,6 +22,7 @@ type ConnectionRow = {
   encrypted_refresh_token: string | null;
   scope: string | null;
   status: ConnectionStatus;
+  tidal_user_id: string | null;
   updated_at: Date;
 };
 
@@ -32,6 +33,7 @@ export type UserConnection = {
   encryptedRefreshToken: string | null;
   scope: string | null;
   status: ConnectionStatus;
+  tidalUserId: string | null;
   updatedAt: Date;
 };
 
@@ -42,6 +44,7 @@ export type UpsertUserConnectionInput = {
   encryptedRefreshToken?: string | null;
   scope?: string | null;
   status: ConnectionStatus;
+  tidalUserId?: string | null;
 };
 
 type UsableAccessTokenDependencies = {
@@ -57,6 +60,7 @@ export type UsableTidalAccessToken = {
   accessToken: string;
   expiresAt: Date;
   scope: string | null;
+  userId: string | null;
 };
 
 function database(executor?: QueryExecutor) {
@@ -104,6 +108,7 @@ function toUserConnection(row: ConnectionRow): UserConnection {
     encryptedRefreshToken: row.encrypted_refresh_token,
     scope: row.scope,
     status: row.status,
+    tidalUserId: row.tidal_user_id,
     updatedAt: row.updated_at,
   };
 }
@@ -120,6 +125,7 @@ export async function getUserConnection(
        c.encrypted_refresh_token,
        c.access_token_expires_at,
        c.scope,
+       c.tidal_user_id,
        c.updated_at
      FROM app_users AS u
      INNER JOIN tidal_connections AS c ON c.user_id = u.id
@@ -142,6 +148,7 @@ async function getUserConnectionForUpdate(
        c.encrypted_refresh_token,
        c.access_token_expires_at,
        c.scope,
+       c.tidal_user_id,
        c.updated_at
      FROM app_users AS u
      INNER JOIN tidal_connections AS c ON c.user_id = u.id
@@ -170,9 +177,10 @@ export async function upsertUserConnection(
        encrypted_access_token,
        encrypted_refresh_token,
        access_token_expires_at,
-       scope
+       scope,
+       tidal_user_id
      )
-     SELECT id, $2, $3, $4, $5, $6 FROM target_user
+     SELECT id, $2, $3, $4, $5, $6, $7 FROM target_user
      ON CONFLICT (user_id)
      DO UPDATE SET
        status = EXCLUDED.status,
@@ -180,6 +188,7 @@ export async function upsertUserConnection(
        encrypted_refresh_token = EXCLUDED.encrypted_refresh_token,
        access_token_expires_at = EXCLUDED.access_token_expires_at,
        scope = EXCLUDED.scope,
+       tidal_user_id = COALESCE(EXCLUDED.tidal_user_id, tidal_connections.tidal_user_id),
        updated_at = now()
      RETURNING
        (SELECT auth0_subject FROM target_user) AS auth0_subject,
@@ -188,6 +197,7 @@ export async function upsertUserConnection(
        encrypted_refresh_token,
        access_token_expires_at,
        scope,
+       tidal_user_id,
        updated_at`,
     [
       input.auth0Subject,
@@ -196,6 +206,7 @@ export async function upsertUserConnection(
       input.encryptedRefreshToken ?? null,
       input.accessTokenExpiresAt ?? null,
       input.scope ?? null,
+      input.tidalUserId ?? null,
     ],
   );
 
@@ -246,6 +257,7 @@ export async function getUsableTidalAccessToken(
       accessToken: decryptToken(connection.encryptedAccessToken, encryptionKey),
       expiresAt: connection.accessTokenExpiresAt,
       scope: connection.scope,
+      userId: connection.tidalUserId,
     };
   }
 
@@ -265,6 +277,7 @@ export async function getUsableTidalAccessToken(
           accessToken: decryptToken(latest.encryptedAccessToken, encryptionKey),
           expiresAt: latest.accessTokenExpiresAt,
           scope: latest.scope,
+          userId: latest.tidalUserId,
         };
       }
       if (!latest.encryptedRefreshToken) {
@@ -291,11 +304,17 @@ export async function getUsableTidalAccessToken(
           encryptedRefreshToken: encryptToken(refreshToken, encryptionKey),
           scope,
           status: "connected",
+          tidalUserId: refreshed.userId ?? latest.tidalUserId,
         },
         transaction,
       );
 
-      return { accessToken: refreshed.accessToken, expiresAt, scope };
+      return {
+        accessToken: refreshed.accessToken,
+        expiresAt,
+        scope,
+        userId: refreshed.userId ?? latest.tidalUserId,
+      };
     }),
   );
 }

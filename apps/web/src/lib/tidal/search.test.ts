@@ -125,7 +125,7 @@ describe("TIDAL search adapter", () => {
       included: [{ attributes: { title: "Human Behaviour" }, id: "track:opaque", type: "tracks" }],
     };
     const relationships = {
-      data: [{
+      data: {
         attributes: { duration: "PT4M2S", title: "Human Behaviour" },
         id: "track:opaque",
         relationships: {
@@ -133,7 +133,7 @@ describe("TIDAL search adapter", () => {
           artists: { data: [{ id: "artist:opaque", type: "artists" }] },
         },
         type: "tracks",
-      }],
+      },
       included: searchDocument.included.slice(1),
     };
     const fetcher = vi.fn()

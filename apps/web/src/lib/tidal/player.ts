@@ -64,9 +64,11 @@ type PlaybackCredentials = {
   grantedScopes: string[];
   requestedScopes: string[];
   token: string;
+  userId: string;
 };
 
 type CredentialsProvider = {
+  bus(listener: (event: CustomEvent<{ type: "CredentialsUpdatedMessage" }>) => void): void;
   getCredentials(): Promise<PlaybackCredentials>;
 };
 
@@ -79,6 +81,7 @@ export function createServerCredentialsProvider(
   fetchCredentials: typeof fetch = fetch,
 ): CredentialsProvider {
   return {
+    bus() {},
     async getCredentials() {
       const response = await fetchCredentials("/api/tidal/playback-credentials", {
         cache: "no-store",
@@ -187,10 +190,17 @@ export function createTidalPlaybackEngine(
           });
         });
         loadedSdk.events.addEventListener("error", (event) => {
-          const detail = (event as CustomEvent<{ code?: string; message?: string }>).detail;
+          const detail = (event as CustomEvent<{
+            code?: string;
+            errorCode?: string;
+            errorId?: string;
+            message?: string;
+          }>).detail;
           emit({
             code:
               detail?.code ??
+              detail?.errorCode ??
+              detail?.errorId ??
               detail?.message ??
               (event instanceof ErrorEvent ? event.message : "tidal_playback_error"),
             type: "error",

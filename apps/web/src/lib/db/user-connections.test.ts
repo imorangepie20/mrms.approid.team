@@ -47,6 +47,7 @@ describe("user TIDAL connections", () => {
         encryptedAccessToken: "encrypted-access",
         scope: "playlists.read",
         status: "connected",
+        tidalUserId: "12345",
       },
       database,
     );
@@ -54,7 +55,12 @@ describe("user TIDAL connections", () => {
     expect(result.auth0Subject).toBe("auth0|listener-a");
     expect(database.query).toHaveBeenCalledWith(
       expect.stringContaining("ON CONFLICT (user_id)"),
-      expect.arrayContaining(["auth0|listener-a", "connected", "encrypted-access"]),
+      expect.arrayContaining([
+        "auth0|listener-a",
+        "connected",
+        "encrypted-access",
+        "12345",
+      ]),
     );
   });
 
@@ -81,6 +87,7 @@ describe("user TIDAL connections", () => {
         encrypted_refresh_token: encryptToken("current-refresh", encryptionKey),
         scope: "playlists.read",
         status: "connected",
+        tidal_user_id: "12345",
         updated_at: new Date("2026-09-20T00:00:00.000Z"),
       },
     ]);
@@ -97,6 +104,7 @@ describe("user TIDAL connections", () => {
       accessToken: "current-access",
       expiresAt: new Date("2026-09-20T01:02:00.000Z"),
       scope: "playlists.read",
+      userId: "12345",
     });
     expect(refresh).not.toHaveBeenCalled();
   });
@@ -110,6 +118,7 @@ describe("user TIDAL connections", () => {
       encrypted_refresh_token: encryptToken("old-refresh", encryptionKey),
       scope: "playlists.read",
       status: "connected",
+      tidal_user_id: "12345",
       updated_at: new Date("2026-09-20T00:00:00.000Z"),
     };
     const updatedRow = {
@@ -139,10 +148,12 @@ describe("user TIDAL connections", () => {
     });
 
     expect(token.accessToken).toBe("new-access");
+    expect(token.userId).toBe("12345");
     expect(refresh).toHaveBeenCalledWith("old-refresh");
     const persistedValues = database.query.mock.calls[2]?.[1] as string[];
     expect(decryptToken(persistedValues[2], encryptionKey)).toBe("new-access");
     expect(decryptToken(persistedValues[3], encryptionKey)).toBe("new-refresh");
+    expect(persistedValues[6]).toBe("12345");
   });
 
   it("serializes refresh for the same user and reuses the rotated token", async () => {

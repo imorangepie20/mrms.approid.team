@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 import { TrackCard } from "@/components/music/track-card";
@@ -175,7 +176,12 @@ function TrackResults({ tracks, onPlay }: { tracks: PlayableTrack[]; onPlay: (tr
 }
 
 function AlbumResults({ albums }: { albums: SearchAlbum[] }) {
-  return <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" key={album.id}><h2 className="font-semibold text-slate-950">{album.title}</h2><p className="mt-1 text-sm text-slate-600">{album.artist}</p></article>)}</div>;
+  return <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">{albums.map((album) => <AlbumCard album={album} key={album.id} />)}</div>;
+}
+
+function AlbumCard({ album }: { album: SearchAlbum }) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  return <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><div className="relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-sky-500">{album.artworkUrl && failedArtworkUrl !== album.artworkUrl ? <Image alt={`${album.title} 앨범 아트`} className="object-cover" fill sizes="(min-width: 1024px) 256px, 50vw" src={album.artworkUrl} onError={() => setFailedArtworkUrl(album.artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-xs font-bold tracking-[0.2em] text-white/85">MUSIC PIE</span>}</div><h2 className="mt-3 truncate font-semibold text-slate-950">{album.title}</h2><p className="mt-1 truncate text-sm text-slate-600">{album.artist}</p></article>;
 }
 
 function ArtistResults({ artists }: { artists: SearchArtist[] }) {

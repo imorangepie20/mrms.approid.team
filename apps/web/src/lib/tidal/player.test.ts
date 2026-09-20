@@ -43,6 +43,7 @@ describe("TIDAL playback engine", () => {
         grantedScopes: ["playback"],
         requestedScopes: ["playback"],
         token: "access",
+        userId: "12345",
       }),
     );
 
@@ -51,7 +52,9 @@ describe("TIDAL playback engine", () => {
     await expect(provider.getCredentials()).resolves.toMatchObject({
       clientId: "tidal-client",
       token: "access",
+      userId: "12345",
     });
+    expect(() => provider.bus(vi.fn())).not.toThrow();
   });
 
   it("initializes once and maps SDK plus media events", async () => {
@@ -99,6 +102,9 @@ describe("TIDAL playback engine", () => {
     media.dispatchEvent(new Event("timeupdate"));
     media.dispatchEvent(new Event("durationchange"));
     events.dispatchEvent(new ErrorEvent("error", { message: "asset failed" }));
+    events.dispatchEvent(new CustomEvent("error", {
+      detail: { errorCode: "S1000", errorId: "PENetwork" },
+    }));
 
     expect(sdkImporter).toHaveBeenCalledTimes(1);
     expect(sdk.bootstrap).toHaveBeenCalledTimes(1);
@@ -112,6 +118,7 @@ describe("TIDAL playback engine", () => {
         { positionSeconds: 42, type: "position" },
         { durationSeconds: 185, type: "duration" },
         { code: "asset failed", type: "error" },
+        { code: "S1000", type: "error" },
       ]),
     );
   });

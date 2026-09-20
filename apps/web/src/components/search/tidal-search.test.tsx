@@ -68,7 +68,15 @@ describe("TidalSearch", () => {
       const url = new URL(String(input), "http://localhost");
       return url.pathname.endsWith("/suggestions")
         ? json({ suggestions: ["Björk"] })
-        : json({ albums: [], artists: [], next: null, tracks: [track] });
+        : json({
+            albums: [{
+              artist: "Björk",
+              artworkUrl: "https://resources.tidal.com/album.jpg",
+              id: "album-1",
+              title: "Debut",
+            }],
+            artists: [], next: null, tracks: [track],
+          });
     }));
     const user = userEvent.setup();
     render(<TidalSearch />);
@@ -84,5 +92,8 @@ describe("TidalSearch", () => {
       track,
       expect.objectContaining({ type: "search" }),
     );
+
+    await user.click(screen.getByRole("tab", { name: "앨범" }));
+    expect(screen.getByRole("img", { name: "Debut 앨범 아트" })).toBeInTheDocument();
   });
 });

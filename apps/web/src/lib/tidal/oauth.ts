@@ -13,6 +13,7 @@ export type TidalToken = {
   expiresIn: number;
   refreshToken: string | null;
   scope: string | null;
+  userId?: string | null;
 };
 
 export function readTidalOAuthConfig(
@@ -88,6 +89,10 @@ async function requestToken(
         ? body.refresh_token
         : fallbackRefreshToken,
     scope: typeof body.scope === "string" ? body.scope : null,
+    userId:
+      typeof body.user_id === "string" || typeof body.user_id === "number"
+        ? String(body.user_id)
+        : null,
   };
 }
 

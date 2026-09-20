@@ -35,6 +35,7 @@ describe("TIDAL OAuth", () => {
           refresh_token: "refresh-token",
           scope: "playlists.read",
           token_type: "Bearer",
+          user_id: 12345,
         }),
         { status: 200, headers: { "content-type": "application/json" } },
       ),
@@ -48,6 +49,7 @@ describe("TIDAL OAuth", () => {
 
     expect(token.accessToken).toBe("access-token");
     expect(token.refreshToken).toBe("refresh-token");
+    expect(token.userId).toBe("12345");
     expect(fetcher).toHaveBeenCalledWith(
       config.tokenUrl,
       expect.objectContaining({ method: "POST" }),
