@@ -51,6 +51,8 @@ type UsableAccessTokenDependencies = {
   refresh?: (refreshToken: string) => Promise<TidalToken>;
 };
 
+const refreshesBySubject = new Map<string, Promise<unknown>>();
+
 export type UsableTidalAccessToken = {
   accessToken: string;
   expiresAt: Date;
@@ -59,6 +61,39 @@ export type UsableTidalAccessToken = {
 
 function database(executor?: QueryExecutor) {
   return executor ?? (getDatabasePool() as QueryExecutor);
+}
+
+async function inConnectionTransaction<T>(
+  executor: QueryExecutor | undefined,
+  work: (transaction: QueryExecutor) => Promise<T>,
+) {
+  if (executor) return work(executor);
+
+  const client = await getDatabasePool().connect();
+  try {
+    await client.query("BEGIN");
+    const result = await work(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function serializeRefresh<T>(key: string, work: () => Promise<T>) {
+  const previous = refreshesBySubject.get(key) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(work);
+  refreshesBySubject.set(key, current);
+  try {
+    return await current;
+  } finally {
+    if (refreshesBySubject.get(key) === current) {
+      refreshesBySubject.delete(key);
+    }
+  }
 }
 
 function toUserConnection(row: ConnectionRow): UserConnection {
@@ -92,6 +127,28 @@ export async function getUserConnection(
     [auth0Subject],
   );
 
+  return result.rows[0] ? toUserConnection(result.rows[0]) : null;
+}
+
+async function getUserConnectionForUpdate(
+  auth0Subject: string,
+  executor: QueryExecutor,
+) {
+  const result = await executor.query<ConnectionRow>(
+    `SELECT
+       u.auth0_subject,
+       c.status,
+       c.encrypted_access_token,
+       c.encrypted_refresh_token,
+       c.access_token_expires_at,
+       c.scope,
+       c.updated_at
+     FROM app_users AS u
+     INNER JOIN tidal_connections AS c ON c.user_id = u.id
+     WHERE u.auth0_subject = $1
+     FOR UPDATE OF c`,
+    [auth0Subject],
+  );
   return result.rows[0] ? toUserConnection(result.rows[0]) : null;
 }
 
@@ -192,33 +249,53 @@ export async function getUsableTidalAccessToken(
     };
   }
 
-  if (!connection.encryptedRefreshToken) {
-    throw new Error("TIDAL refresh token is unavailable.");
-  }
+  return serializeRefresh(auth0Subject, () =>
+    inConnectionTransaction(dependencies.executor, async (transaction) => {
+      const latest = await getUserConnectionForUpdate(auth0Subject, transaction);
+      if (
+        !latest ||
+        latest.status !== "connected" ||
+        !latest.encryptedAccessToken ||
+        !latest.accessTokenExpiresAt
+      ) {
+        throw new Error("TIDAL connection is not usable.");
+      }
+      if (latest.accessTokenExpiresAt.getTime() > refreshThreshold) {
+        return {
+          accessToken: decryptToken(latest.encryptedAccessToken, encryptionKey),
+          expiresAt: latest.accessTokenExpiresAt,
+          scope: latest.scope,
+        };
+      }
+      if (!latest.encryptedRefreshToken) {
+        throw new Error("TIDAL refresh token is unavailable.");
+      }
 
-  const storedRefreshToken = decryptToken(
-    connection.encryptedRefreshToken,
-    encryptionKey,
+      const storedRefreshToken = decryptToken(
+        latest.encryptedRefreshToken,
+        encryptionKey,
+      );
+      const refresh =
+        dependencies.refresh ??
+        ((token: string) => refreshTidalToken(token, readTidalOAuthConfig()));
+      const refreshed = await refresh(storedRefreshToken);
+      const expiresAt = new Date(now.getTime() + refreshed.expiresIn * 1000);
+      const refreshToken = refreshed.refreshToken ?? storedRefreshToken;
+      const scope = refreshed.scope ?? latest.scope;
+
+      await upsertUserConnection(
+        {
+          accessTokenExpiresAt: expiresAt,
+          auth0Subject,
+          encryptedAccessToken: encryptToken(refreshed.accessToken, encryptionKey),
+          encryptedRefreshToken: encryptToken(refreshToken, encryptionKey),
+          scope,
+          status: "connected",
+        },
+        transaction,
+      );
+
+      return { accessToken: refreshed.accessToken, expiresAt, scope };
+    }),
   );
-  const refresh =
-    dependencies.refresh ??
-    ((token: string) => refreshTidalToken(token, readTidalOAuthConfig()));
-  const refreshed = await refresh(storedRefreshToken);
-  const expiresAt = new Date(now.getTime() + refreshed.expiresIn * 1000);
-  const refreshToken = refreshed.refreshToken ?? storedRefreshToken;
-  const scope = refreshed.scope ?? connection.scope;
-
-  await upsertUserConnection(
-    {
-      accessTokenExpiresAt: expiresAt,
-      auth0Subject,
-      encryptedAccessToken: encryptToken(refreshed.accessToken, encryptionKey),
-      encryptedRefreshToken: encryptToken(refreshToken, encryptionKey),
-      scope,
-      status: "connected",
-    },
-    dependencies.executor,
-  );
-
-  return { accessToken: refreshed.accessToken, expiresAt, scope };
 }
