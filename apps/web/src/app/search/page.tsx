@@ -1,3 +1,5 @@
-import { EmsBrowser } from "@/components/ems/ems-browser";
+import { MusicDashboard } from "@/components/dashboard/music-dashboard";
 
-export default function SearchPage() { return <EmsBrowser autoFocus />; }
+export default function SearchPage() {
+  return <MusicDashboard space="ems" />;
+}
