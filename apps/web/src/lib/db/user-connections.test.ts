@@ -6,6 +6,7 @@ import {
   getUsableTidalAccessToken,
   getUserConnection,
   markReauthenticationRequired,
+  storeTidalDeviceToken,
   upsertUserConnection,
   type QueryExecutor,
 } from "./user-connections";
@@ -17,6 +18,38 @@ function queryExecutor(rows: unknown[] = []) {
 }
 
 describe("user TIDAL connections", () => {
+  it("encrypts and stores a device token with its granted scopes", async () => {
+    const encryptionKey = Buffer.alloc(32, 13).toString("base64");
+    const database = queryExecutor([{
+      access_token_expires_at: new Date("2026-09-21T01:00:00.000Z"),
+      auth0_subject: "auth0|listener-a",
+      encrypted_access_token: "encrypted-access",
+      encrypted_refresh_token: "encrypted-refresh",
+      scope: "r_usr r_stream",
+      status: "connected",
+      tidal_user_id: "123",
+      updated_at: new Date("2026-09-21T00:00:00.000Z"),
+    }]);
+
+    await storeTidalDeviceToken("auth0|listener-a", {
+      accessToken: "device-access",
+      expiresIn: 3600,
+      refreshToken: "device-refresh",
+      scope: "r_usr r_stream",
+      userId: "123",
+    }, {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-21T00:00:00.000Z"),
+    });
+
+    const values = database.query.mock.calls[0]?.[1] as unknown[];
+    expect(decryptToken(values[2] as string, encryptionKey)).toBe("device-access");
+    expect(decryptToken(values[3] as string, encryptionKey)).toBe("device-refresh");
+    expect(values[5]).toBe("r_usr r_stream");
+    expect(values[6]).toBe("123");
+  });
+
   it("queries a connection only by the requesting Auth0 subject", async () => {
     const database = queryExecutor();
 

@@ -3,6 +3,8 @@ import { createHash, randomBytes } from "node:crypto";
 export type TidalOAuthConfig = {
   authorizeUrl: string;
   clientId: string;
+  clientSecret?: string;
+  deviceAuthorizationUrl?: string;
   redirectUri: string;
   scopes: string[];
   tokenUrl: string;
@@ -31,6 +33,10 @@ export function readTidalOAuthConfig(
       environment.TIDAL_AUTHORIZE_URL?.trim() ||
       "https://login.tidal.com/authorize",
     clientId,
+    clientSecret: environment.TIDAL_CLIENT_SECRET?.trim(),
+    deviceAuthorizationUrl:
+      environment.TIDAL_DEVICE_AUTHORIZATION_URL?.trim() ||
+      "https://auth.tidal.com/v1/oauth2/device_authorization",
     redirectUri,
     scopes: (environment.TIDAL_SCOPES || "playlists.read")
       .split(/\s+/)

@@ -54,6 +54,12 @@ type UsableAccessTokenDependencies = {
   refresh?: (refreshToken: string) => Promise<TidalToken>;
 };
 
+type StoreDeviceTokenDependencies = {
+  encryptionKey?: string;
+  executor?: QueryExecutor;
+  now?: () => Date;
+};
+
 const refreshesBySubject = new Map<string, Promise<unknown>>();
 
 export type UsableTidalAccessToken = {
@@ -62,6 +68,27 @@ export type UsableTidalAccessToken = {
   scope: string | null;
   userId: string | null;
 };
+
+export async function storeTidalDeviceToken(
+  auth0Subject: string,
+  token: TidalToken,
+  dependencies: StoreDeviceTokenDependencies = {},
+) {
+  const encryptionKey = dependencies.encryptionKey ?? process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) throw new Error("TOKEN_ENCRYPTION_KEY is required.");
+  const now = dependencies.now?.() ?? new Date();
+  return upsertUserConnection({
+    accessTokenExpiresAt: new Date(now.getTime() + token.expiresIn * 1000),
+    auth0Subject,
+    encryptedAccessToken: encryptToken(token.accessToken, encryptionKey),
+    encryptedRefreshToken: token.refreshToken
+      ? encryptToken(token.refreshToken, encryptionKey)
+      : null,
+    scope: token.scope,
+    status: "connected",
+    tidalUserId: token.userId ?? null,
+  }, dependencies.executor);
+}
 
 function database(executor?: QueryExecutor) {
   return executor ?? (getDatabasePool() as QueryExecutor);
