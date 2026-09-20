@@ -1,20 +1,23 @@
 "use client";
 
 import type { Track } from "@/lib/music/types";
+import type { QueueItem } from "@/providers/music-session-provider";
 
 type FullPlayerDialogProps = {
   currentTrack: Track;
+  durationSeconds: number;
   isPlaying: boolean;
-  queue: Track[];
+  queue: QueueItem[];
   playbackPosition: number;
   onClose: () => void;
-  onSelectTrack: (track: Track) => void;
+  onSelectTrack: (index: number) => void;
   onTogglePlayback: () => void;
   onPlaybackPositionChange: (position: number) => void;
 };
 
 export function FullPlayerDialog({
   currentTrack,
+  durationSeconds,
   isPlaying,
   queue,
   playbackPosition,
@@ -58,7 +61,7 @@ export function FullPlayerDialog({
         <input
           aria-label="재생 위치"
           className="mt-8 w-full accent-fuchsia-400"
-          max="100"
+          max={durationSeconds || 0}
           min="0"
           type="range"
           value={playbackPosition}
@@ -74,15 +77,15 @@ export function FullPlayerDialog({
         <section className="mt-10 border-t border-white/10 pt-6" aria-labelledby="queue-title">
           <h2 id="queue-title" className="text-xl font-bold">재생 대기열</h2>
           <ul className="mt-4 space-y-2">
-            {queue.map((track) => (
-              <li key={track.id}>
+            {queue.map((item, index) => (
+              <li key={item.referenceId}>
                 <button
                   className="flex min-h-11 w-full items-center justify-between rounded-xl px-3 text-left transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
                   type="button"
-                  onClick={() => onSelectTrack(track)}
+                  onClick={() => onSelectTrack(index)}
                 >
-                  <span>{track.title}</span>
-                  <span className="text-sm text-slate-400">{track.artist}</span>
+                  <span>{item.track.title}</span>
+                  <span className="text-sm text-slate-400">{item.track.artist}</span>
                 </button>
               </li>
             ))}

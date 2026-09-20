@@ -1,5 +1,13 @@
 export type Preference = "accept" | "reject";
 
+export type PlaybackStatus =
+  | "idle"
+  | "loading"
+  | "playing"
+  | "paused"
+  | "stalled"
+  | "error";
+
 export type Track = {
   id: string;
   title: string;
