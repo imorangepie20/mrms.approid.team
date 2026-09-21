@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+**/.env
+**/.env.*
+**/.next
+**/node_modules
+coverage
+infra/runtime
+infra/secrets
+*.dump
+*.log
+node_modules
