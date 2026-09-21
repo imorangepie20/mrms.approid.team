@@ -1,6 +1,8 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-09-21
+최종 갱신: 2026-09-22
+
+최신 기능 기준 커밋: `47de7c3`
 
 ## 이번 목표
 
@@ -25,6 +27,9 @@
 - MMS의 TIDAL 플레이리스트·앨범 카드는 catalog API로 트랙을 불러오는 인라인 상세와 전체 재생·셔플을 제공한다.
 - TIDAL 연결 해제 후에도 사용자 좋아요와 기존 저장 라이브러리 데이터는 유지된다.
 - 실제 PostgreSQL에 `002_tidal_connection_runtime.sql`, `003_user_music_library.sql`, `005_user_likes.sql`이 적용되어 있다.
+- MusicBrainz ISRC 조회의 잘못된 `release-groups` 파라미터를 제거했고, 아티스트별 장르·태그 보강과 공용 캐시를 구현했다. `006_musicbrainz_genres.sql`을 실제 PostgreSQL에 적용했으며 저장 트랙 101곡의 보강 잡이 모두 완료됐다. 이 중 49곡에 장르가 채워졌고 아티스트 캐시 64건이 저장됐다.
+- 추천 임베딩 입력용 `buildEmbeddingText`는 제목·아티스트·앨범에 `mb_genres`를 붙인다. 장르가 없을 때는 공용 장르 어휘에 포함된 `mb_tags`만 최대 3개 사용해 국가·시대·사건 등 비장르 태그를 배제한다.
+- 실제 임베딩 모델 호출과 사용자 취향 벡터 구성은 아직 구현하지 않았다. 현재 구현은 임베딩 입력 텍스트 생성까지다.
 - 공개 주소는 `https://mrms.approid.team/`, production 서버 포트는 `44119`다.
 - 초기 개인화 추천 전략과 사용자별 영구 제외 규칙은 기존 결정 문서를 따른다.
 - 2026-09-21 사용자가 TIDAL Developer Terms의 AI 서비스 제한 제약을 해소했다. 테스트 배포까지 가져온 TIDAL 트랙 메타데이터를 취향 분석 임베딩 입력으로 사용할 수 있다. 근거는 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`에 있다.
@@ -57,6 +62,7 @@
 | 2026-09-21 | `apps/web`: `npm test`, `npm run lint`, `npm run build`; PostgreSQL migration·스키마 조회 | 네 유형 사용자 좋아요 저장, 가져온 플레이리스트 유지, API/UI 회귀, production build | 통과: 57개 파일, 210개 테스트, ESLint, build, `user_likes` 11개 열·사용자 FK·복합 unique·인덱스 확인 |
 | 2026-09-21 | production 서버 교체 후 로컬·공개 `/search`, `/mms`와 비로그인 `/api/likes` 확인 | 사용자 좋아요 build 반영과 인증 경계 | 통과: 화면 4건 HTTP 200, API HTTP 401 `unauthorized` |
 | 2026-09-21 | `apps/web`: `npm test`, `npm run lint`, `npm run build`; production 서버 교체 후 로컬·공개 `/mms` 확인 | MMS 최상위 제목 `My Music Space`, 좋아요의 부속 콘텐츠 위계 | 통과: 57개 파일, 210개 테스트, ESLint, build, 양쪽 HTTP 200 |
+| 2026-09-22 | `apps/web`: `npm test`, `npm run lint`, `npm run build` | 기능 기준 커밋 `47de7c3` 전체 회귀와 production build | 통과: 57개 파일, 236개 테스트, ESLint, Next.js build·TypeScript |
 
 ## 미검증·제약
 
@@ -65,11 +71,17 @@
 - legacy TIDAL v1 `playbackinfo` 계약이 변경되면 전체 재생 경로를 다시 검증해야 한다.
 - 실제 모바일 기기의 codec 지원과 백그라운드 오디오 동작은 아직 검증하지 않았다.
 - AI 분석 입력 허용은 테스트 배포까지다. production 배포 범위와 TIDAL 연결 해제 시 데이터 삭제 의무는 아직 확정하지 않았다.
+- MusicBrainz 장르 라이선스 확인, 공용 장르 어휘의 콜드스타트 정책, 캐시 만료·갱신 정책은 아직 확정하지 않았다.
+- `paraphrase-multilingual-mpnet-base-v2` 런타임 의존성과 실제 임베딩 저장·갱신 경로는 아직 없다.
+- 기준 커밋 `47de7c3`의 production build는 로컬에서 성공했지만 공개 서버에 배포됐는지는 이번 정리에서 확인하지 않았다.
+- 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
 
 ## 다음 작업
 
-1. 로그인된 공개 브라우저에서 검색·EMS·GMS의 네 유형 좋아요와 MMS 반영을 확인한다.
-2. 실제 모바일 기기에서 TIDAL 오디오 출력과 백그라운드 재생을 확인한다.
+1. 임베딩 모델 런타임과 벡터 저장·갱신 방식을 설계한 뒤 `buildEmbeddingText` 출력으로 트랙 벡터를 생성한다.
+2. 사용자 취향 벡터 구성과 GMS 추천 후보 점수화에 트랙 임베딩을 연결한다.
+3. 로그인된 공개 브라우저에서 검색·EMS·GMS의 네 유형 좋아요와 MMS 반영을 확인한다.
+4. 실제 모바일 기기에서 TIDAL 오디오 출력과 백그라운드 재생을 확인한다.
 
 ## 관련 문서
 
@@ -89,3 +101,6 @@
 - `docs/changes/2026-09-21-harness-runtime-application.md`
 - `docs/changes/2026-09-21-user-likes.md`
 - `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`
+- `docs/changes/2026-09-21-musicbrainz-genre-enrichment.md`
+- `docs/changes/2026-09-21-genre-embedding-input.md`
+- `docs/plans/2026-09-21-genre-embedding-input.md`
