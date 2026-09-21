@@ -46,7 +46,7 @@ services:
     profiles: [tunnel]
     restart: unless-stopped
     env_file: /home/approid/apps/music-pie/shared/secrets/tunnel.env
-    command: tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate --url http://web:3000 run
     depends_on:
       web:
         condition: service_healthy
