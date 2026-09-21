@@ -24,7 +24,7 @@ function manifest(input: Record<string, unknown>) {
 }
 
 describe("TIDAL playback stream resolver", () => {
-  it("requests and decodes a FULL direct stream", async () => {
+  it("requests HI_RES_LOSSLESS by default and decodes a FULL direct stream", async () => {
     const fetcher = vi.fn().mockResolvedValue(response({
       assetPresentation: "FULL",
       audioQuality: "LOSSLESS",
@@ -45,7 +45,7 @@ describe("TIDAL playback stream resolver", () => {
       streamUrl: "https://audio.example/42.flac",
     });
     expect(fetcher).toHaveBeenCalledWith(
-      expect.stringContaining("/tracks/42/playbackinfo?audioquality=LOSSLESS&playbackmode=STREAM&assetpresentation=FULL"),
+      expect.stringContaining("/tracks/42/playbackinfo?audioquality=HI_RES_LOSSLESS&playbackmode=STREAM&assetpresentation=FULL"),
       expect.objectContaining({ headers: expect.objectContaining({ authorization: "Bearer access" }) }),
     );
   });

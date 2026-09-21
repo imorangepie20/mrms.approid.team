@@ -4,8 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { TrackList } from "@/components/music/track-list";
-import { MmsLibrary, type MmsPlaylist } from "@/components/music/mms-library";
+import { LikeButton } from "@/components/music/like-button";
+import { MmsLibrary, type MmsImportedPlaylist } from "@/components/music/mms-library";
 import { catalog } from "@/lib/music/fixtures";
+import { trackLikeItem } from "@/lib/likes/adapters";
 import type { Track } from "@/lib/music/types";
 import { getGatewayTracks } from "@/lib/music/recommendations";
 import {
@@ -18,20 +20,20 @@ type Space = "home" | "ems" | "gms" | "mms";
 
 const copy = {
   ems: { name: "External Music Space", code: "EMS", lead: "외부 플랫폼에서 모인 트랙과 플레이리스트 카탈로그입니다.", tone: "violet" },
-  gms: { name: "Gateway Music Space", code: "GMS", lead: "AI가 취향을 분석해 추천한 트랙입니다. 좋아요는 MMS로, 싫어요는 영구 제외됩니다.", tone: "teal" },
+  gms: { name: "Gateway Music Space", code: "GMS", lead: "AI 추천을 판단하고, 하트로 MMS 좋아요에 추가하세요.", tone: "teal" },
   mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
 } as const;
 
-export function MusicDashboard({ access, playlists = [], space, tracks: providedTracks }: { access?: PersonalizationAccess; playlists?: MmsPlaylist[]; space: Space; tracks?: Track[] }) {
+export function MusicDashboard({ access, importedPlaylists = [], space, tracks: providedTracks }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; space: Space; tracks?: Track[] }) {
   const { acceptTrack, musicState, playTrack, rejectTrack } = useMusicSession();
-  const tracks = space === "gms" ? getGatewayTracks(catalog, musicState.mmsTrackIds, musicState.rejectedTrackIds) : space === "mms" ? providedTracks ?? catalog.filter((track) => musicState.mmsTrackIds.includes(track.id)) : catalog;
+  const tracks = space === "gms" ? getGatewayTracks(catalog, musicState.mmsTrackIds, musicState.rejectedTrackIds) : providedTracks ?? catalog;
 
   if (space === "home") return <Home />;
   if (space === "mms") {
     if (access && !access.isAuthenticated) {
       return <section className="dashboard-page"><header className="space-title">My Music Space<small>MMS</small></header><PersonalizationGate access={access} returnTo="/mms" /></section>;
     }
-    return <MmsLibrary access={access} playlists={playlists} tracks={tracks} />;
+    return <MmsLibrary access={access} importedPlaylists={importedPlaylists} />;
   }
   const meta = copy[space];
   const personalizationAllowed = access ? canUsePersonalization(access) : false;
@@ -65,4 +67,4 @@ function Home() {
   return <section className="dashboard-page"><header className="space-title">Home<small>DISCOVER</small></header><div className="space-hero home-hero"><p>MUSIC PIE</p><h1>당신의 다음 장면</h1><span>좋아할 음악을 발견하고 나만의 취향 지도를 만드세요.</span><Link href="/ems">카탈로그 둘러보기</Link></div><div className="home-summary"><span>오늘의 발견</span><b>4</b><small>새 트랙</small><Link href="/onboarding">내 음악 연결하기 →</Link></div>{collections.map((collection) => <section className="home-collection" key={collection.title}><div className="collection-heading"><div><h2 className="dash-heading">{collection.title}</h2><p>{collection.detail}</p></div><Link href="/ems">모두 보기</Link></div><div className="album-rail">{collection.tracks.map((track) => <article key={`${collection.title}-${track.id}`} className="album-card"><div className={`album-cover bg-gradient-to-br ${track.artworkClass}`}><Image alt={`${track.title} 앨범 아트`} fill sizes="185px" src={track.artworkUrl} /><button aria-label={`${track.title} 재생`} onClick={() => playTrack(track)}>▶</button></div><b>{track.title}</b><small>{track.artist}</small></article>)}</div></section>)}<section className="home-collection"><div className="collection-heading"><div><h2 className="dash-heading">지금 흐르는 플레이리스트</h2><p>새로운 플레이리스트와 취향 기반 선곡</p></div><Link href="/ems">모두 보기</Link></div><div className="album-rail">{playlists.map((playlist) => <article className="album-card playlist-card" key={playlist.title}><div className="album-cover"><Image alt={`${playlist.title} 플레이리스트 커버`} fill sizes="185px" src={playlist.artworkUrl} /></div><b>{playlist.title}</b><small>{playlist.curator}</small><span>{playlist.trackCount} tracks</span></article>)}</div></section></section>;
 }
 function Filters() { return <div className="filter-row"><button>전체</button><button>Tidal</button><button>Spotify</button><button>Apple Music</button><Link href="/search">⌕ 검색</Link></div>; }
-function Gateway({ tracks, active, onPlay, onAccept, onReject }: { tracks: typeof catalog; active: boolean; onPlay: (track: (typeof catalog)[number]) => void; onAccept: (id: string) => void; onReject: (id: string) => void }) { if (!active) return <div className="empty-state">개인화 추천은 TIDAL 연결과 플레이리스트 분석 후 제공됩니다. <Link href="/onboarding">연결하기</Link></div>; return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}><Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /><button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track.id)}>좋아요</button><button onClick={() => onReject(track.id)}>싫어요</button></div></article>)}</div></>; }
+function Gateway({ tracks, active, onPlay, onAccept, onReject }: { tracks: typeof catalog; active: boolean; onPlay: (track: (typeof catalog)[number]) => void; onAccept: (id: string) => void; onReject: (id: string) => void }) { if (!active) return <div className="empty-state">개인화 추천은 TIDAL 연결과 플레이리스트 분석 후 제공됩니다. <Link href="/onboarding">연결하기</Link></div>; return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}><Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /><button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track.id)}>추천 수락</button><button onClick={() => onReject(track.id)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</div></>; }

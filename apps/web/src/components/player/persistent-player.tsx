@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
 import { useMusicSession } from "@/providers/music-session-provider";
@@ -13,6 +14,7 @@ function formatTime(seconds: number) {
 }
 
 export function PersistentPlayer() {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const {
     currentIndex,
@@ -51,10 +53,21 @@ export function PersistentPlayer() {
             <>
               <button
                 aria-label={`${currentTrack.title} 앨범 아트`}
-                className={`hidden size-12 shrink-0 rounded-xl bg-gradient-to-br ${currentTrack.artworkClass} sm:block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300`}
+                className={`relative hidden size-12 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br ${currentTrack.artworkClass} sm:block focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300`}
                 type="button"
                 onClick={() => setIsFullPlayerOpen(true)}
-              />
+              >
+                {currentTrack.artworkUrl && failedArtworkUrl !== currentTrack.artworkUrl ? (
+                  <Image
+                    alt={`${currentTrack.title} 앨범 아트`}
+                    className="object-cover"
+                    fill
+                    sizes="48px"
+                    src={currentTrack.artworkUrl}
+                    onError={() => setFailedArtworkUrl(currentTrack.artworkUrl)}
+                  />
+                ) : null}
+              </button>
               <button
                 aria-label={`Now playing ${currentTrack.title}`}
                 className="min-w-0 flex-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fuchsia-300"
@@ -80,7 +93,13 @@ export function PersistentPlayer() {
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                {needsDeviceAuthorization ? <TidalDeviceAuthorization /> : null}
+                {needsDeviceAuthorization ? (
+                  <TidalDeviceAuthorization
+                    onConnected={() => {
+                      if (currentIndex !== null) void playQueueIndex(currentIndex);
+                    }}
+                  />
+                ) : null}
                 <button
                   aria-label={shuffleEnabled ? "셔플 끄기" : "셔플 켜기"}
                   aria-pressed={shuffleEnabled}

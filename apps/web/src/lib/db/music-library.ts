@@ -33,6 +33,11 @@ type SavedTrackRow = {
   title: string;
 };
 
+type SavedPlaylistTrackRow = SavedTrackRow & {
+  playlist_id: string;
+  position: number;
+};
+
 type PlaylistImportRow = {
   completed_at?: Date | null;
   error_code?: string | null;
@@ -135,6 +140,49 @@ export async function getSavedTracks(
     id: row.id,
     tidalTrackId: row.tidal_track_id,
     title: row.title,
+  }));
+}
+
+export async function getSavedPlaylistTracks(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<SavedPlaylistTrackRow>(
+    `SELECT
+       pt.playlist_id,
+       pt.position,
+       t.id,
+       t.tidal_track_id,
+       t.title,
+       t.artist_name,
+       t.album_name,
+       t.duration_ms,
+       t.tidal_artwork_url,
+       t.cover_art_url
+     FROM user_playlist_tracks AS pt
+     INNER JOIN user_playlists AS p ON p.id = pt.playlist_id
+     INNER JOIN app_users AS u ON u.id = p.user_id
+     INNER JOIN music_tracks AS t ON t.id = pt.track_id AND t.user_id = u.id
+     WHERE u.auth0_subject = $1
+     ORDER BY pt.playlist_id, pt.position`,
+    [auth0Subject],
+  );
+
+  return result.rows.map((row) => ({
+    playlistId: row.playlist_id,
+    position: row.position,
+    track: {
+      album: row.album_name,
+      artist: row.artist_name,
+      artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
+      artworkUrl: row.cover_art_url ?? row.tidal_artwork_url ?? "",
+      durationSeconds:
+        row.duration_ms === null ? null : Math.round(row.duration_ms / 1000),
+      id: row.id,
+      tidalTrackId: row.tidal_track_id,
+      title: row.title,
+    },
   }));
 }
 

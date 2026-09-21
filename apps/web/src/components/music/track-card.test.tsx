@@ -2,6 +2,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { LikesProvider } from "@/providers/likes-provider";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/gms",
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 const playTrack = vi.fn();
 vi.mock("@/providers/music-session-provider", () => ({
   useMusicSession: () => ({
@@ -26,7 +33,11 @@ describe("TrackCard", () => {
   it("uses the requested play handler and falls back after an image error", async () => {
     const onPlay = vi.fn();
     const user = userEvent.setup();
-    render(<TrackCard track={track} onPlay={onPlay} showSave={false} />);
+    render(
+      <LikesProvider initialLikes={[]} isAuthenticated>
+        <TrackCard track={track} onPlay={onPlay} showSave={false} />
+      </LikesProvider>,
+    );
 
     const image = screen.getByRole("img", { name: "Human Behaviour 앨범 아트" });
     fireEvent.error(image);
@@ -36,5 +47,6 @@ describe("TrackCard", () => {
     expect(onPlay).toHaveBeenCalledWith(track);
     expect(playTrack).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /내 취향으로 담기/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Human Behaviour" })).toBeInTheDocument();
   });
 });

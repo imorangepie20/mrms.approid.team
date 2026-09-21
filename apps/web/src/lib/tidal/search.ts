@@ -12,6 +12,12 @@ export type SearchAlbum = {
   title: string;
 };
 
+export type SearchArtist = {
+  artworkUrl: string;
+  id: string;
+  name: string;
+};
+
 export type SearchPlaylist = {
   artworkUrl: string;
   curator: string;
@@ -23,10 +29,12 @@ export type SearchPlaylist = {
 export type SearchTopHit =
   | ({ kind: "track" } & PlayableTrack)
   | ({ kind: "album" } & SearchAlbum)
+  | ({ kind: "artist" } & SearchArtist)
   | ({ kind: "playlist" } & SearchPlaylist);
 
 export type TidalSearchResult = {
   albums: SearchAlbum[];
+  artists: SearchArtist[];
   next: string | null;
   playlists: SearchPlaylist[];
   topHits: SearchTopHit[];
@@ -35,6 +43,7 @@ export type TidalSearchResult = {
 
 export const emptySearchResult: TidalSearchResult = {
   albums: [],
+  artists: [],
   next: null,
   playlists: [],
   topHits: [],
@@ -82,8 +91,9 @@ function durationSeconds(duration: string | null) {
 function artwork(
   owner: Resource | undefined,
   byKey: Map<string, Resource>,
+  relationship = "coverArt",
 ) {
-  const reference = related(owner, "coverArt")[0];
+  const reference = related(owner, relationship)[0];
   const files = reference
     ? byKey.get(key(reference))?.attributes?.files
     : undefined;
@@ -133,6 +143,15 @@ function parseSearchDocument(document: Document): TidalSearchResult {
       title: text(album, "title") ?? "Untitled album",
     }];
   });
+  const artists = resultReferences(document, "artists").flatMap((reference) => {
+    const artist = byKey.get(key(reference));
+    if (!artist) return [];
+    return [{
+      artworkUrl: artwork(artist, byKey, "profileArt"),
+      id: String(reference.id),
+      name: text(artist, "name") ?? "Unknown Artist",
+    }];
+  });
   const playlists = resultReferences(document, "playlists").flatMap((reference) => {
     const playlist = byKey.get(key(reference));
     if (!playlist) return [];
@@ -159,11 +178,14 @@ function parseSearchDocument(document: Document): TidalSearchResult {
       artworkUrl: artwork(album, byKey),
       durationSeconds: durationSeconds(text(track, "duration")),
       id: tidalTrackId,
+      playbackAvailable: !Array.isArray(track.attributes?.availability) ||
+        track.attributes.availability.includes("STREAM"),
       tidalTrackId,
       title: text(track, "title") ?? "Untitled track",
     }];
   });
   const albumsById = new Map(albums.map((album) => [album.id, album]));
+  const artistsById = new Map(artists.map((artist) => [artist.id, artist]));
   const playlistsById = new Map(playlists.map((playlist) => [playlist.id, playlist]));
   const tracksById = new Map(tracks.map((track) => [track.id, track]));
   const topHits = relationshipReferences(document, "topHits").flatMap((reference): SearchTopHit[] => {
@@ -176,6 +198,10 @@ function parseSearchDocument(document: Document): TidalSearchResult {
       const album = albumsById.get(id);
       return album ? [{ ...album, kind: "album" }] : [];
     }
+    if (reference.type === "artists") {
+      const artist = artistsById.get(id);
+      return artist ? [{ ...artist, kind: "artist" }] : [];
+    }
     if (reference.type === "playlists") {
       const playlist = playlistsById.get(id);
       return playlist ? [{ ...playlist, kind: "playlist" }] : [];
@@ -185,6 +211,7 @@ function parseSearchDocument(document: Document): TidalSearchResult {
 
   return {
     albums,
+    artists,
     next: typeof document.links?.next === "string" && document.links.next
       ? document.links.next
       : null,
@@ -215,7 +242,7 @@ export async function searchTidalCatalog(
     url.searchParams.set("systemType", "WEB");
     url.searchParams.set(
       "include",
-      "topHits,tracks,albums,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,playlists.coverArt",
+      "topHits,tracks,albums,artists,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
     );
   }
 

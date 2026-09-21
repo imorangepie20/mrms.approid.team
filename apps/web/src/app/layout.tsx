@@ -5,6 +5,8 @@ import { MusicSessionProvider } from "@/providers/music-session-provider";
 import { PersistentPlayer } from "@/components/player/persistent-player";
 import { AppNavigation } from "@/components/navigation/app-navigation";
 import { auth0 } from "@/lib/auth/auth0";
+import { getUserLikes } from "@/lib/db/user-likes";
+import { LikesProvider } from "@/providers/likes-provider";
 
 import "./globals.css";
 
@@ -15,6 +17,9 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const session = await auth0.getSession();
+  const likes = session?.user.sub && process.env.DATABASE_URL
+    ? await getUserLikes(session.user.sub)
+    : [];
   const user = session
     ? { email: session.user.email, name: session.user.name }
     : null;
@@ -22,11 +27,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="ko" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
-        <MusicSessionProvider>
-          <AppNavigation user={user} />
-          <main className="page-shell flex-1">{children}</main>
-          <PersistentPlayer />
-        </MusicSessionProvider>
+        <LikesProvider initialLikes={likes} isAuthenticated={Boolean(session)}>
+          <MusicSessionProvider>
+            <AppNavigation user={user} />
+            <main className="page-shell flex-1">{children}</main>
+            <PersistentPlayer />
+          </MusicSessionProvider>
+        </LikesProvider>
       </body>
     </html>
   );

@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { LikeButton } from "@/components/music/like-button";
+import { trackLikeItem } from "@/lib/likes/adapters";
 import { useMusicSession } from "@/providers/music-session-provider";
 import type { Track } from "@/lib/music/types";
 
@@ -63,8 +65,8 @@ export function TrackCard<TTrack extends Track>({
       </div>
       <h3 className="mt-3 truncate text-[15px] font-semibold tracking-[-0.015em] text-[var(--foreground)]">{track.title}</h3>
       <p className="mt-0.5 truncate text-[13px] text-[var(--muted)]">{track.artist}</p>
-      {showSave ? (
-        <div className="mt-3 flex justify-end">
+      <div className="mt-3 flex items-center justify-end gap-2">
+        {showSave ? (
           <button
             aria-label={`내 취향으로 담기 ${track.title}`}
             className="min-h-9 rounded-lg bg-[var(--surface-hover)] px-3 text-xs font-medium text-[var(--foreground)] transition hover:bg-purple-500/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
@@ -73,8 +75,9 @@ export function TrackCard<TTrack extends Track>({
           >
             담기
           </button>
-        </div>
-      ) : null}
+        ) : null}
+        <LikeButton item={trackLikeItem(track)} />
+      </div>
     </article>
   );
 }

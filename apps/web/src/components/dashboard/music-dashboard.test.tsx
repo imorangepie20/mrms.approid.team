@@ -1,46 +1,101 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 
+import type { LikeItem } from "@/lib/likes/types";
+import { LikesProvider } from "@/providers/likes-provider";
+
+const session = vi.hoisted(() => ({
+  acceptTrack: vi.fn(),
+  musicState: { mmsTrackIds: [], rejectedTrackIds: [] },
+  playTrack: vi.fn(),
+  rejectTrack: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/gms",
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 vi.mock("@/providers/music-session-provider", () => ({
-  useMusicSession: () => ({
-    acceptTrack: vi.fn(),
-    musicState: { mmsTrackIds: [], rejectedTrackIds: [] },
-    playTrack: vi.fn(),
-    rejectTrack: vi.fn(),
-  }),
+  useMusicSession: () => session,
 }));
 
 import { MusicDashboard } from "./music-dashboard";
 
-it("shows retained MMS tracks when TIDAL is disconnected", () => {
-  render(
+function renderDashboard(node: React.ReactNode, initialLikes: LikeItem[] = []) {
+  return render(
+    <LikesProvider initialLikes={initialLikes} isAuthenticated>{node}</LikesProvider>,
+  );
+}
+
+it("shows liked MMS content when TIDAL is disconnected", () => {
+  renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "disconnected", isAuthenticated: true }}
-      playlists={[
-        { artworkUrl: null, id: "playlist-a", name: "My favorites" },
-      ]}
       space="mms"
-      tracks={[
-        {
-          album: "Discovery",
-          artist: "Daft Punk",
-          artworkClass: "from-violet-700 to-slate-900",
-          artworkUrl: "",
-          durationSeconds: 320,
-          id: "saved-track",
-          tidalTrackId: "776453",
-          title: "One More Time",
-        },
-      ]}
     />,
+    [
+      {
+        artworkUrl: "",
+        createdAt: "2026-09-21T00:00:00.000Z",
+        entityType: "track",
+        metadata: {
+          album: "Discovery",
+          durationSeconds: 320,
+          playbackAvailable: true,
+        },
+        source: "tidal",
+        sourceId: "776453",
+        subtitle: "Daft Punk",
+        title: "One More Time",
+      },
+      {
+        artworkUrl: "",
+        createdAt: "2026-09-21T00:00:00.000Z",
+        entityType: "playlist",
+        metadata: { trackCount: 12 },
+        source: "tidal",
+        sourceId: "playlist-a",
+        subtitle: "12 tracks",
+        title: "My favorites",
+      },
+    ],
   );
 
   expect(screen.getByText("One More Time")).toBeInTheDocument();
   expect(screen.getByText("My favorites")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "▶ 전체 재생" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "셔플" })).toBeEnabled();
-  expect(screen.getByRole("textbox", { name: "트랙 검색" })).toBeInTheDocument();
-  expect(screen.getByRole("combobox", { name: "트랙 정렬" })).toBeInTheDocument();
-  expect(screen.getByText("저장한 음악은 그대로 유지됩니다.")).toBeInTheDocument();
+  expect(screen.getByTestId("liked-track-count")).toHaveTextContent("1");
+  expect(screen.getByText("좋아요는 그대로 유지됩니다.")).toBeInTheDocument();
   expect(screen.queryByText("TIDAL 연결이 필요합니다.")).not.toBeInTheDocument();
+});
+
+it("keeps GMS recommendation decisions separate from persistent hearts", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+    item: {
+      artworkUrl: "https://images.unsplash.com/track.jpg",
+      createdAt: "2026-09-21T00:00:00.000Z",
+      entityType: "track",
+      metadata: { album: "Hurry Up, We're Dreaming", playbackAvailable: true },
+      source: "catalog",
+      sourceId: "t-1",
+      subtitle: "M83",
+      title: "Midnight City",
+    },
+    liked: true,
+  })));
+  const user = userEvent.setup();
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      space="gms"
+    />,
+  );
+
+  expect(screen.getAllByRole("button", { name: "추천 수락" })).not.toHaveLength(0);
+  await user.click(screen.getByRole("button", { name: "좋아요 Midnight City" }));
+
+  expect(session.acceptTrack).not.toHaveBeenCalled();
+  expect(session.rejectTrack).not.toHaveBeenCalled();
+  expect(session.playTrack).not.toHaveBeenCalled();
 });

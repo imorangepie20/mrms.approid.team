@@ -355,7 +355,7 @@
 
 .mms-overview {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto auto;
+  grid-template-columns: minmax(280px, 1fr) auto;
   align-items: end;
   gap: 32px;
   margin: 28px 0 20px;
@@ -498,11 +498,33 @@
 }
 
 .mms-playlist-card {
+  width: 100%;
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.mms-playlist-card:hover {
+  border-color: rgba(216, 180, 254, 0.45);
+  background: var(--surface-raised);
+}
+
+.mms-playlist-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.mms-playlist-card > button:focus-visible {
+  border-radius: 10px;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 .mms-playlist-card > div {

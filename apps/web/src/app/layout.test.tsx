@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { getSession, usePathname } = vi.hoisted(() => ({
+const { getSession, getUserLikes, usePathname } = vi.hoisted(() => ({
   getSession: vi.fn(),
+  getUserLikes: vi.fn(),
   usePathname: vi.fn(),
 }));
 
@@ -14,6 +15,8 @@ vi.mock("@/lib/auth/auth0", () => ({
   auth0: { getSession },
 }));
 
+vi.mock("@/lib/db/user-likes", () => ({ getUserLikes }));
+
 vi.mock("next/font/google", () => ({
   Geist: () => ({ variable: "geist-sans" }),
   Geist_Mono: () => ({ variable: "geist-mono" }),
@@ -24,6 +27,7 @@ import RootLayout from "./layout";
 beforeEach(() => {
   usePathname.mockReturnValue("/ems");
   getSession.mockResolvedValue(null);
+  getUserLikes.mockResolvedValue([]);
 });
 
 it("renders the five global navigation destinations and anonymous Auth0 actions", async () => {
@@ -41,6 +45,30 @@ it("renders the five global navigation destinations and anonymous Auth0 actions"
   expect(screen.getByRole("link", { name: "External Music SpaceEMS" })).toHaveAttribute("aria-current", "page");
   expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/api/auth/login");
   expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute("href", "/api/auth/signup");
+});
+
+it("loads the authenticated user's likes once for the global provider", async () => {
+  const previousDatabaseUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = "postgres://test";
+  getSession.mockResolvedValue({
+    user: { email: "listener@example.com", name: "Listener", sub: "auth0|listener-a" },
+  });
+  getUserLikes.mockResolvedValue([{
+    artworkUrl: "",
+    createdAt: "2026-09-21T00:00:00.000Z",
+    entityType: "artist",
+    metadata: {},
+    source: "tidal",
+    sourceId: "artist-1",
+    subtitle: "",
+    title: "Björk",
+  }]);
+
+  render(await RootLayout({ children: <p>Page content</p> }));
+
+  expect(getUserLikes).toHaveBeenCalledOnce();
+  expect(getUserLikes).toHaveBeenCalledWith("auth0|listener-a");
+  process.env.DATABASE_URL = previousDatabaseUrl;
 });
 
 it("keeps one music session provider around route content and the global player", async () => {

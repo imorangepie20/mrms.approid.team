@@ -33,6 +33,13 @@ const trackC: PlayableTrack = {
   tidalTrackId: "tidal-c",
   title: "Track C",
 };
+const unavailableTrack: PlayableTrack = {
+  ...trackA,
+  id: "unavailable",
+  playbackAvailable: false,
+  tidalTrackId: "tidal-unavailable",
+  title: "Unavailable Track",
+};
 
 function fakeEngine() {
   const listeners = new Set<(event: PlaybackEvent) => void>();
@@ -85,6 +92,9 @@ function SessionHarness() {
       </button>
       <button type="button" onClick={() => session.setQueue([trackA, trackB, trackC], { id: "three", type: "search" })}>
         Three queue
+      </button>
+      <button type="button" onClick={() => session.setQueue([trackA, unavailableTrack, trackC], { id: "unavailable", type: "search" })}>
+        Queue with unavailable
       </button>
       <button type="button" onClick={() => void session.playQueueIndex(0)}>
         First duplicate
@@ -226,6 +236,20 @@ describe("MusicSessionProvider", () => {
     expect(screen.getByText("Shuffle: true")).toBeInTheDocument();
     expect(screen.getByText("Queue: Track A, Track C, Track B")).toBeInTheDocument();
     vi.restoreAllMocks();
+  });
+
+  it("excludes unavailable tracks from the playback queue", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <SessionHarness />
+      </MusicSessionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Queue with unavailable" }));
+
+    expect(screen.getByText("Queue: Track A, Track C")).toBeInTheDocument();
   });
 
   it("sets volume and restores it after mute", async () => {

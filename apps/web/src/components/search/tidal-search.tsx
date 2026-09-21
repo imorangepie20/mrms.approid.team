@@ -4,9 +4,13 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TrackList } from "@/components/music/track-list";
+import { LikeButton } from "@/components/music/like-button";
+import { trackLikeItem } from "@/lib/likes/adapters";
+import type { LikeKey, LikeSnapshot } from "@/lib/likes/types";
 import type { PlayableTrack } from "@/lib/tidal/player";
 import type {
   SearchAlbum,
+  SearchArtist,
   SearchPlaylist,
   SearchTopHit,
   TidalSearchResult,
@@ -15,13 +19,14 @@ import { useMusicSession } from "@/providers/music-session-provider";
 
 const emptyResults: TidalSearchResult = {
   albums: [],
+  artists: [],
   next: null,
   playlists: [],
   topHits: [],
   tracks: [],
 };
 
-type ResultTab = "topHits" | "tracks" | "albums" | "playlists";
+type ResultTab = "topHits" | "tracks" | "albums" | "playlists" | "artists";
 type CatalogSelection = {
   artworkUrl: string;
   id: string;
@@ -173,6 +178,7 @@ export function TidalSearch() {
 
   const hasResults = results.tracks.length > 0 ||
     results.albums.length > 0 ||
+    results.artists.length > 0 ||
     results.playlists.length > 0 ||
     results.topHits.length > 0;
 
@@ -197,7 +203,7 @@ export function TidalSearch() {
     <section className="w-full pb-10 pt-8 sm:py-10">
       <header className="max-w-2xl">
         <h1 className="text-2xl font-[560] tracking-[-0.025em] text-[var(--foreground)] sm:text-3xl">듣고 싶은 음악을 바로 찾아보세요</h1>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">트랙, 앨범, 플레이리스트를 검색하고 결과에서 바로 재생할 수 있습니다.</p>
+        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">트랙, 앨범, 플레이리스트와 아티스트를 검색하고 좋아요할 수 있습니다.</p>
       </header>
 
       <div className="relative mt-6 max-w-2xl">
@@ -207,7 +213,7 @@ export function TidalSearch() {
           className="min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 pr-14 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--subtle)] focus:border-[var(--brand)] focus:ring-3 focus:ring-purple-500/15"
           id="tidal-search"
           maxLength={200}
-          placeholder="트랙, 앨범 또는 플레이리스트"
+          placeholder="트랙, 앨범, 플레이리스트 또는 아티스트"
           role="searchbox"
           type="search"
           value={query}
@@ -236,7 +242,7 @@ export function TidalSearch() {
       <p aria-live="polite" className="sr-only">{isLoading ? "검색 중" : ""}</p>
 
       <div aria-label="검색 결과 종류" className="mt-8 flex gap-1 border-b border-[var(--border)]" role="tablist">
-        {(["topHits", "tracks", "albums", "playlists"] as const).map((tab) => (
+        {(["topHits", "tracks", "albums", "playlists", "artists"] as const).map((tab) => (
           <button
             aria-selected={activeTab === tab}
             className={`min-h-10 border-b px-3 text-sm font-medium ${activeTab === tab ? "border-[var(--brand)] text-[var(--brand-soft)]" : "border-transparent text-[var(--subtle)] hover:text-[var(--foreground)]"}`}
@@ -245,7 +251,7 @@ export function TidalSearch() {
             type="button"
             onClick={() => setActiveTab(tab)}
           >
-            {{ topHits: "통합 결과", tracks: "트랙", albums: "앨범", playlists: "플레이리스트" }[tab]}
+            {{ topHits: "통합 결과", tracks: "트랙", albums: "앨범", playlists: "플레이리스트", artists: "아티스트" }[tab]}
           </button>
         ))}
       </div>
@@ -260,6 +266,7 @@ export function TidalSearch() {
         ) : null}
         {activeTab === "albums" ? <AlbumResults albums={results.albums} onOpen={openDetail} /> : null}
         {activeTab === "playlists" ? <PlaylistResults onOpen={openDetail} playlists={results.playlists} /> : null}
+        {activeTab === "artists" ? <ArtistResults artists={results.artists} /> : null}
         {!isLoading && query.trim() && results[activeTab].length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface)] px-5 py-12 text-center text-sm text-[var(--subtle)]">검색 결과가 없습니다.</p>
         ) : null}
@@ -278,13 +285,59 @@ function TopResults({ hits, onOpen, onPlay }: { hits: SearchTopHit[]; onOpen: (s
   );
 }
 
+function albumLikeItem(album: SearchAlbum): LikeKey & LikeSnapshot {
+  return {
+    artworkUrl: album.artworkUrl,
+    entityType: "album",
+    metadata: { artist: album.artist },
+    source: "tidal",
+    sourceId: album.id,
+    subtitle: album.artist,
+    title: album.title,
+  };
+}
+
+function playlistLikeItem(playlist: SearchPlaylist): LikeKey & LikeSnapshot {
+  return {
+    artworkUrl: playlist.artworkUrl,
+    entityType: "playlist",
+    metadata: { trackCount: playlist.trackCount },
+    source: "tidal",
+    sourceId: playlist.id,
+    subtitle: playlist.curator,
+    title: playlist.title,
+  };
+}
+
+function artistLikeItem(artist: SearchArtist): LikeKey & LikeSnapshot {
+  return {
+    artworkUrl: artist.artworkUrl,
+    entityType: "artist",
+    metadata: {},
+    source: "tidal",
+    sourceId: artist.id,
+    subtitle: "",
+    title: artist.name,
+  };
+}
+
+function topHitLikeItem(hit: SearchTopHit) {
+  if (hit.kind === "track") return trackLikeItem(hit);
+  if (hit.kind === "album") return albumLikeItem(hit);
+  if (hit.kind === "playlist") return playlistLikeItem(hit);
+  return artistLikeItem(hit);
+}
+
 function TopResultRow({ hit, onOpen, onPlay }: { hit: SearchTopHit; onOpen: (selection: CatalogSelection) => void; onPlay: (track: PlayableTrack) => void }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const title = hit.kind === "artist" ? hit.name : hit.title;
   const metadata = hit.kind === "track"
     ? `트랙 · ${hit.artist}`
     : hit.kind === "album"
       ? `앨범 · ${hit.artist}`
-      : `플레이리스트 · ${hit.curator} · ${hit.trackCount}곡`;
+      : hit.kind === "playlist"
+        ? `플레이리스트 · ${hit.curator} · ${hit.trackCount}곡`
+        : "아티스트";
   const content = (
     <>
       <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-[#24153d] to-[#4c1d95]">
@@ -300,13 +353,13 @@ function TopResultRow({ hit, onOpen, onPlay }: { hit: SearchTopHit; onOpen: (sel
         ) : null}
       </span>
       <span className="min-w-0">
-        <span className="block truncate text-[15px] font-[560] text-[var(--foreground)]">{hit.title}</span>
+        <span className="block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span>
         <span className="mt-1 block truncate text-sm text-[var(--muted)]">{metadata}</span>
       </span>
     </>
   );
 
-  return hit.kind === "track" ? (
+  const action = hit.kind === "track" ? (
     <button
       aria-label={`재생 ${hit.title}`}
       className="flex min-h-20 w-full items-center gap-4 px-2 py-3 text-left transition-colors hover:bg-white/[0.025] focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-[var(--focus-ring)]"
@@ -315,6 +368,10 @@ function TopResultRow({ hit, onOpen, onPlay }: { hit: SearchTopHit; onOpen: (sel
     >
       {content}
     </button>
+  ) : hit.kind === "artist" ? (
+    <div className="flex min-h-20 w-full items-center gap-4 px-2 py-3 text-left">
+      {content}
+    </div>
   ) : (
     <button
       aria-label={`${hit.kind === "album" ? "앨범" : "플레이리스트"} ${hit.title} 열기`}
@@ -330,6 +387,13 @@ function TopResultRow({ hit, onOpen, onPlay }: { hit: SearchTopHit; onOpen: (sel
       })}
     >{content}</button>
   );
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="min-w-0 flex-1">{action}</div>
+      <LikeButton className="mr-1 shrink-0" item={topHitLikeItem(hit)} />
+    </div>
+  );
 }
 
 function AlbumResults({ albums, onOpen }: { albums: SearchAlbum[]; onOpen: (selection: CatalogSelection) => void }) {
@@ -340,14 +404,38 @@ function PlaylistResults({ onOpen, playlists }: { onOpen: (selection: CatalogSel
   return <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">{playlists.map((playlist) => <CatalogArtworkCard artworkUrl={playlist.artworkUrl} id={playlist.id} key={playlist.id} kind="playlist" onOpen={onOpen} secondary={playlist.curator} tertiary={`${playlist.trackCount}곡`} title={playlist.title} trackCount={playlist.trackCount} />)}</div>;
 }
 
+function ArtistResults({ artists }: { artists: SearchArtist[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+      {artists.map((artist) => (
+        <article className="group relative min-w-0" key={artist.id}>
+          <span className="relative block aspect-square overflow-hidden rounded-full border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95]">
+            {artist.artworkUrl ? <Image alt={`${artist.name} 아티스트 이미지`} className="object-cover" fill sizes="(min-width: 1024px) 270px, 50vw" src={artist.artworkUrl} /> : null}
+          </span>
+          <span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{artist.name}</span>
+          <span className="mt-1 block text-sm text-[var(--muted)]">아티스트</span>
+          <LikeButton className="absolute right-2 top-2 bg-black/60 text-white" item={artistLikeItem(artist)} />
+        </article>
+      ))}
+    </div>
+  );
+}
+
 function CatalogArtworkCard({ artworkUrl, id, kind, onOpen, secondary, tertiary, title, trackCount }: CatalogSelection & { onOpen: (selection: CatalogSelection) => void; tertiary?: string }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const kindLabel = kind === "album" ? "앨범" : "플레이리스트";
-  return <button aria-label={`${kindLabel} ${title} 열기`} className="group min-w-0 text-left" type="button" onClick={() => onOpen({ artworkUrl, id, kind, secondary, title, trackCount })}><span className="relative block aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95] transition duration-200 group-hover:border-purple-400/40 group-hover:brightness-110 group-focus-visible:outline-2 group-focus-visible:outline-offset-3 group-focus-visible:outline-[var(--focus-ring)]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "album" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</span><span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span><span className="mt-1 block truncate text-sm text-[var(--muted)]">{secondary}</span>{tertiary ? <span className="mt-1 block text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</span> : null}</button>;
+  const selection = { artworkUrl, id, kind, secondary, title, trackCount };
+  const likeItem = kind === "album"
+    ? albumLikeItem({ artist: secondary, artworkUrl, id, title })
+    : playlistLikeItem({ artworkUrl, curator: secondary, id, title, trackCount: trackCount ?? 0 });
+  return <article className="group relative min-w-0"><button aria-label={`${kindLabel} ${title} 열기`} className="w-full text-left" type="button" onClick={() => onOpen(selection)}><span className="relative block aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95] transition duration-200 group-hover:border-purple-400/40 group-hover:brightness-110 group-focus-visible:outline-2 group-focus-visible:outline-offset-3 group-focus-visible:outline-[var(--focus-ring)]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "album" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</span><span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span><span className="mt-1 block truncate text-sm text-[var(--muted)]">{secondary}</span>{tertiary ? <span className="mt-1 block text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</span> : null}</button><LikeButton className="absolute right-2 top-2 bg-black/60 text-white" item={likeItem} /></article>;
 }
 
 function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: CatalogDetail; onBack: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const detailLikeItem = detail.kind === "album"
+    ? albumLikeItem({ artist: detail.secondary, artworkUrl: detail.artworkUrl, id: detail.id, title: detail.title })
+    : playlistLikeItem({ artworkUrl: detail.artworkUrl, curator: detail.secondary, id: detail.id, title: detail.title, trackCount: detail.trackCount ?? detail.tracks.length });
   const shuffleAndPlay = () => {
     const shuffled = [...detail.tracks];
     for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -379,6 +467,7 @@ function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: Catal
             <button className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-5 text-sm font-semibold text-[var(--muted)] enabled:hover:text-[var(--foreground)] disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={shuffleAndPlay}>
               셔플
             </button>
+            <LikeButton item={detailLikeItem} />
           </div>
         </div>
       </header>

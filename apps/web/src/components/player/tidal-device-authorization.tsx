@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Authorization = {
   deviceCode: string;
@@ -38,7 +39,9 @@ export function TidalDeviceAuthorization({
         });
         const body = await response.json() as { code?: string; status?: string };
         if (response.ok && body.status === "connected") {
+          timeoutRef.current = null;
           setStatus("connected");
+          setIsOpen(false);
           onConnected?.();
           return;
         }
@@ -92,7 +95,7 @@ export function TidalDeviceAuthorization({
       <button className="min-h-10 rounded-full border border-cyan-300/30 px-3 text-xs font-bold text-cyan-100" type="button" onClick={() => void start()}>
         TIDAL 재생 연결
       </button>
-      {isOpen ? (
+      {isOpen ? createPortal(
         <div aria-label="TIDAL 재생 연결" aria-modal="true" className="fixed inset-0 z-60 grid place-items-center bg-black/75 p-4" role="dialog">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111118] p-6 text-white">
             <div className="flex items-start justify-between gap-4">
@@ -109,7 +112,8 @@ export function TidalDeviceAuthorization({
             ) : <p className="mt-6 text-sm text-slate-300">연결 정보를 준비하는 중입니다.</p>}
             {error ? <p className="mt-4 text-sm text-red-300" role="alert">{error}</p> : null}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

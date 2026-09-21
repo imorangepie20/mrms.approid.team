@@ -53,6 +53,9 @@ const searchDocument = {
     {
       attributes: { name: "Björk" },
       id: "artist:opaque",
+      relationships: {
+        profileArt: { data: [{ id: "artist-art:opaque", type: "artworks" }] },
+      },
       type: "artists",
     },
     {
@@ -71,6 +74,13 @@ const searchDocument = {
         files: [{ href: "https://resources.tidal.com/playlist-640.jpg", meta: { height: 640, width: 640 } }],
       },
       id: "playlist-art:opaque",
+      type: "artworks",
+    },
+    {
+      attributes: {
+        files: [{ href: "https://resources.tidal.com/artist-640.jpg", meta: { height: 640, width: 640 } }],
+      },
+      id: "artist-art:opaque",
       type: "artworks",
     },
     {
@@ -99,7 +109,7 @@ describe("TIDAL search adapter", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("normalizes opaque track, album, playlist, artwork, and cursor values", async () => {
+  it("normalizes opaque track, album, playlist, artist, artwork, and cursor values", async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json(searchDocument));
 
     const result = await searchTidalCatalog("  Björk  ", credentials, fetcher);
@@ -124,7 +134,13 @@ describe("TIDAL search adapter", () => {
       title: "Björk Essentials",
       trackCount: 25,
     });
+    expect(result.artists[0]).toEqual({
+      artworkUrl: "https://resources.tidal.com/artist-640.jpg",
+      id: "artist:opaque",
+      name: "Björk",
+    });
     expect(result.topHits.map((hit) => [hit.kind, hit.id])).toEqual([
+      ["artist", "artist:opaque"],
       ["album", "album:opaque"],
       ["track", "track:opaque"],
       ["playlist", "playlist:opaque"],
@@ -136,8 +152,24 @@ describe("TIDAL search adapter", () => {
     expect(requestUrl.pathname).toBe("/v2/searchResults");
     expect(requestUrl.searchParams.get("filter[query]")).toBe("Björk");
     expect(requestUrl.searchParams.get("include")).toBe(
-      "topHits,tracks,albums,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,playlists.coverArt",
+      "topHits,tracks,albums,artists,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
     );
+  });
+
+  it.each([
+    [["STREAM", "DJ"], true],
+    [["DJ"], false],
+  ])("maps availability %j to playbackAvailable=%s", async (availability, playbackAvailable) => {
+    const document = structuredClone(searchDocument);
+    const track = document.included.find((item) => item.type === "tracks");
+    if (!track) throw new Error("track fixture is missing");
+    const attributes = track.attributes as Record<string, unknown>;
+    attributes.availability = availability;
+    const fetcher = vi.fn().mockResolvedValue(Response.json(document));
+
+    const result = await searchTidalCatalog("Björk", credentials, fetcher);
+
+    expect(result.tracks[0]).toMatchObject({ playbackAvailable });
   });
 
   it("rejects a cursor outside the configured API origin", async () => {

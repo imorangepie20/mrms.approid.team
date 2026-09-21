@@ -64,10 +64,23 @@ TIDAL_SCOPES=playlists.read
 TOKEN_ENCRYPTION_KEY=
 ```
 
+전체 재생을 사용하려면 Limited Input Device client를 별도로 설정한다.
+
+```dotenv
+TIDAL_DEVICE_CLIENT_ID=
+TIDAL_DEVICE_CLIENT_SECRET=
+TIDAL_DEVICE_SCOPES=r_usr w_usr w_sub
+TIDAL_DEVICE_AUTHORIZATION_URL=https://auth.tidal.com/v1/oauth2/device_authorization
+TIDAL_PLAYBACK_API_BASE_URL=https://api.tidal.com/v1
+TIDAL_COUNTRY_CODE=KR
+```
+
 - Authorization Code flow에는 S256 PKCE가 필수다.
 - `playlists.read`는 사용자가 만든 플레이리스트 목록을 읽는 third-party scope다.
 - token 응답은 `access_token`, `expires_in`, 선택적 `refresh_token`, `scope`를 제공한다.
-- refresh token flow는 지원되지만 자동 갱신은 별도 작업에서 구현한다.
-- 사용자가 TIDAL 연결을 해제하면 해당 사용자의 개인 데이터와 token을 삭제하는 경로를 제공해야 한다.
+- access token 만료가 60초 이내면 서버가 refresh token으로 자동 갱신한다. Device scope로 저장된 연결은 Device client를 사용한다.
+- 사용자가 TIDAL 연결을 해제하면 token과 연결 식별값을 제거하되 이미 가져온 MMS 라이브러리는 유지한다.
 
 비밀값은 `.env.local` 또는 운영 비밀 관리 시스템에만 저장하고 저장소·응답·로그에 기록하지 않는다.
+
+인증, token 저장, stream 해석, 플레이어와 오류 복구의 상세 계약은 `docs/deployment/tidal-full-playback-implementation.md`를 따른다.

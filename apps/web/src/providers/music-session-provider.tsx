@@ -111,11 +111,13 @@ function queueItems(
   tracks: Track[],
   source: { id: string; type: PlaybackSource },
 ) {
-  return tracks.map((track) => ({
-    referenceId: createReferenceId(),
-    source,
-    track,
-  }));
+  return tracks
+    .filter((track) => track.playbackAvailable !== false)
+    .map((track) => ({
+      referenceId: createReferenceId(),
+      source,
+      track,
+    }));
 }
 
 function isPlayable(track: Track): track is PlayableTrack {

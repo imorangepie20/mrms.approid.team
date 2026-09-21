@@ -4,6 +4,7 @@ import {
   claimEnrichmentJob,
   createImport,
   disconnectTidal,
+  getSavedPlaylistTracks,
   getSavedPlaylists,
   getSavedTracks,
   upsertPlaylistPage,
@@ -64,6 +65,46 @@ describe("music library repository", () => {
     ]);
     expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/WHERE\s+u\.auth0_subject\s*=\s*\$1/i),
+      ["auth0|listener-a"],
+    );
+  });
+
+  it("returns playlist tracks in saved position order for the requesting user", async () => {
+    const { database, query } = queryExecutor([
+      {
+        album_name: "Discovery",
+        artist_name: "Daft Punk",
+        cover_art_url: null,
+        duration_ms: 320_000,
+        id: "track-row",
+        playlist_id: "playlist-row",
+        position: 7,
+        tidal_artwork_url: "https://tidal.test/one-more-time.jpg",
+        tidal_track_id: "776453",
+        title: "One More Time",
+      },
+    ]);
+
+    await expect(
+      getSavedPlaylistTracks("auth0|listener-a", database),
+    ).resolves.toEqual([
+      {
+        playlistId: "playlist-row",
+        position: 7,
+        track: {
+          album: "Discovery",
+          artist: "Daft Punk",
+          artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
+          artworkUrl: "https://tidal.test/one-more-time.jpg",
+          durationSeconds: 320,
+          id: "track-row",
+          tidalTrackId: "776453",
+          title: "One More Time",
+        },
+      },
+    ]);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/WHERE\s+u\.auth0_subject\s*=\s*\$1[\s\S]*ORDER BY\s+pt\.playlist_id,\s*pt\.position/i),
       ["auth0|listener-a"],
     );
   });

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -18,7 +18,7 @@ const track: PlayableTrack = {
   album: "Album",
   artist: "Artist",
   artworkClass: "from-violet-500 to-sky-500",
-  artworkUrl: "",
+  artworkUrl: "https://resources.tidal.com/track-a.jpg",
   durationSeconds: 185,
   id: "track-a",
   tidalTrackId: "tidal-a",
@@ -75,6 +75,25 @@ function LocalPlaybackStarter() {
 }
 
 describe("PersistentPlayer", () => {
+  it("shows the current track artwork with a gradient fallback", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    render(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    const artwork = screen.getByRole("img", { name: "Track A 앨범 아트" });
+    expect(artwork).toHaveAttribute("src", expect.stringContaining("track-a.jpg"));
+
+    fireEvent.error(artwork);
+    expect(screen.queryByRole("img", { name: "Track A 앨범 아트" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Track A 앨범 아트" })).toBeInTheDocument();
+  });
+
   it("does not report playing until the engine emits playing", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
@@ -166,6 +185,35 @@ describe("PersistentPlayer", () => {
     act(() => engine.emit({ type: "error", code: "tidal_stream_scope_required" }));
     expect(screen.getByRole("button", { name: "TIDAL 재생 연결" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
+  });
+
+  it("retries the current queue item after device authorization succeeds", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({
+        deviceCode: "device-code",
+        expiresAt: "2026-09-21T01:00:00.000Z",
+        intervalSeconds: 0,
+        userCode: "ABCDEF",
+        verificationUri: "https://offer.tidal.com/device",
+        verificationUriComplete: null,
+      }))
+      .mockResolvedValueOnce(Response.json({ status: "connected" })));
+    render(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    act(() => engine.emit({ type: "error", code: "tidal_stream_scope_required" }));
+
+    await user.click(screen.getByRole("button", { name: "TIDAL 재생 연결" }));
+
+    await waitFor(() => expect(engine.load).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("button", { name: "TIDAL 재생 연결" })).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("does not offer TIDAL playback for a track without a TIDAL id", async () => {

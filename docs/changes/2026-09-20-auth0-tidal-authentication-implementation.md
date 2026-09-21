@@ -33,7 +33,7 @@ Auth0 연동 중 `/api/auth/login`이 404를 반환해 로그인을 시작할 �
 
 - 작업 중 노출된 적이 있는 Auth0 client secret과 `AUTH0_SECRET`은 폐기하고 새 값으로 교체한다.
 - `DATABASE_URL`, `TOKEN_ENCRYPTION_KEY`, `TIDAL_CLIENT_ID`를 비밀 저장소에 설정한 뒤 migration을 적용한다.
-- TIDAL Developer Terms의 AI 서비스 제한과 사용자 연결 해제 시 데이터 삭제 의무를 확인하기 전에는 TIDAL 콘텐츠를 AI 분석 입력으로 전달하지 않는다.
+- TIDAL Developer Terms의 AI 서비스 제한과 사용자 연결 해제 시 데이터 삭제 의무를 확인하기 전에는 TIDAL 콘텐츠를 AI 분석 입력으로 전달하지 않았다. **2026-09-21 사용자가 이 제약을 해소했다.** 자세한 내용은 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`를 본다. 연결 해제 시 데이터 삭제 의무는 여전히 미확정이다.
 
 ## 다음 작업
 

@@ -91,7 +91,7 @@ export async function resolveTidalPlaybackStream(
   if (!hasTidalDeviceSessionScopes(scopes(token).join(" "))) {
     throw new TidalPlaybackStreamError("tidal_stream_scope_required");
   }
-  const quality = (options.quality ?? "LOSSLESS").toUpperCase();
+  const quality = (options.quality ?? "HI_RES_LOSSLESS").toUpperCase();
   if (!new Set(["LOW", "HIGH", "LOSSLESS", "HI_RES", "HI_RES_LOSSLESS"]).has(quality)) {
     throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
   }

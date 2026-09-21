@@ -2,6 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LikesProvider } from "@/providers/likes-provider";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/search",
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 const session = vi.hoisted(() => ({
   pausePlayback: vi.fn().mockResolvedValue(undefined),
   playTrack: vi.fn(),
@@ -13,6 +20,14 @@ vi.mock("@/providers/music-session-provider", () => ({
 }));
 
 import { TidalSearch } from "./tidal-search";
+
+function renderSearch() {
+  return render(
+    <LikesProvider initialLikes={[]} isAuthenticated>
+      <TidalSearch />
+    </LikesProvider>,
+  );
+}
 
 const track = {
   album: "Debut",
@@ -45,7 +60,7 @@ describe("TidalSearch", () => {
       if (url.pathname.endsWith("/suggestions")) return json({ suggestions: [] });
       return new Promise<Response>((resolve) => pending.set(url.searchParams.get("q") ?? "", resolve));
     }));
-    render(<TidalSearch />);
+    renderSearch();
     const searchbox = screen.getByRole("searchbox");
 
     fireEvent.change(searchbox, { target: { value: "ab" } });
@@ -53,10 +68,10 @@ describe("TidalSearch", () => {
     fireEvent.change(searchbox, { target: { value: "abc" } });
     await waitFor(() => expect(pending.has("abc")).toBe(true));
     await act(async () => pending.get("abc")?.(Response.json({
-      albums: [], next: null, playlists: [], topHits: [{ ...track, kind: "track" }], tracks: [track],
+      albums: [], artists: [], next: null, playlists: [], topHits: [{ ...track, kind: "track" }], tracks: [track],
     })));
     await act(async () => pending.get("ab")?.(Response.json({
-      albums: [], next: null, playlists: [], topHits: [],
+      albums: [], artists: [], next: null, playlists: [], topHits: [],
       tracks: [{ ...track, id: "old", tidalTrackId: "old", title: "Old result" }],
     })));
 
@@ -76,6 +91,11 @@ describe("TidalSearch", () => {
               id: "album-1",
               title: "Debut",
             }],
+            artists: [{
+              artworkUrl: "https://resources.tidal.com/artist.jpg",
+              id: "artist-1",
+              name: "Björk",
+            }],
             next: null,
             playlists: [{
               artworkUrl: "https://resources.tidal.com/playlist.jpg",
@@ -86,6 +106,12 @@ describe("TidalSearch", () => {
             }],
             topHits: [
               { ...track, kind: "track" },
+              {
+                artworkUrl: "https://resources.tidal.com/artist.jpg",
+                id: "artist-1",
+                kind: "artist",
+                name: "Björk",
+              },
               {
                 artist: "Björk",
                 artworkUrl: "https://resources.tidal.com/album.jpg",
@@ -106,13 +132,17 @@ describe("TidalSearch", () => {
           });
     }));
     const user = userEvent.setup();
-    render(<TidalSearch />);
+    renderSearch();
 
     await user.type(screen.getByRole("searchbox"), "bj");
     expect(await screen.findByRole("tab", { name: "통합 결과" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("tab", { name: "아티스트" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "아티스트" })).toBeInTheDocument();
     expect(await screen.findByText("앨범 · Björk")).toBeInTheDocument();
     expect(screen.getByText("플레이리스트 · TIDAL · 100곡")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Human Behaviour" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Debut" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Lazy Days" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Björk" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "트랙" }));
     const playButton = screen.getByRole("button", { name: "재생 Human Behaviour" });
@@ -134,10 +164,16 @@ describe("TidalSearch", () => {
 
     await user.click(screen.getByRole("tab", { name: "앨범" }));
     expect(screen.getByRole("img", { name: "Debut 앨범 아트" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Debut" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: "플레이리스트" }));
     expect(screen.getByRole("img", { name: "Lazy Days 플레이리스트 커버" })).toBeInTheDocument();
     expect(screen.getByText("100곡")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Lazy Days" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("tab", { name: "아티스트" }));
+    expect(screen.getByText("Björk")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "좋아요 Björk" })).toBeInTheDocument();
   });
 
   it.each([
@@ -155,6 +191,7 @@ describe("TidalSearch", () => {
           id: "album-1",
           title: "Debut",
         }],
+        artists: [],
         next: null,
         playlists: [{
           artworkUrl: "https://resources.tidal.com/playlist.jpg",
@@ -168,7 +205,7 @@ describe("TidalSearch", () => {
       });
     }));
     const user = userEvent.setup();
-    render(<TidalSearch />);
+    renderSearch();
 
     await user.type(screen.getByRole("searchbox"), "bj");
     await user.click(screen.getByRole("tab", { name: kind === "album" ? "앨범" : "플레이리스트" }));
@@ -176,6 +213,7 @@ describe("TidalSearch", () => {
 
     expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
     expect(screen.getByText(new RegExp(`^${secondary} ·`))).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: `좋아요 ${title}` })).toBeInTheDocument();
     expect(screen.getByText("Human Behaviour")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "전체 재생" }));
 
