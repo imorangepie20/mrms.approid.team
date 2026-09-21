@@ -16,7 +16,9 @@ export type Track = {
   artworkClass: string;
   artworkUrl: string;
   durationSeconds?: number | null;
+  genres?: string[];
   playbackAvailable?: boolean;
+  tags?: string[];
   tidalTrackId?: string;
 };
 

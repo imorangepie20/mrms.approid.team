@@ -1,0 +1,25 @@
+# 변경 기록
+
+- 날짜·작업명: 2026-09-21 추천 임베딩 입력에 장르·태그 추가
+- 변경 이유: `docs/changes/2026-09-21-musicbrainz-genre-enrichment.md`의 다음 작업. `docs/decisions/2026-09-20-personalized-recommendation-baseline.md` 원칙 1의 임베딩 입력은 곡명·아티스트·앨범만 있었고, 장르는 MusicBrainz 보강으로 49트랙에 채워졌지만 입력 코드에는 붙지 않은 상태였다. 빈 `mb_genres`의 폴백으로 `mb_tags` 상위 3개를 쓰기로 했으나 태그에는 국가·시대·사건·메타 노이즈가 섞여 있어 상위 3개 선택 기준이 필요했다.
+- 기준 결정 (화이트리스트): 실제 DB(`127.0.0.1:55434/music_pie`, 캐시 아티스트 64명·트랙 101곡)에서 노이즈를 확인했다. 사건 `2008 universal fire victim`(10명), 국가·언어 `american`·`canadian`·`english`·`spanish`·`uk`·`liverpool`·`reino unido`, 연대·세대 `1960s`·`2020s`·`late 2000s`·`gen z`·`millennial`, 직업·편성 `vocalist`·`mezzo-soprano`·`saxophonist`·`boy band`, 큐레이션 메타·데이터 오류 `cotm candidate`·`legends`·`anthology`·`n.`·`aln-sh`·`vyrzukhisuc-artiest`. denylist는 `american`과 `afro-cuban jazz`를 분리할 구조적 규칙이 없고 무작위 문자열을 예측할 수 없다. 그래서 **화이트리스트**를 선택했고 어휘 출처는 공용 캐시 `musicbrainz_artists.genres`의 합집합(실제 87개)으로 정했다. MB 공식 장르 목록을 새로 호출하지 않아 rate limit·런타임 의존성이 늘지 않고 보강이 진행되면 어휘도 자동 확장된다.
+- 최종 동작·관련 경로:
+  - `apps/web/src/lib/music/recommendations.ts`: 신규 `buildEmbeddingText(track, vocabulary)`. `mb_genres`가 1개 이상이면 그대로 임베딩 입력에 붙이고(투표 순서 유지), 빈 배열이면 어휘에 속하는 태그만 투표 순서대로 상위 3개(`FALLBACK_TAG_COUNT`) 붙인다. 장르·어휘 통과 태그가 전부 없으면 제목·아티스트·앨범만 반환한다. 폼은 `{title} | {artist} | {album} | {genres.join(", ")}`(`FIELD_SEPARATOR = " | "`)이며, 메타데이터는 빈 필드를 건너뛰어 빈 구분자가 남지 않는다. 장르명은 영어 그대로 쓴다(모델이 `paraphrase-multilingual-mpnet-base-v2`).
+  - `apps/web/src/lib/db/music-library.ts`: 신규 `getSharedGenreVocabulary`가 `SELECT DISTINCT genre FROM (SELECT unnest(genres) AS genre FROM musicbrainz_artists) AS flattened WHERE genre <> '' ORDER BY genre`로 공용 장르 어휘를 반환. 사용자 범위 제한이 없다(공용 카탈로그 메타데이터). `getSavedTracks`가 `mb_genres`·`mb_tags`를 노출하도록 SELECT에 두 컬럼을 추가하고 `genres`·`tags`로 매핑(NULL이면 빈 배열).
+  - `apps/web/src/lib/music/types.ts`: `Track`에 선택 `genres`·`tags` 추가. 기존 `catalog` 픽스처는 두 필드 없이 그대로 작동한다.
+  - 임베딩 **모델 호출부는 없다**. `paraphrase-multilingual-mpnet-base-v2` 런타임 의존성이 `apps/web/package.json`에 없어 입력 텍스트를 벡터로 만드는 단계는 별도 작업으로 남았다. `buildEmbeddingText`는 입력 구성만 담당한다.
+- 실제 검증 결과:
+  - `npx vitest run src/lib/music src/lib/db --reporter=default` → 7개 파일 59개 테스트 전부 통과(client 4, catalog 1, recommendations 12, music-library 14, user-likes 3, user-connections 7, enrichment 18).
+  - `npm test` → 57개 파일 236개 테스트 전부 통과(전체 회귀).
+  - `npm run lint` → 위반 없음.
+  - `npx tsc --noEmit -p tsconfig.json` → 오류 없음(`apps/web` 전체).
+  - `recommendations.test.ts` 신규 8개: 장르 있을 때 투표 순서 유지, 공백 장르는 무시하고 태그 폴백, 폴백에서 어휘 통과 태그만 상위 3개, 노이즈 태그 10개가 전부 배제, 장르·어휘 통과 태그가 없으면 메타데이터만, 장르·태그 둘 다 없을 때 메타데이터만, 빈 메타데이터 필드 건너뛰기.
+  - **실제 DB로 폴백 검증**: `getSharedGenreVocabulary`와 동일한 SQL로 어휘 87개 확인. 노이즈 19개(`2008 universal fire victim`, `american`, `canadian`, `english`, `spanish`, `uk`, `1960s`, `2020s`, `late 2000s`, `gen z`, `millennial`, `vocalist`, `mezzo-soprano`, `saxophonist`, `boy band`, `cotm candidate`, `legends`, `anthology`, `vyrzukhisuc-artiest`) 중 어휘에 포함된 것 **0개**. `mb_genres`가 비어 있고 `mb_tags`만 있는 트랙도 **0건**이라 현재 데이터에서 폴백이 발화하지 않는다(안전망).
+- 미검증 항목·이유:
+  - `npm run build`는 실행하지 않았다(타입체크와 전체 단위 회귀로 대체).
+  - **임베딩 모델 통합.** 의존성이 없어 `buildEmbeddingText`의 출력을 실제 임베딩 벡터로 만들지 못했다. 출력 텍스트가 모델에 적합한지, 장르가 메타데이터와 같은 텍스트로 이어 붙는 것이 벡터 공간에서 어떤 영향을 주는지는 모델 연결 후에야 확인할 수 있다(설계 문서의 장르 가중치 미정 항목).
+  - `mb_tags`의 비장르 태그를 저장은 하되 임베딩 입력에서만 배제하는 현 선택의 유지 여부. 저장을 중단하면 어휘 확장 근거가 줄어든다.
+  - MusicBrainz 장르의 라이선스(CC0 여부). 이전 설계 문서의 미정 항목 그대로.
+  - 어휘의 콜드스타트. 장르가 없는 아티스트는 어휘 근거가 없어 폴백이 빈 결과로 끝날 수 있다. `GET /ws/2/genre` 시드는 추가하지 않았다.
+  - `getSavedTracks` 호출자(페이지·컴포넌트)가 `genres`·`tags`를 실제로 소비하지 않는다. 소비처는 모델 통합 작업에서 생긴다.
+- 다음 작업·시작 위치: 임베딩 모델 런타임을 `apps/web`에 통합하고 `buildEmbeddingText` 출력으로 트랙 벡터를 만드는 작업. 시작 위치는 `apps/web/package.json` 의존성 결정과 `docs/decisions/2026-09-20-personalized-recommendation-baseline.md` 원칙 2의 사용자 취향 벡터 구성 코드. 모델 라이선스와 입력 텍스트 가중치(같은 텍스트로 이어 붙일지 별도 필드로 넘길지)를 같이 정해야 한다.

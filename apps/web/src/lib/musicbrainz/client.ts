@@ -10,6 +10,11 @@ function requireMusicBrainzUserAgent() {
   return userAgent;
 }
 
+export type ArtistGenreDocument = {
+  genres: { count: number; name: string }[];
+  tags: { count: number; name: string }[];
+};
+
 export async function lookupIsrc(
   isrc: string,
   fetcher: typeof fetch = fetch,
@@ -18,7 +23,7 @@ export async function lookupIsrc(
     `/ws/2/isrc/${encodeURIComponent(isrc)}`,
     "https://musicbrainz.org",
   );
-  url.searchParams.set("inc", "artist-credits+releases+release-groups");
+  url.searchParams.set("inc", "artist-credits+releases");
   url.searchParams.set("fmt", "json");
   const response = await fetcher(url, {
     headers: { "user-agent": requireMusicBrainzUserAgent() },
@@ -34,3 +39,54 @@ export async function lookupIsrc(
   }
   return { recordings: body.recordings };
 }
+
+function extractCountedNames(
+  entries: unknown,
+): { count: number; name: string }[] {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .filter(
+      (entry): entry is { count: number; name: string } =>
+        typeof entry === "object" &&
+        entry !== null &&
+        typeof (entry as { name?: unknown }).name === "string" &&
+        typeof (entry as { count?: unknown }).count === "number",
+    )
+    .map((entry) => ({
+      count: entry.count,
+      name: entry.name,
+    }));
+}
+
+export async function lookupArtist(
+  mbid: string,
+  fetcher: typeof fetch = fetch,
+): Promise<ArtistGenreDocument & { name: string }> {
+  const url = new URL(
+    `/ws/2/artist/${encodeURIComponent(mbid)}`,
+    "https://musicbrainz.org",
+  );
+  url.searchParams.set("inc", "genres+tags");
+  url.searchParams.set("fmt", "json");
+  const response = await fetcher(url, {
+    headers: { "user-agent": requireMusicBrainzUserAgent() },
+  });
+  if (response.status === 503 || response.status === 429) {
+    throw new MusicBrainzError("retryable");
+  }
+  if (!response.ok) throw new MusicBrainzError("invalid_response");
+  const body = (await response.json()) as {
+    genres?: unknown;
+    name?: unknown;
+    tags?: unknown;
+  };
+  if (typeof body.name !== "string") {
+    throw new MusicBrainzError("invalid_response");
+  }
+  return {
+    genres: extractCountedNames(body.genres),
+    name: body.name,
+    tags: extractCountedNames(body.tags),
+  };
+}
+

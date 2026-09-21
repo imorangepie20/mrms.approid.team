@@ -28,6 +28,8 @@ type SavedTrackRow = {
   cover_art_url: string | null;
   duration_ms: number | null;
   id: string;
+  mb_genres: string[] | null;
+  mb_tags: string[] | null;
   tidal_artwork_url: string | null;
   tidal_track_id: string;
   title: string;
@@ -122,7 +124,9 @@ export async function getSavedTracks(
        t.album_name,
        t.duration_ms,
        t.tidal_artwork_url,
-       t.cover_art_url
+       t.cover_art_url,
+       t.mb_genres,
+       t.mb_tags
      FROM music_tracks AS t
      INNER JOIN app_users AS u ON u.id = t.user_id
      WHERE u.auth0_subject = $1
@@ -137,7 +141,9 @@ export async function getSavedTracks(
     artworkUrl: row.cover_art_url ?? row.tidal_artwork_url ?? "",
     durationSeconds:
       row.duration_ms === null ? null : Math.round(row.duration_ms / 1000),
+    genres: row.mb_genres ?? [],
     id: row.id,
+    tags: row.mb_tags ?? [],
     tidalTrackId: row.tidal_track_id,
     title: row.title,
   }));
@@ -481,15 +487,33 @@ export async function reserveMusicBrainzRequest(
   });
 }
 
+export async function getMusicBrainzSlotDelay(
+  executor?: TransactionExecutor,
+): Promise<number> {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<{ delay_ms: number }>(
+    `SELECT CASE
+              WHEN next_request_at > now()
+              THEN CEIL(EXTRACT(EPOCH FROM (next_request_at - now())) * 1000)::integer
+              ELSE 0
+            END AS delay_ms
+     FROM musicbrainz_rate_limits
+     WHERE service = 'musicbrainz'`,
+  );
+  return result.rows[0]?.delay_ms ?? 0;
+}
+
 export async function completeEnrichmentJob(
   auth0Subject: string,
   trackId: string,
   decision: {
     coverArtUrl: string | null;
+    genres: string[];
     recordingId: string | null;
     releaseGroupId: string | null;
     releaseId: string | null;
     status: "not_found" | "matched" | "ambiguous";
+    tags: string[];
   },
   executor?: TransactionExecutor,
 ) {
@@ -502,6 +526,8 @@ export async function completeEnrichmentJob(
              mb_release_group_id = $5,
              mb_status = $6,
              cover_art_url = $7,
+             mb_genres = $8,
+             mb_tags = $9,
              updated_at = now()
          FROM app_users AS u
          WHERE u.auth0_subject = $1 AND t.user_id = u.id AND t.id = $2
@@ -520,11 +546,66 @@ export async function completeEnrichmentJob(
         decision.releaseGroupId,
         decision.status,
         decision.coverArtUrl,
+        decision.genres,
+        decision.tags,
       ],
     );
     return result.rows.length === 1;
   });
 }
+
+export type CachedArtistGenres = {
+  genres: string[];
+  tags: string[];
+};
+
+export async function getCachedArtistGenres(
+  mbid: string,
+  executor?: TransactionExecutor,
+): Promise<CachedArtistGenres | null> {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<CachedArtistGenres>(
+    `SELECT genres, tags FROM musicbrainz_artists WHERE mbid = $1`,
+    [mbid],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function upsertArtistGenres(
+  mbid: string,
+  name: string,
+  genres: string[],
+  tags: string[],
+  executor?: TransactionExecutor,
+): Promise<void> {
+  const database = executor ?? getDatabasePool();
+  await database.query(
+    `INSERT INTO musicbrainz_artists (mbid, name, genres, tags, fetched_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (mbid) DO UPDATE
+     SET name = EXCLUDED.name,
+         genres = EXCLUDED.genres,
+         tags = EXCLUDED.tags,
+         fetched_at = now()`,
+    [mbid, name, genres, tags],
+  );
+}
+
+export async function getSharedGenreVocabulary(
+  executor?: TransactionExecutor,
+): Promise<string[]> {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<{ genre: string }>(
+    `SELECT DISTINCT genre
+     FROM (
+       SELECT unnest(genres) AS genre FROM musicbrainz_artists
+     ) AS flattened
+     WHERE genre <> ''
+     ORDER BY genre`,
+  );
+  return result.rows.map((row) => row.genre);
+}
+
 
 export async function releaseEnrichmentJob(
   auth0Subject: string,

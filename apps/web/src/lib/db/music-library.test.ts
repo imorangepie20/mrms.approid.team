@@ -2,11 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   claimEnrichmentJob,
+  completeEnrichmentJob,
   createImport,
   disconnectTidal,
+  getCachedArtistGenres,
+  getMusicBrainzSlotDelay,
   getSavedPlaylistTracks,
   getSavedPlaylists,
   getSavedTracks,
+  getSharedGenreVocabulary,
+  upsertArtistGenres,
   upsertPlaylistPage,
   type TransactionExecutor,
 } from "./music-library";
@@ -45,6 +50,8 @@ describe("music library repository", () => {
         cover_art_url: "https://cover.test/one-more-time.jpg",
         duration_ms: 320_000,
         id: "track-row",
+        mb_genres: ["house", "disco"],
+        mb_tags: ["french"],
         tidal_artwork_url: "https://tidal.test/fallback.jpg",
         tidal_track_id: "776453",
         title: "One More Time",
@@ -58,7 +65,9 @@ describe("music library repository", () => {
         artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
         artworkUrl: "https://cover.test/one-more-time.jpg",
         durationSeconds: 320,
+        genres: ["house", "disco"],
         id: "track-row",
+        tags: ["french"],
         tidalTrackId: "776453",
         title: "One More Time",
       },
@@ -215,5 +224,130 @@ describe("music library repository", () => {
     expect(sql).toMatch(/encrypted_refresh_token\s*=\s*NULL/i);
     expect(sql).toMatch(/status\s*=\s*'paused'/i);
     expect(sql).not.toMatch(/DELETE FROM (user_playlists|music_tracks)/i);
+  });
+
+  it("persists genres and tags alongside the enrichment decision", async () => {
+    const query = vi.fn(async (text: string, values?: unknown[]) => {
+      void text;
+      void values;
+      return { rows: [{ track_id: "track-row" }] };
+    });
+    const database = { query } as unknown as TransactionExecutor;
+
+    await expect(
+      completeEnrichmentJob(
+        "auth0|listener-a",
+        "track-row",
+        {
+          coverArtUrl: null,
+          genres: ["jazz", "bebop"],
+          recordingId: "recording-a",
+          releaseGroupId: null,
+          releaseId: null,
+          status: "matched",
+          tags: ["piano jazz"],
+        },
+        database,
+      ),
+    ).resolves.toBe(true);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/mb_genres\s*=\s*\$8/i),
+      [
+        "auth0|listener-a",
+        "track-row",
+        "recording-a",
+        null,
+        null,
+        "matched",
+        null,
+        ["jazz", "bebop"],
+        ["piano jazz"],
+      ],
+    );
+  });
+
+  it("reads cached artist genres by MBID", async () => {
+    const { database, query } = queryExecutor([
+      { genres: ["jazz"], tags: ["piano jazz"] },
+    ]);
+
+    await expect(
+      getCachedArtistGenres(
+        "ed801bdd-f057-41c0-94fb-76cb5676cd59",
+        database,
+      ),
+    ).resolves.toEqual({ genres: ["jazz"], tags: ["piano jazz"] });
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/FROM musicbrainz_artists WHERE mbid = \$1/i),
+      ["ed801bdd-f057-41c0-94fb-76cb5676cd59"],
+    );
+  });
+
+  it("returns null when an artist is not yet cached", async () => {
+    const { database } = queryExecutor([]);
+
+    await expect(
+      getCachedArtistGenres(
+        "ed801bdd-f057-41c0-94fb-76cb5676cd59",
+        database,
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("upserts artist genres into the shared cache", async () => {
+    const { database, query } = queryExecutor();
+
+    await upsertArtistGenres(
+      "ed801bdd-f057-41c0-94fb-76cb5676cd59",
+      "Oscar Peterson",
+      ["jazz", "bebop"],
+      ["piano jazz"],
+      database,
+    );
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/INSERT INTO musicbrainz_artists[\s\S]*ON CONFLICT \(mbid\)/i),
+      [
+        "ed801bdd-f057-41c0-94fb-76cb5676cd59",
+        "Oscar Peterson",
+        ["jazz", "bebop"],
+        ["piano jazz"],
+      ],
+    );
+  });
+
+  it("reports how long until the MusicBrainz rate limit slot frees", async () => {
+    const { database, query } = queryExecutor([{ delay_ms: 850 }]);
+
+    await expect(getMusicBrainzSlotDelay(database)).resolves.toBe(850);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/FROM musicbrainz_rate_limits\s+WHERE service = 'musicbrainz'/i),
+    );
+  });
+
+  it("assumes the slot is free when no rate limit row exists", async () => {
+    const { database } = queryExecutor([]);
+
+    await expect(getMusicBrainzSlotDelay(database)).resolves.toBe(0);
+  });
+
+  it("asks the shared cache for the distinct genre vocabulary", async () => {
+    const { database, query } = queryExecutor([
+      { genre: "jazz" },
+      { genre: "vocal jazz" },
+    ]);
+
+    await expect(
+      getSharedGenreVocabulary(database),
+    ).resolves.toEqual(["jazz", "vocal jazz"]);
+
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /SELECT DISTINCT genre[\s\S]*unnest\(genres\)[\s\S]*FROM musicbrainz_artists[\s\S]*WHERE genre <> ''[\s\S]*ORDER BY genre/i,
+      ),
+    );
   });
 });

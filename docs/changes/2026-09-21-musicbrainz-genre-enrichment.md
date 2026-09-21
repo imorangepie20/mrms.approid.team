@@ -1,0 +1,24 @@
+# 변경 기록
+
+- 날짜·작업명: 2026-09-21 MusicBrainz 아티스트 장르 보강
+- 변경 이유: TIDAL OpenAPI의 장르 엔드포인트는 전부 `INTERNAL` 접근 등급이라 third-party 자격으로는 장르를 받을 수 없다(실제 호출로 `data: []` 확인). `docs/decisions/2026-09-20-personalized-recommendation-baseline.md` 임베딩 입력 가운데 장르만 비어 있어, MusicBrainz 보강 파이프라인에서 장르를 확보하기로 했다. 작업 중 기존 버그도 함께 발견했다. `lookupIsrc`의 `inc` 값이 `artist-credits+releases+release-groups`였는데 `release-groups`는 isrc 리소스에 유효하지 않은 파라미터라 **모든 보강 요청이 400**이었고 DB에는 `failed` 11건, `completed` 0건이 쌓여 있었다.
+- 최종 동작·관련 경로:
+  - `apps/web/src/lib/musicbrainz/client.ts`: `lookupIsrc`의 `inc`를 `artist-credits+releases`로 수정(400 원인 제거). 신규 `lookupArtist(mbid)`가 `GET /ws/2/artist/{mbid}?inc=genres+tags&fmt=json`을 호출해 `{genres, tags, name}`을 반환. 429/503은 `retryable`, 그 외 비정상 응답은 `invalid_response`.
+  - `apps/web/src/lib/musicbrainz/enrichment.ts`: 신규 `extractArtistMbids`가 ISRC 응답의 `artist-credit[].artist.id`에서 중복 없이 MBID 추출(모호성 판정과 분리). `enrichNextTrack`은 아티스트마다 캐시를 먼저 보고, 없으면 rate limit 예약 후 조회·저장. `EnrichmentDecision`에 `genres`, `tags` 추가하고 `classifyRecordings`의 모든 분기에서 빈 배열로 초기화. 공동 아티스트 장르는 `mergeRankedNames`로 투표 순서를 유지하며 중복 없이 합침.
+  - `apps/web/src/lib/db/music-library.ts`: `completeEnrichmentJob`이 `$8`(mb_genres), `$9`(mb_tags)까지 갱신. 신규 `getCachedArtistGenres`(MBID 조회), `upsertArtistGenres`(공용 캐시 upsert).
+  - `apps/web/src/lib/db/migrations/006_musicbrainz_genres.sql`: `music_tracks`에 `mb_genres TEXT[] NOT NULL DEFAULT '{}'`, `mb_tags TEXT[] NOT NULL DEFAULT '{}'` 추가, 공용 캐시 `musicbrainz_artists` 테이블 생성. `006_musicbrainz_genres.down.sql`로 롤백.
+  - 캐시는 사용자를 가리지 않는 공용 카탈로그 메타데이터로 해석했다. 개인 모델·행동 데이터와는 구분됨(설계 문서 미정 항목 참고).
+  - **추가 버그 수정 (2026-09-21)**: 보강 잡이 아티스트 장르 조회 단계에서 영구적으로 멈추는 현상. ISRC 조회가 보통 300~400ms로 끝나 rate limit 예약 간격(1초)보다 빠르기 때문에, 두 번째 예약이 항상 실패하고 잡이 release돼 같은 잡이 무한 반복됐다. `not_found`(아티스트 조회 자체가 없는) 잡만 완료되는 상태였다. `enrichNextTrack`의 아티스트 예약을 `reserveArtistSlot`로 분리해 예약 실패 시 슬롯 해제 시각까지 대기(`getMusicBrainzSlotDelay`)하고 최대 10회 재시도하도록 고쳤다. 진짜 슬롯 부족일 때만 잡을 release한다.
+- 실제 검증 결과:
+  - `npx vitest run src/lib/db src/lib/musicbrainz --reporter=default` 실행 → 5개 파일 45개 테스트 전부 통과(client 4, enrichment 18, music-library 13, user-likes 3, user-connections 7).
+  - `npx eslint src/lib/db src/lib/musicbrainz` → 위반 없음.
+  - `npx tsc --noEmit -p tsconfig.json` → 오류 없음(`apps/web` 전체).
+  - 새로 가입한 테스트: 캐시 히트 시 HTTP 미발생, 공동 아티스트 장르 병합, ISRC 없음 시 빈 장르로 잡 닫기, 아티스트 rate limit 부족 시 대기 후 재시도와 계속 부족할 때 잡 release 등 경계 동작 포함.
+  - **DB 적용 (2026-09-21)**: `psql`이 없어 `pg` 드라이버로 `006_musicbrainz_genres.sql` 실행. 대상 `127.0.0.1:55434/music_pie`. 적용 전 `mb_genres`/`mb_tags` 컬럼과 `musicbrainz_artists` 부재를 확인, 적용 후 컬럼 2개와 캐시 테이블(mbid·name·genres·tags·fetched_at, 전부 NOT NULL) 확인.
+  - **실제 보강 실행 (2026-09-21)**: 사용자 `auth0|6a9b694d51d35a791c271cc3`의 잡 101개 전부 실행. 버그 수정 전에는 `not_found` 3개만 완료되고 멈췄으나, 수정 후 101개 전부 `completed`(failed 0). 완료 기준 1: `mb_genres`가 채워진 트랙 49개(예: "Take Five" → cool jazz, jazz). 기준 2: 아티스트 캐시 64개 적재, 같은 아티스트 재조회 시 캐시 사용. 기준 3: ISRC가 MB에 없는 트랙 49개는 `mb_genres='{}'`, `mb_status='not_found'`로 잡이 `completed` 종료. MusicBrainz 요청은 슬롯 예약(1초 간격)을 거쳐 실행.
+- 미검증 항목·이유:
+  - `npm run build`는 실행하지 않았다(타입체크로 대체).
+  - MusicBrainz 실제 호출이 rate limit을 준수하는지는 슬롯 예약 로직으로만 간접 확인했다. 대기 보정값 150ms가 극단적으로 느린 응답에서 충분한지는 압력 테스트를 하지 않았다.
+  - `musicbrainz_artists` 캐시 만료·갱신 정책, 비장르 태그 필터링 기준, MB 라이선스(CC0 여부) 확인. 설계 문서 미정 항목 그대로 남아 있다.
+  - 잡 101개를 실행하는 데 약 230초가 소요됐다. 트랙 1개당 약 2.3초이며, 이 시점부터 잡이 남지 않아 운영 환경의 지속 호출 패턴은 검증하지 않았다.
+- 다음 작업·시작 위치: `docs/decisions/2026-09-20-personalized-recommendation-baseline.md`의 임베딩 입력에 `mb_genres`(빈 시 `mb_tags` 상위 3개)를 붙이는 작업. 시작 위치는 임베딩 입력 구성 코드. `mb_tags`에 국가·시대 태그(`american`, `2008 universal fire victim` 등)가 섞여 있어 상위 3개 선택 기준을 같이 정해야 한다.
