@@ -24,6 +24,15 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 - `apps/web`: `npm run build` — Next.js production build·TypeScript 통과
 - 추천 repository·API·GMS 결정 저장 focused 테스트 통과
 
+## Zorin 배포
+
+- Web release/image: `796b5e2`
+- 기존 이미지 rollback tag: `music-pie-web:rollback-before-gms-20260922`
+- `/api/health/ready`: HTTP 200, `{"status":"ready"}`
+- 공개 `/gms`: HTTP 200
+- 비로그인 `GET /api/recommendations`: HTTP 401
+- 비로그인 `POST /api/recommendations/decisions`: HTTP 401
+
 ## 미검증
 
 - 실제 로그인 계정의 completed taste profile을 사용한 공개 GMS 브라우저 화면은 아직 확인하지 않았다.
