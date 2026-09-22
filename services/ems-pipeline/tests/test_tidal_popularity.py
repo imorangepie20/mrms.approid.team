@@ -28,13 +28,15 @@ def test_rank_editorial_playlists_keeps_only_public_editorial_music_lists() -> N
     document = {
         "included": [
             {"type": "playlists", "id": "low", "attributes": {"playlistType": "EDITORIAL", "accessType": "PUBLIC", "numberOfTrackItems": 20, "numberOfFollowers": 50}},
-            {"type": "playlists", "id": "high", "attributes": {"playlistType": "EDITORIAL", "accessType": "PUBLIC", "numberOfTrackItems": 100, "numberOfFollowers": 500}},
+            {"type": "playlists", "id": "high", "attributes": {"playlistType": "EDITORIAL", "accessType": "PUBLIC", "numberOfTrackItems": 100, "numberOfFollowers": 500, "lastUpdatedAt": "2026-09-22T00:00:00Z"}},
             {"type": "playlists", "id": "user", "attributes": {"playlistType": "USER", "accessType": "PUBLIC", "numberOfTrackItems": 100, "numberOfFollowers": 5_000}},
             {"type": "playlists", "id": "short", "attributes": {"playlistType": "EDITORIAL", "accessType": "PUBLIC", "numberOfTrackItems": 2, "numberOfFollowers": 50_000}},
         ]
     }
 
-    assert [item.playlist_id for item in rank_editorial_playlists([document])] == ["high", "low"]
+    playlists = rank_editorial_playlists([document])
+    assert [item.playlist_id for item in playlists] == ["high", "low"]
+    assert playlists[0].updated_at == "2026-09-22T00:00:00Z"
 
 
 def test_select_editorial_candidates_deduplicates_isrc_and_prioritizes_popularity() -> None:

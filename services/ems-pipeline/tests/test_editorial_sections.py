@@ -3,10 +3,15 @@ import pytest
 from ems_pipeline.editorial_sections import (
     SECTION_DEFINITIONS,
     EditorialMembership,
+    discover_editorial_memberships,
     rank_section_tracks,
     sync_editorial_sections,
 )
-from ems_pipeline.tidal_popularity import EditorialTrack, resolve_next_page_url
+from ems_pipeline.tidal_popularity import (
+    EditorialPlaylist,
+    EditorialTrack,
+    resolve_next_page_url,
+)
 
 
 class RecordingTransaction:
@@ -89,6 +94,62 @@ def test_pagination_rejects_external_repeated_and_oversized_sequences() -> None:
             set(),
             page_count=1,
         )
+
+
+def test_discovery_prefers_recent_new_editorial_and_playlist_position(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old = EditorialPlaylist(
+        "old",
+        "Best New Tracks Archive",
+        100_000,
+        updated_at="2026-08-01T00:00:00Z",
+    )
+    recent = EditorialPlaylist(
+        "recent",
+        "Best New Tracks",
+        100,
+        updated_at="2026-09-22T00:00:00Z",
+    )
+
+    def fake_playlists(_client: object, _token: str, queries: tuple[str, ...]):
+        return [old, recent] if queries == SECTION_DEFINITIONS[0].queries else []
+
+    def fake_tracks(_client: object, _token: str, playlist: EditorialPlaylist):
+        if playlist.playlist_id == "old":
+            return [
+                EditorialTrack(
+                    "old-a", "ISRC-A", "A", "Artist", "Album", 180000,
+                    1.0, playlist.followers, playlist_position=0,
+                )
+            ]
+        return [
+            EditorialTrack(
+                "recent-a", "ISRC-A", "A", "Artist", "Album", 180000,
+                0.8, playlist.followers, playlist_position=5,
+            ),
+            EditorialTrack(
+                "recent-b", "ISRC-B", "B", "Artist", "Album", 180000,
+                0.8, playlist.followers, playlist_position=0,
+            ),
+        ]
+
+    monkeypatch.setattr(
+        "ems_pipeline.editorial_sections.fetch_editorial_playlists",
+        fake_playlists,
+    )
+    monkeypatch.setattr(
+        "ems_pipeline.editorial_sections.fetch_playlist_tracks",
+        fake_tracks,
+    )
+
+    memberships = discover_editorial_memberships(object(), "token")
+    new_releases = [
+        item for item in memberships if item.section_slug == "new-releases"
+    ]
+
+    assert [item.tidal_id for item in new_releases] == ["recent-b", "recent-a"]
+    assert {item.source_playlist_id for item in new_releases} == {"recent"}
 
 
 def test_sync_replaces_one_section_atomically_and_matches_tidal_id_before_isrc() -> None:

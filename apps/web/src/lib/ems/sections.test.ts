@@ -39,10 +39,17 @@ function fakeExecutor(fixtures: {
   const sql: string[] = [];
   return {
     sql,
-    async query(statement: string) {
+    async query(statement: string, values: unknown[] = []) {
       sql.push(statement);
+      if (statement.includes("count(*)")) return { rows: fixtures.count };
+      const candidateLimit = Number(values.at(-1));
+      let rows = fixtures.sectionRows.filter((item) => item.rank < candidateLimit);
+      if (statement.includes("LIMIT $2")) {
+        const sectionLimit = Number(values[1]);
+        rows = rows.filter((item) => item.sort_order < sectionLimit);
+      }
       return {
-        rows: statement.includes("count(*)") ? fixtures.count : fixtures.sectionRows,
+        rows,
       };
     },
   };
@@ -81,5 +88,53 @@ describe("EMS editorial section repository", () => {
     expect(executor.sql.join("\n")).toMatch(
       /ORDER BY a\.observed_at DESC[\s\S]*LIMIT 1/i,
     );
+  });
+
+  it("fetches deeper candidates so later sections can replace global duplicates", async () => {
+    const first = Array.from({ length: 12 }, (_, index) =>
+      row("new-releases", 0, `shared-${index}`, index),
+    );
+    const second = [
+      ...Array.from({ length: 12 }, (_, index) =>
+        row("seasonal-jazz", 1, `shared-${index}`, index),
+      ),
+      row("seasonal-jazz", 1, "jazz-unique", 12),
+    ];
+    const executor = fakeExecutor({
+      count: [{ total_count: 25 }],
+      sectionRows: [...first, ...second],
+    });
+
+    const result = await listEmsSections(
+      { limit: 12, sectionLimit: 5, region: "KR" },
+      executor as never,
+    );
+
+    expect(result.sections[1]).toMatchObject({
+      slug: "seasonal-jazz",
+      tracks: [{ id: "jazz-unique" }],
+    });
+  });
+
+  it("applies sectionLimit after empty active sections are removed", async () => {
+    const executor = fakeExecutor({
+      count: [{ total_count: 3 }],
+      sectionRows: [
+        row("seasonal-jazz", 1, "jazz", 0),
+        row("night-rnb", 2, "rnb", 0),
+        row("feel-good", 3, "pop", 0),
+      ],
+    });
+
+    const result = await listEmsSections(
+      { limit: 12, sectionLimit: 3, region: "KR" },
+      executor as never,
+    );
+
+    expect(result.sections.map((section) => section.slug)).toEqual([
+      "seasonal-jazz",
+      "night-rnb",
+      "feel-good",
+    ]);
   });
 });

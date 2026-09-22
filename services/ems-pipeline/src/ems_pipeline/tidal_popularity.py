@@ -21,6 +21,7 @@ class EditorialPlaylist:
     playlist_id: str
     name: str
     followers: int
+    updated_at: str = ""
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class EditorialTrack:
     duration_ms: int
     popularity: float
     playlist_followers: int
+    playlist_position: int = 0
 
 
 def rank_editorial_playlists(documents: Iterable[dict[str, Any]]) -> list[EditorialPlaylist]:
@@ -53,6 +55,11 @@ def rank_editorial_playlists(documents: Iterable[dict[str, Any]]) -> list[Editor
                 playlist_id=playlist_id,
                 name=str(attributes.get("name") or "Untitled playlist"),
                 followers=max(0, int(attributes.get("numberOfFollowers") or 0)),
+                updated_at=str(
+                    attributes.get("lastUpdatedAt")
+                    or attributes.get("updatedAt")
+                    or ""
+                ),
             )
     return sorted(playlists.values(), key=lambda item: (-item.followers, item.playlist_id))
 
@@ -164,14 +171,19 @@ def fetch_editorial_playlists(
     return rank_editorial_playlists(documents)
 
 
-def _parse_editorial_tracks(document: dict[str, Any], playlist_followers: int) -> list[EditorialTrack]:
+def _parse_editorial_tracks(
+    document: dict[str, Any],
+    playlist_followers: int,
+    *,
+    position_offset: int = 0,
+) -> list[EditorialTrack]:
     resources = {
         (str(item.get("type")), str(item.get("id"))): item
         for item in document.get("included", [])
         if isinstance(item, dict)
     }
     tracks: list[EditorialTrack] = []
-    for reference in document.get("data", []):
+    for position, reference in enumerate(document.get("data", [])):
         if not isinstance(reference, dict) or reference.get("type") != "tracks":
             continue
         resource = resources.get(("tracks", str(reference.get("id"))))
@@ -203,6 +215,7 @@ def _parse_editorial_tracks(document: dict[str, Any], playlist_followers: int) -
             duration_ms=duration_ms,
             popularity=max(0.0, min(1.0, float(attributes.get("popularity") or 0.0))),
             playlist_followers=playlist_followers,
+            playlist_position=position_offset + position,
         ))
     return tracks
 
@@ -219,11 +232,20 @@ def fetch_playlist_tracks(
     }
     visited = {url}
     page_count = 0
+    position_offset = 0
     tracks: list[EditorialTrack] = []
     while url:
         page_count += 1
         document = _get_document(client, token, url, params)
-        tracks.extend(_parse_editorial_tracks(document, playlist.followers))
+        tracks.extend(
+            _parse_editorial_tracks(
+                document,
+                playlist.followers,
+                position_offset=position_offset,
+            )
+        )
+        data = document.get("data")
+        position_offset += len(data) if isinstance(data, list) else 0
         next_url = (document.get("links") or {}).get("next")
         url = (
             resolve_next_page_url(

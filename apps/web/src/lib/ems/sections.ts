@@ -51,7 +51,6 @@ const SECTION_SQL = `
     FROM ems_editorial_sections
     WHERE active = true
     ORDER BY sort_order, id
-    LIMIT $2
   ), ranked AS (
     SELECT s.slug, s.title AS section_title,
            s.description AS section_description, s.sort_order,
@@ -72,7 +71,7 @@ const SECTION_SQL = `
     ) AS availability ON availability.playable = true
   )
   SELECT * FROM ranked
-  WHERE row_number <= $3
+  WHERE row_number <= $2
   ORDER BY sort_order, rank, track_id`;
 
 function mapEmsTrack(row: EmsSectionRow): Track {
@@ -102,21 +101,22 @@ export async function listEmsSections(
   const count = await executor.query<{ total_count: number }>(COUNT_SQL, [region]);
   const rows = await executor.query<EmsSectionRow>(SECTION_SQL, [
     region,
-    sectionLimit,
-    limit,
+    limit * sectionLimit,
   ]);
   const seenTrackIds = new Set<string>();
   const sections = new Map<string, EmsEditorialSection>();
   for (const row of rows.rows) {
-    const section = sections.get(row.slug) ?? {
+    let section = sections.get(row.slug);
+    if ((!section && sections.size >= sectionLimit) || seenTrackIds.has(row.track_id)) {
+      continue;
+    }
+    section ??= {
       slug: row.slug,
       title: row.section_title,
       description: row.section_description,
       tracks: [],
     };
-    if (seenTrackIds.has(row.track_id) || section.tracks.length >= limit) {
-      continue;
-    }
+    if (section.tracks.length >= limit) continue;
     seenTrackIds.add(row.track_id);
     section.tracks.push(mapEmsTrack(row));
     sections.set(row.slug, section);

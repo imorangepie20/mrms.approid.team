@@ -5,6 +5,7 @@ from typing import Iterable
 
 from .tidal import TidalCatalogClient
 from .tidal_popularity import (
+    EditorialPlaylist,
     EditorialTrack,
     fetch_editorial_playlists,
     fetch_playlist_tracks,
@@ -95,6 +96,7 @@ def rank_section_tracks(
             key=lambda track: (
                 -track.popularity,
                 -track.playlist_followers,
+                track.playlist_position,
                 track.tidal_id,
             ),
         )
@@ -104,6 +106,7 @@ def rank_section_tracks(
         key=lambda track: (
             -track.popularity,
             -track.playlist_followers,
+            track.playlist_position,
             track.isrc.upper(),
             track.tidal_id,
         )
@@ -129,29 +132,66 @@ def discover_editorial_memberships(
 ) -> list[EditorialMembership]:
     memberships: list[EditorialMembership] = []
     for definition in SECTION_DEFINITIONS:
-        playlists = fetch_editorial_playlists(client, token, definition.queries)[
-            :playlist_limit
-        ]
-        playlist = next(
-            (
-                item
-                for item in playlists
-                if any(
-                    term.casefold() in item.name.casefold()
-                    for term in definition.playlist_name_terms
-                )
-            ),
-            None,
-        )
-        if playlist is None:
-            continue
-        memberships.extend(
-            rank_section_tracks(
-                definition.slug,
-                fetch_playlist_tracks(client, token, playlist),
-                playlist_id=playlist.playlist_id,
-                playlist_name=playlist.name,
+        playlists = [
+            item
+            for item in fetch_editorial_playlists(client, token, definition.queries)
+            if any(
+                term.casefold() in item.name.casefold()
+                for term in definition.playlist_name_terms
             )
+        ]
+        if definition.slug == "new-releases":
+            playlists.sort(key=lambda item: item.playlist_id)
+            playlists.sort(key=lambda item: item.followers, reverse=True)
+            playlists.sort(key=lambda item: item.updated_at, reverse=True)
+        playlists = playlists[:playlist_limit]
+        if not playlists:
+            continue
+        playlist_tracks = [
+            (playlist, track)
+            for playlist in playlists
+            for track in fetch_playlist_tracks(client, token, playlist)
+            if track.isrc.strip() and track.duration_ms >= 30_000
+        ]
+        playlist_order = {
+            playlist.playlist_id: index for index, playlist in enumerate(playlists)
+        }
+        grouped: dict[str, list[tuple[EditorialPlaylist, EditorialTrack]]] = {}
+        for playlist, track in playlist_tracks:
+            grouped.setdefault(track.isrc.upper(), []).append((playlist, track))
+
+        def rank_key(
+            item: tuple[EditorialPlaylist, EditorialTrack],
+        ) -> tuple[object, ...]:
+            playlist, track = item
+            if definition.slug == "new-releases":
+                return (
+                    playlist_order[playlist.playlist_id],
+                    -track.popularity,
+                    track.playlist_position,
+                    -playlist.followers,
+                    track.tidal_id,
+                )
+            return (
+                -playlist.followers,
+                -track.popularity,
+                track.playlist_position,
+                playlist.playlist_id,
+                track.tidal_id,
+            )
+
+        chosen = [min(group, key=rank_key) for group in grouped.values()]
+        chosen.sort(key=rank_key)
+        memberships.extend(
+            EditorialMembership(
+                section_slug=definition.slug,
+                tidal_id=track.tidal_id,
+                isrc=track.isrc.upper(),
+                rank=rank,
+                source_playlist_id=playlist.playlist_id,
+                source_playlist_name=playlist.name,
+            )
+            for rank, (playlist, track) in enumerate(chosen)
         )
     return memberships
 
