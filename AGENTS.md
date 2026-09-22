@@ -2,12 +2,13 @@
 
 ## 작업 전 읽기
 
-1. `docs/project-rules/core-principles.md`
-2. `docs/project-rules/doc-access-order.md`
-3. `docs/overview/current-development-context.md`
-4. `docs/overview/project-brief.md`
+1. `docs/README.md`
+2. `docs/project-rules/core-principles.md`
+3. `docs/project-rules/doc-access-order.md`
+4. `docs/overview/current-development-context.md`
+5. `docs/overview/project-brief.md`
 
-프로젝트 개요 → 관련 설계·업무 흐름 → 변경 기록 → 구현·테스트 순서로 조사한다. 하위 `AGENTS.md`가 있으면 해당 경로의 지침도 적용한다. 문서가 없으면 기존 대체 문서를 찾아 사용한다.
+문서 인덱스 → 프로젝트 개요 → 관련 설계·업무 흐름 → 변경 기록 → 구현·테스트 순서로 조사한다. 하위 `AGENTS.md`가 있으면 해당 경로의 지침도 적용한다. 문서가 없으면 기존 대체 문서를 찾아 사용한다.
 
 ## 프로젝트 경계
 

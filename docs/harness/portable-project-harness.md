@@ -49,6 +49,7 @@
 ```text
 AGENTS.md
 docs/
+  README.md                    # 문서 인덱스·주제별 진입점
   project-rules/
     core-principles.md
     doc-access-order.md
@@ -63,7 +64,7 @@ docs/
     portable-project-harness.md
 ```
 
-- 조사 순서: 루트 규칙 → 원칙·현황·개요 → 관련 설계·업무 흐름 → 변경 기록 → 하위 규칙·구현·테스트.
+- 조사 순서: 문서 인덱스 → 루트 규칙 → 원칙·현황·개요 → 관련 설계·업무 흐름 → 변경 기록 → 하위 규칙·구현·테스트.
 - 변경 원칙: 요청 범위에 필요한 최소 변경을 수행하고 사용자 변경을 보존한다.
 - 기능 검증: 직접 테스트와 필요한 타입·빌드 검사를 우선한다. 전체 회귀는 요청이나 영향 범위가 요구할 때 실행한다.
 - UI 원칙: 기존 공통 컴포넌트를 우선하고, 데이터 연결·키보드·모바일 동작을 변경 범위에 맞게 확인한다.
@@ -387,10 +388,11 @@ $files['AGENTS.md'] = @'
 # 프로젝트 작업 규칙
 
 ## 작업 전 읽기
-1. docs/project-rules/core-principles.md
-2. docs/project-rules/doc-access-order.md
-3. docs/overview/current-development-context.md
-4. docs/overview/project-brief.md
+1. docs/README.md
+2. docs/project-rules/core-principles.md
+3. docs/project-rules/doc-access-order.md
+4. docs/overview/current-development-context.md
+5. docs/overview/project-brief.md
 
 관련 설계·변경 기록 → 하위 AGENTS.md → 구현·테스트 순서로 조사한다.
 
@@ -431,11 +433,12 @@ $files['docs/project-rules/core-principles.md'] = @'
 $files['docs/project-rules/doc-access-order.md'] = @'
 # 문서 접근 순서
 
-1. 루트 AGENTS.md와 docs/project-rules/core-principles.md
-2. docs/overview/current-development-context.md와 project-brief.md
-3. 작업에 관련된 기존 설계·업무 흐름·의사결정
-4. 관련 변경 기록
-5. 해당 경로의 하위 AGENTS.md, 구현 파일과 테스트
+1. docs/README.md에서 관련 문서 묶음과 먼저 읽을 문서를 확인한다.
+2. 루트 AGENTS.md와 docs/project-rules/core-principles.md
+3. docs/overview/current-development-context.md와 project-brief.md
+4. 작업에 관련된 기존 설계·업무 흐름·의사결정
+5. 관련 변경 기록
+6. 해당 경로의 하위 AGENTS.md, 구현 파일과 테스트
 
 없는 문서의 내용을 추정하지 않는다. 기존 대체 문서를 사용하고 실제 경로를 기록한다.
 '@
