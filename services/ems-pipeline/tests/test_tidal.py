@@ -77,7 +77,24 @@ def test_v2_search_results_uses_filter_query_and_country_filtered_stream_availab
         return httpx.Response(200, json=search_results_document([track("tidal-a", availability=["STREAM", "DJ"])]))
 
     client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    assert client.resolve(candidate(isrc=None)).status is ResolveStatus.MATCHED
+
+
+def test_isrc_lookup_uses_tracks_filter_before_search() -> None:
+    api_calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        api_calls.append(request.url.path)
+        assert request.url.path == "/v2/tracks"
+        assert request.url.params.get("filter[isrc]") == "ISRC-A"
+        assert request.url.params.get("include") == "artists,albums"
+        return httpx.Response(200, json=search_document([track("tidal-a")]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
     assert client.resolve(candidate()).status is ResolveStatus.MATCHED
+    assert api_calls == ["/v2/tracks"]
 
 
 def test_isrc_exact_match_wins_and_records_only_query_hash() -> None:

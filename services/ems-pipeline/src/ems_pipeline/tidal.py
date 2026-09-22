@@ -165,32 +165,64 @@ class TidalCatalogClient:
             token = self.get_token()
         except (httpx.HTTPError, ValueError):
             return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_request")
-        url = f"{self.api_base_url}/searchResults"
-        response = self.http_client.get(
-            url,
-            params={
-                "filter[query]": query,
-                "countryCode": self.country_code,
-                "include": "tracks,tracks.artists,tracks.albums",
-            },
-            headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"},
+
+        def request(url: str, params: dict[str, str]) -> httpx.Response | ResolveResult:
+            nonlocal token
+            response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+            if response.status_code == 401:
+                try:
+                    token = self.get_token(force_refresh=True)
+                except (httpx.HTTPError, ValueError):
+                    return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_refresh")
+                response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+            self.used_requests += 1
+            return response
+
+        def response_error(response: httpx.Response) -> ResolveResult | None:
+            if response.status_code == 429:
+                retry_after = response.headers.get("Retry-After")
+                try:
+                    retry_seconds = max(0, min(3600, int(float(retry_after)))) if retry_after else None
+                except ValueError:
+                    retry_seconds = None
+                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, retry_after_seconds=retry_seconds, error_code="rate_limited")
+            if response.status_code >= 500:
+                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="upstream_5xx")
+            return None
+
+        if candidate.isrc:
+            direct = request(
+                f"{self.api_base_url}/tracks",
+                {"filter[isrc]": candidate.isrc, "countryCode": self.country_code, "include": "artists,albums"},
+            )
+            if isinstance(direct, ResolveResult):
+                return direct
+            direct_error = response_error(direct)
+            if direct_error:
+                return direct_error
+            if direct.status_code < 400:
+                try:
+                    direct_tracks = parse_tracks(direct.json())
+                except (TypeError, ValueError):
+                    direct_tracks = []
+                exact_isrc = [track for track in direct_tracks if track.isrc and track.isrc.upper() == candidate.isrc.upper()]
+                if exact_isrc:
+                    matches = [track for track in exact_isrc if _duration_matches(candidate.duration_ms, track.duration_ms)] or exact_isrc
+                    if len(matches) == 1:
+                        return _validated_match(candidate, matches[0], query_hash, "isrc_exact", 1.0, self.country_code)
+                    return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
+            if self.used_requests >= self.request_budget:
+                return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
+
+        response = request(
+            f"{self.api_base_url}/searchResults",
+            {"filter[query]": query, "countryCode": self.country_code, "include": "tracks,tracks.artists,tracks.albums"},
         )
-        if response.status_code == 401:
-            try:
-                token = self.get_token(force_refresh=True)
-            except (httpx.HTTPError, ValueError):
-                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_refresh")
-            response = self.http_client.get(url, params={"countryCode": self.country_code}, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
-        self.used_requests += 1
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After")
-            try:
-                retry_seconds = max(0, min(3600, int(float(retry_after)))) if retry_after else None
-            except ValueError:
-                retry_seconds = None
-            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, retry_after_seconds=retry_seconds, error_code="rate_limited")
-        if response.status_code >= 500:
-            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="upstream_5xx")
+        if isinstance(response, ResolveResult):
+            return response
+        error = response_error(response)
+        if error:
+            return error
         if response.status_code >= 400:
             return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="catalog_http")
         try:
@@ -210,16 +242,19 @@ class TidalCatalogClient:
             return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="no_match")
         if len(matches) != 1:
             return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
-        match = matches[0]
-        if not _has_stream_availability(match.availability, self.country_code):
-            return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="kr_stream_missing")
-        if match.duration_ms is not None and match.duration_ms < 30_000:
-            return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="duration_too_short")
-        return ResolveResult(ResolveStatus.MATCHED, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence)
+        return _validated_match(candidate, matches[0], query_hash, rule, confidence, self.country_code)
 
 
 def _duration_matches(left: int | None, right: int | None) -> bool:
     return left is None or right is None or abs(left - right) <= 2_000
+
+
+def _validated_match(candidate: Candidate, match: _Track, query_hash: str, rule: str, confidence: float, country_code: str) -> ResolveResult:
+    if not _has_stream_availability(match.availability, country_code):
+        return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="kr_stream_missing")
+    if match.duration_ms is not None and match.duration_ms < 30_000:
+        return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="duration_too_short")
+    return ResolveResult(ResolveStatus.MATCHED, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence)
 
 
 def _has_stream_availability(availability: list[Any], country_code: str) -> bool:
