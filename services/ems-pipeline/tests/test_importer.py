@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ems_pipeline.importer import ManifestError, ManifestImporter
+from ems_pipeline.importer import ManifestError, ManifestImporter, TidalMatch, promote_match
 from ems_pipeline.musicbrainz import sha256_file
 
 
@@ -51,3 +51,44 @@ def test_manifest_validation_reads_expected_header_and_count(tmp_path: Path) -> 
 
     assert validated.row_count == 1
     assert validated.snapshot_id == "snapshot-a"
+
+
+class _Cursor:
+    def __init__(self) -> None:
+        self.statements: list[str] = []
+
+    def __enter__(self) -> "_Cursor":
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+    def execute(self, sql: str, _: object = None) -> None:
+        self.statements.append(sql)
+
+    def fetchone(self) -> dict[str, str]:
+        return {"id": "ems-track-a"}
+
+
+class _Connection:
+    def __init__(self) -> None:
+        self.cursor_value = _Cursor()
+
+    def transaction(self) -> object:
+        class _Transaction:
+            def __enter__(self) -> "_Transaction": return self
+            def __exit__(self, *_: object) -> None: return None
+        return _Transaction()
+
+    def cursor(self) -> _Cursor:
+        return self.cursor_value
+
+
+def test_promote_match_writes_track_source_and_availability_atomically() -> None:
+    connection = _Connection()
+    promote_match(connection, "candidate-a", TidalMatch(tidal_id="tidal-a", title="Track", artist="Artist", album="Album", duration_ms=31000, recording_mbid="mbid-a", isrc="ISRC-A", match_confidence=1.0, region="KR"))
+    sql = "\n".join(connection.cursor_value.statements)
+    assert "INSERT INTO ems_tracks" in sql
+    assert "INSERT INTO ems_track_sources" in sql
+    assert "INSERT INTO ems_availability_events" in sql
+    assert "UPDATE ems_ingest_candidates" in sql
