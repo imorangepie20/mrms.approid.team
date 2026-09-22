@@ -64,6 +64,7 @@ Home과 EMS의 fixture 중심 구성을 실제 TIDAL 공개 `EDITORIAL` 플레�
 ## 2026-09-23 순차 실행 결과
 
 - 로컬 pipeline 전체 테스트는 `50 passed`로 통과했고, Web EMS·Home 대상 테스트는 `6 files, 20 tests passed`로 통과했다.
+- bounded discovery 코드 커밋은 `a5e3cb8`이다.
 - 첫 dry-run이 TIDAL 조회 지연으로 90초 이상 완료되지 않는 원인을 확인했다. section별 playlist 전체 페이지를 순회하면서 요청 timeout과 editorial request budget을 사용하지 않는 경계 문제였다.
 - `EditorialRequestBudgetExceeded`, editorial request budget(기본 24), 요청 timeout(기본 8초), playlist별 `max_pages=1` bounded fetch를 추가했다. 기존 snapshot builder의 기본 동작은 유지한다.
 - 검증 이미지 `music-pie-ems-pipeline:editorial-20260923` (`sha256:5d95f8a90bb0d8dfc1ae315e2aa7baefe40921c775d3ea5ef365ec2ec9386b3d`)로 dry-run을 재실행했다.
