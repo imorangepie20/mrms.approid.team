@@ -37,7 +37,7 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 - 공개 `/gms`: HTTP 200
 - 비로그인 `GET /api/recommendations`: HTTP 401
 - 비로그인 `POST /api/recommendations/decisions`: HTTP 401
-- 운영 `ems_track_embeddings` 배치: active EMS 2,142곡 중 completed 2,142곡
+- 운영 `ems_track_embeddings` 배치: active EMS 2,153곡 중 completed 2,153곡
 - embedding 입력 원문은 저장하지 않고 model revision·input hash·vector만 기록했다.
 - 최신 Web release smoke: `/gms` 200, `/api/health/ready` 200, 비로그인 추천 API 401
 
