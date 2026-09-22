@@ -53,9 +53,22 @@ def test_manifest_validation_reads_expected_header_and_count(tmp_path: Path) -> 
     assert validated.snapshot_id == "snapshot-a"
 
 
+def test_manifest_validation_accepts_internal_tidal_artifact_license(tmp_path: Path) -> None:
+    candidates = tmp_path / "candidates.csv.gz"
+    write_candidates(candidates, [{"candidate_key": "a", "recording_mbid": "", "isrc": "i", "title": "T", "artist": "A", "album": "L", "duration_ms": "180000", "selection_bucket": "tidal_editorial", "selection_score": "0.9"}])
+    manifest = tmp_path / "manifest.json"
+    write_manifest(manifest, candidates, row_count=1)
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["source_license"] = "tidal-authorized-use"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert ManifestImporter.validate(manifest, candidates).row_count == 1
+
+
 class _Cursor:
     def __init__(self) -> None:
         self.statements: list[str] = []
+        self.values: list[object] = []
 
     def __enter__(self) -> "_Cursor":
         return self
@@ -63,8 +76,9 @@ class _Cursor:
     def __exit__(self, *_: object) -> None:
         return None
 
-    def execute(self, sql: str, _: object = None) -> None:
+    def execute(self, sql: str, values: object = None) -> None:
         self.statements.append(sql)
+        self.values.append(values)
 
     def fetchone(self) -> dict[str, str]:
         return {"id": "ems-track-a"}
@@ -86,9 +100,10 @@ class _Connection:
 
 def test_promote_match_writes_track_source_and_availability_atomically() -> None:
     connection = _Connection()
-    promote_match(connection, "candidate-a", TidalMatch(tidal_id="tidal-a", title="Track", artist="Artist", album="Album", duration_ms=31000, recording_mbid="mbid-a", isrc="ISRC-A", match_confidence=1.0, region="KR"))
+    promote_match(connection, "candidate-a", TidalMatch(tidal_id="tidal-a", title="Track", artist="Artist", album="Album", duration_ms=31000, recording_mbid="mbid-a", isrc="ISRC-A", match_confidence=1.0, match_rule="isrc_exact_tiebreak", region="KR"))
     sql = "\n".join(connection.cursor_value.statements)
     assert "INSERT INTO ems_tracks" in sql
     assert "INSERT INTO ems_track_sources" in sql
     assert "INSERT INTO ems_availability_events" in sql
     assert "UPDATE ems_ingest_candidates" in sql
+    assert connection.cursor_value.values[-1] == ["tidal-a", "isrc_exact_tiebreak", "candidate-a"]

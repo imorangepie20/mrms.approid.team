@@ -48,6 +48,7 @@ class TidalMatch:
     recording_mbid: str | None
     isrc: str | None
     match_confidence: float
+    match_rule: str = "validated"
     region: str = "KR"
 
 
@@ -93,10 +94,10 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
             cursor.execute(
                 """
                 UPDATE ems_ingest_candidates
-                   SET resolver_status = 'matched', tidal_id = %s, match_rule = 'validated', resolved_at = now(), lease_expires_at = NULL
+                   SET resolver_status = 'matched', tidal_id = %s, match_rule = %s, resolved_at = now(), lease_expires_at = NULL
                  WHERE id = %s
                 """,
-                [match.tidal_id, candidate_id],
+                [match.tidal_id, match.match_rule, candidate_id],
             )
             return str(track_id)
 
@@ -108,7 +109,7 @@ class ManifestImporter:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise ManifestError("invalid manifest") from exc
-        if payload.get("source_license") != "CC0":
+        if payload.get("source_license") not in {"CC0", "tidal-authorized-use"}:
             raise ManifestError("unsupported source license")
         expected = str(payload.get("sha256", "")).lower()
         if len(expected) != 64 or sha256_file(candidates_path) != expected:

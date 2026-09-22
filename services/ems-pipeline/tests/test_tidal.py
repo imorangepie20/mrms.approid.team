@@ -28,14 +28,14 @@ def token_response() -> httpx.Response:
     return httpx.Response(200, json={"access_token": "token-a", "expires_in": 3600})
 
 
-def track(track_id: str, *, isrc: str | None = "ISRC-A", title: str = "One More Time", availability: list[dict[str, str]] | None = None) -> dict[str, object]:
+def track(track_id: str, *, isrc: str | None = "ISRC-A", title: str = "One More Time", duration: str = "PT31S", availability: list[dict[str, str]] | None = None) -> dict[str, object]:
     return {
         "type": "tracks",
         "id": track_id,
         "attributes": {
             "title": title,
             "isrc": isrc,
-            "duration": "PT31S",
+            "duration": duration,
             "availability": availability or [{"countryCode": "KR", "type": "STREAM"}],
         },
         "relationships": {"artists": {"data": [{"type": "artists", "id": "artist-a"}]}, "albums": {"data": [{"type": "albums", "id": "album-a"}]}},
@@ -158,14 +158,53 @@ def test_album_variant_does_not_block_unique_title_artist_duration_match() -> No
     assert result.match_rule == "metadata_exact_duration"
 
 
-def test_tie_is_quarantined_as_ambiguous() -> None:
+def test_duplicate_editions_prefer_streamable_match() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.host == "auth.test":
             return token_response()
-        return httpx.Response(200, json=search_document([track("tidal-a"), track("tidal-b")]))
+        return httpx.Response(200, json=search_document([
+            track("tidal-unavailable", availability=[{"countryCode": "US", "type": "STREAM"}]),
+            track("tidal-streamable"),
+        ]))
 
     client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
-    assert client.resolve(candidate()).status is ResolveStatus.AMBIGUOUS
+    result = client.resolve(candidate())
+
+    assert result.status is ResolveStatus.MATCHED
+    assert result.tidal_id == "tidal-streamable"
+    assert result.match_rule == "isrc_exact_tiebreak"
+    assert result.title == "One More Time"
+    assert result.duration_ms == 31_000
+
+
+def test_duplicate_editions_prefer_streamable_match_before_duration_delta() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        return httpx.Response(200, json=search_document([
+            track("tidal-unavailable", availability=[{"countryCode": "US", "type": "STREAM"}]),
+            track("tidal-streamable", duration="PT34S"),
+        ]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    result = client.resolve(candidate())
+
+    assert result.status is ResolveStatus.MATCHED
+    assert result.tidal_id == "tidal-streamable"
+    assert result.duration_ms == 34_000
+
+
+def test_duplicate_equivalent_editions_use_stable_tidal_id_tiebreak() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        return httpx.Response(200, json=search_document([track("tidal-b"), track("tidal-a")]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    result = client.resolve(candidate())
+
+    assert result.status is ResolveStatus.MATCHED
+    assert result.tidal_id == "tidal-a"
 
 
 def test_kr_stream_failure_is_unavailable() -> None:

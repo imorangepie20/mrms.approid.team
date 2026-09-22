@@ -32,6 +32,10 @@ class ResolveResult:
     query_hash: str | None = None
     retry_after_seconds: int | None = None
     error_code: str | None = None
+    title: str | None = None
+    artist: str | None = None
+    album: str | None = None
+    duration_ms: int | None = None
 
 
 @dataclass(frozen=True)
@@ -207,14 +211,9 @@ class TidalCatalogClient:
                     direct_tracks = []
                 exact_isrc = [track for track in direct_tracks if track.isrc and track.isrc.upper() == candidate.isrc.upper()]
                 if exact_isrc:
-                    matches = [track for track in exact_isrc if _duration_matches(candidate.duration_ms, track.duration_ms)] or exact_isrc
-                    if len(matches) > 1:
-                        metadata_matches = [track for track in matches if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist)]
-                        if len(metadata_matches) == 1:
-                            matches = metadata_matches
-                    if len(matches) == 1:
-                        return _validated_match(candidate, matches[0], query_hash, "isrc_exact", 1.0, self.country_code)
-                    return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
+                    match = _choose_best_match(candidate, exact_isrc, self.country_code)
+                    rule = "isrc_exact_tiebreak" if len(exact_isrc) > 1 else "isrc_exact"
+                    return _validated_match(candidate, match, query_hash, rule, 1.0, self.country_code)
             if self.used_requests >= self.request_budget:
                 return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
 
@@ -235,7 +234,7 @@ class TidalCatalogClient:
             return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="invalid_response")
         exact_isrc = [track for track in tracks if candidate.isrc and track.isrc and track.isrc.upper() == candidate.isrc.upper()]
         if exact_isrc:
-            matches = [track for track in exact_isrc if _duration_matches(candidate.duration_ms, track.duration_ms)] or exact_isrc
+            matches = exact_isrc
             rule = "isrc_exact"
             confidence = 1.0
         else:
@@ -244,21 +243,47 @@ class TidalCatalogClient:
             confidence = 0.95
         if not matches:
             return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="no_match")
-        if len(matches) != 1:
-            return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
-        return _validated_match(candidate, matches[0], query_hash, rule, confidence, self.country_code)
+        match = _choose_best_match(candidate, matches, self.country_code)
+        if len(matches) > 1:
+            rule = f"{rule}_tiebreak"
+        return _validated_match(candidate, match, query_hash, rule, confidence, self.country_code)
 
 
 def _duration_matches(left: int | None, right: int | None) -> bool:
     return left is None or right is None or abs(left - right) <= 2_000
 
 
+def _choose_best_match(candidate: Candidate, matches: list[_Track], country_code: str) -> _Track:
+    """Choose one equivalent catalog edition without depending on API result order."""
+    def rank(match: _Track) -> tuple[int, int, int, int, str]:
+        duration_delta = abs(candidate.duration_ms - match.duration_ms) if candidate.duration_ms is not None and match.duration_ms is not None else 10**9
+        return (
+            -int(_has_stream_availability(match.availability, country_code)),
+            -int(normalize(match.title) == normalize(candidate.title) and normalize(match.artist) == normalize(candidate.artist)),
+            duration_delta,
+            -int(bool(candidate.album) and normalize(match.album) == normalize(candidate.album)),
+            match.id,
+        )
+
+    return min(matches, key=rank)
+
+
 def _validated_match(candidate: Candidate, match: _Track, query_hash: str, rule: str, confidence: float, country_code: str) -> ResolveResult:
+    resolved = {
+        "tidal_id": match.id,
+        "query_hash": query_hash,
+        "match_rule": rule,
+        "match_confidence": confidence,
+        "title": match.title,
+        "artist": match.artist,
+        "album": match.album,
+        "duration_ms": match.duration_ms,
+    }
     if not _has_stream_availability(match.availability, country_code):
-        return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="kr_stream_missing")
+        return ResolveResult(ResolveStatus.UNAVAILABLE, error_code="kr_stream_missing", **resolved)
     if match.duration_ms is not None and match.duration_ms < 30_000:
-        return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="duration_too_short")
-    return ResolveResult(ResolveStatus.MATCHED, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence)
+        return ResolveResult(ResolveStatus.UNAVAILABLE, error_code="duration_too_short", **resolved)
+    return ResolveResult(ResolveStatus.MATCHED, **resolved)
 
 
 def _has_stream_availability(availability: list[Any], country_code: str) -> bool:

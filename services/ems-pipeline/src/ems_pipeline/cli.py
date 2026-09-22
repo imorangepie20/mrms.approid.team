@@ -25,6 +25,11 @@ def build_parser() -> argparse.ArgumentParser:
     select.add_argument("--snapshot-id", required=True)
     select.add_argument("--work-root", type=Path, default=None)
     select.add_argument("--limit", type=int, default=1000)
+    select_tidal = subparsers.add_parser("select-tidal-editorial")
+    select_tidal.add_argument("--snapshot-id", required=True)
+    select_tidal.add_argument("--work-root", type=Path, default=None)
+    select_tidal.add_argument("--limit", type=int, default=1000)
+    select_tidal.add_argument("--playlist-limit", type=int, default=40)
     stage = subparsers.add_parser("stage")
     stage.add_argument("--manifest", type=Path, required=True)
     stage.add_argument("--candidates", type=Path, required=True)
@@ -61,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     work_root_arg = getattr(args, "work_root", None)
     work_root = work_root_arg or (Path(os.environ["MUSICBRAINZ_WORK_ROOT"]) if os.environ.get("MUSICBRAINZ_WORK_ROOT") else None)
-    if args.command in {"download", "download-canonical", "select"} and work_root is None:
+    if args.command in {"download", "download-canonical", "select", "select-tidal-editorial"} and work_root is None:
         raise SystemExit("MUSICBRAINZ_WORK_ROOT or --work-root is required")
     if args.command in {"download", "download-canonical"}:
         from .musicbrainz import MusicBrainzSnapshotClient
@@ -74,6 +79,23 @@ def main(argv: list[str] | None = None) -> int:
 
         select_snapshot(work_root=work_root, snapshot_id=args.snapshot_id, limit=args.limit)
         return 0
+    if args.command == "select-tidal-editorial":
+        from .tidal_popularity import build_tidal_editorial_snapshot
+
+        client_id = os.environ.get("TIDAL_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("TIDAL_CLIENT_SECRET", "").strip()
+        if not client_id or not client_secret:
+            raise SystemExit("TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET are required")
+        candidates_path, manifest_path = build_tidal_editorial_snapshot(
+            client_id=client_id,
+            client_secret=client_secret,
+            work_root=work_root,
+            snapshot_id=args.snapshot_id,
+            limit=args.limit,
+            playlist_limit=args.playlist_limit,
+        )
+        print(json.dumps({"candidates": str(candidates_path), "manifest": str(manifest_path)}, sort_keys=True))
+        return 0
     if args.command == "stage":
         validated = ManifestImporter.validate(args.manifest, args.candidates)
         run_id = args.run_id or str(uuid4())
@@ -82,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("DATABASE_URL is required")
         candidates = [
             Candidate(
-                candidate_key=row["candidate_key"], recording_mbid=row.get("recording_mbid") or "", isrc=row.get("isrc") or None,
+                candidate_key=row["candidate_key"], recording_mbid=row.get("recording_mbid") or None, isrc=row.get("isrc") or None,
                 title=row["title"], artist=row["artist"], album=row.get("album") or None,
                 duration_ms=int(row["duration_ms"]) if row.get("duration_ms") else None,
                 release_date=None, artist_region=None, selection_bucket=row["selection_bucket"], selection_score=float(row["selection_score"]),

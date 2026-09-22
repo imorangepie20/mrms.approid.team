@@ -106,13 +106,14 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                     str(row["id"]),
                     TidalMatch(
                         tidal_id=result.tidal_id,
-                        title=candidate.title,
-                        artist=candidate.artist,
-                        album=candidate.album,
-                        duration_ms=max(30_000, int(candidate.duration_ms or 30_000)),
+                        title=result.title or candidate.title,
+                        artist=result.artist or candidate.artist,
+                        album=result.album if result.album is not None else candidate.album,
+                        duration_ms=max(30_000, int(result.duration_ms or candidate.duration_ms or 30_000)),
                         recording_mbid=candidate.recording_mbid,
                         isrc=candidate.isrc,
                         match_confidence=result.match_confidence,
+                        match_rule=result.match_rule or "validated",
                     ),
                 )
             else:

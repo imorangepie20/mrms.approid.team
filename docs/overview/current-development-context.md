@@ -38,6 +38,7 @@
 - 초기 개인화 추천 전략과 사용자별 영구 제외 규칙은 기존 결정 문서를 따른다.
 - 2026-09-21 사용자가 TIDAL Developer Terms의 AI 서비스 제한 제약을 해소했다. 테스트 배포까지 가져온 TIDAL 트랙 메타데이터를 취향 분석 임베딩 입력으로 사용할 수 있다. 근거는 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`에 있다.
 - 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보를 생성하고 `008_ems_catalog.sql`과 tracked migration runner를 Zorin에 적용했다. 카탈로그용 `TIDAL_CLIENT_ID`·`TIDAL_CLIENT_SECRET`를 승인된 secret 경로에 추가하고 token smoke를 HTTP 200으로 확인했다. TIDAL v2 검색은 `filter[query]`·관계형 `tracks` 응답으로 수정했으며, bounded canary의 결과를 커밋·일시정지 상태로 기록한다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
+- 2026-09-22 TIDAL 공개 에디토리얼 대중성 입력으로 1,000곡 artifact를 재생성했다. 같은 ISRC의 여러 에디션은 결정적 우선순위로 하나를 선택하며, 신규 20곡 bounded canary는 재시도 포함 20/20 matched, ambiguous/not_found/unavailable 0이었다. 전체 run은 승인 전까지 paused다.
 
 ## 검증 결과
 

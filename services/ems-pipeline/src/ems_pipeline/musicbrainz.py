@@ -93,12 +93,13 @@ def build_manifest(
     row_count: int,
     selector_version: str,
     seed: int,
+    source_license: str = "CC0",
 ) -> SnapshotManifest:
     if row_count < 0:
         raise ValueError("row_count must be non-negative")
     return SnapshotManifest(
         snapshot_id=snapshot_id,
-        source_license="CC0",
+        source_license=source_license,
         row_count=row_count,
         sha256=sha256_file(candidates_path),
         selector_version=selector_version,

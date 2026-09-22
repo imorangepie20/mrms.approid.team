@@ -34,6 +34,11 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 - TIDAL 검색·매칭에서 앨범명을 제거했다. 앨범 에디션 차이로 검색 결과가 0개가 되거나 매칭이 누락되지 않도록 아티스트+제목+재생시간을 기준으로 하고, 동률은 `ambiguous`로 격리한다.
 - ISRC가 있는 후보는 TIDAL v2 `/tracks?filter[isrc]=...`를 먼저 조회하고, 결과가 여러 개면 제목·아티스트로 2차 축소한 뒤 그래도 동률이면 `ambiguous`로 남긴다. 실제 API 응답 `HTTP 200/data=1`을 확인했다.
 - release `3f5ea5e2c270` 배포 후 1,000행 run `56c8cb55-56ef-4a4b-befc-69f48e87bf28`에서 누적 처리 결과는 `matched=32`, `ambiguous=10`, `not_found=3`, `retryable=2`, `unavailable=2`, `budget_exhausted=1`, `pending=950`이다. `ems_tracks=34`가 실제 DB에 있다. 80~90% 품질 기준 전까지 run은 paused다.
+- 같은 ISRC에 여러 TIDAL 에디션이 있으면 KR 스트리밍 가능 여부, 제목·아티스트, 재생시간, 앨범, TIDAL ID 순으로 하나를 결정적으로 선택하도록 변경했다. 기존 ListenBrainz 표본 카나리의 `ambiguous=14`는 변경 후 0이 됐다.
+- seed가 없는 MusicMoveArr torrent와 KR 스트리밍 불가 비율이 높은 ListenBrainz 입력을 최종 후보 소스로 사용하지 않았다. TIDAL 공개 에디토리얼 212개 중 팔로워 상위 40개에서 KR `STREAM` 가능 고유 ISRC 3,685개를 확보했다.
+- 신규 artifact `tidal-editorial-20260922`는 1,000행, 고유 key/ISRC 각 1,000개, artist/album 최대 5곡이며 결정적 gzip SHA-256은 `5a054406e080ed96e04d88cf525a2050342fa003e172d8871ddf256c798a2f9d`다. 같은 입력을 두 번 기록해 checksum 재현성을 확인했다.
+- 최종 run `91280cc8-5fdd-494d-82db-6d573ea576de`의 20곡 bounded canary는 최초 `matched=15`, `retryable=5`였고 재시도 후 나머지 5곡도 모두 matched였다. 최종 20/20(100%)이며 `ambiguous`, `not_found`, `unavailable`은 0이다. 전체 1,000곡 처리는 시작하지 않고 paused 상태를 유지한다.
+- 검증한 EMS image를 Zorin의 `music-pie-ems-pipeline:current`로 태그했다(image ID `sha256:8e5b86cfd6225d8028ce1ca9559203546372e2390a1b451b49b872304e00fef9`). 이전 image는 `rollback-before-editorial-20260922`로 보존했고 상시 worker는 시작하지 않았다.
 
 ## Zorin 결과
 

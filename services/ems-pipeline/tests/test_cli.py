@@ -49,3 +49,15 @@ def test_execute_run_pauses_bounded_canary() -> None:
 
     assert status == "paused"
     assert connection.update == ("paused", 0, "run-b")
+
+
+def test_parser_accepts_tidal_editorial_snapshot() -> None:
+    args = cli.build_parser().parse_args([
+        "select-tidal-editorial",
+        "--snapshot-id", "tidal-editorial-20260922",
+        "--work-root", "C:/data/tidal",
+    ])
+
+    assert args.command == "select-tidal-editorial"
+    assert args.limit == 1000
+    assert args.playlist_limit == 40

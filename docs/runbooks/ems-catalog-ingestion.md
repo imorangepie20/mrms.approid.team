@@ -30,7 +30,7 @@ docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compos
 
 1. TIDAL credentials와 승인된 request budget을 secret 파일에 추가한다.
 2. run을 `pending`으로 만들고 candidate를 staging한다. `FOR UPDATE SKIP LOCKED` lease와 checkpoint를 사용한다.
-3. ISRC exact → title/artist/album + duration ±2초 순으로 검색한다. 동률, KR `STREAM` 불충족, 30초 미만은 승격하지 않는다.
+3. ISRC exact → title/artist + duration ±2초 순으로 검색한다. 같은 ISRC의 여러 에디션은 KR `STREAM`, 제목·아티스트, 재생시간, 앨범, TIDAL ID 순으로 하나를 선택하며 KR `STREAM` 불충족과 30초 미만은 승격하지 않는다.
 4. 429의 `Retry-After`, token refresh 1회, daily budget, disk 70%/DB/embedding health gate를 확인한다.
 5. matched track·TIDAL source·KR availability를 한 transaction으로 승격하고 embedding job을 enqueue한다.
 6. matched/ambiguous/not_found/unavailable/retryable, duplicate, embedding completion을 기록한다.
