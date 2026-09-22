@@ -18,6 +18,7 @@ export function EmsBrowser({ autoFocus = false }: { autoFocus?: boolean }) {
   const [query, setQuery] = useState("");
   const [searchTracks, setSearchTracks] = useState<Track[]>([]);
   const [searchState, setSearchState] = useState<SearchState>("idle");
+  const [resolvedSearchQuery, setResolvedSearchQuery] = useState("");
   const normalizedQuery = query.trim();
 
   useEffect(() => {
@@ -35,15 +36,12 @@ export function EmsBrowser({ autoFocus = false }: { autoFocus?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!normalizedQuery) {
-      setSearchState("idle");
-      setSearchTracks([]);
-      return;
-    }
+    if (!normalizedQuery) return;
 
     const controller = new AbortController();
-    setSearchState("loading");
     const timeout = window.setTimeout(() => {
+      setResolvedSearchQuery(normalizedQuery);
+      setSearchState("loading");
       const params = new URLSearchParams({
         limit: "100",
         query: normalizedQuery,
@@ -114,7 +112,9 @@ export function EmsBrowser({ autoFocus = false }: { autoFocus?: boolean }) {
       {normalizedQuery ? (
         <SearchResults
           query={normalizedQuery}
-          state={searchState}
+          state={
+            resolvedSearchQuery === normalizedQuery ? searchState : "loading"
+          }
           tracks={searchTracks}
         />
       ) : (

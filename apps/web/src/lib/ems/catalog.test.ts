@@ -16,10 +16,14 @@ describe("EMS catalog", () => {
 
   it("clamps page size and maps active tracks using only latest Korean availability", async () => {
     process.env.EMS_CURSOR_SECRET = "test-secret";
-    const query = vi.fn(async () => ({ rows: [{
-      id: "track-a", tidal_id: "tidal-a", title: "One More Time", artist: "Daft Punk", album: "Discovery", duration_ms: 310000,
-      artwork_url: null,
-    }] }));
+    const query = vi.fn(async (sql: string, values?: unknown[]) => {
+      void sql;
+      void values;
+      return { rows: [{
+        id: "track-a", tidal_id: "tidal-a", title: "One More Time", artist: "Daft Punk", album: "Discovery", duration_ms: 310000,
+        artwork_url: null,
+      }] };
+    });
     const result = await listEmsTracks({ limit: 999, region: "KR", sort: "new" }, { query } as never);
 
     expect(result.tracks[0]).toMatchObject({ id: "track-a", tidalTrackId: "tidal-a", title: "One More Time" });
