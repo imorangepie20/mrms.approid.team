@@ -216,3 +216,31 @@ it("persists GMS decisions separately from the MMS like action", async () => {
   });
   vi.unstubAllGlobals();
 });
+
+it("shows concise recommendation reasons on GMS cards", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[{
+        ...catalog[0],
+        id: "ems-track-reason",
+        recommendation: {
+          reasonCodes: ["taste_match", "fresh_release"],
+          score: 0.92,
+          scoreComponents: {
+            catalogPriority: 0.8,
+            diversity: 1,
+            freshness: 0.95,
+            matchConfidence: 0.9,
+            similarity: 0.9,
+          },
+        },
+      }]}
+    />,
+  );
+
+  expect(screen.getByText("취향 일치")).toBeInTheDocument();
+  expect(screen.getByText("최근 발매")).toBeInTheDocument();
+});

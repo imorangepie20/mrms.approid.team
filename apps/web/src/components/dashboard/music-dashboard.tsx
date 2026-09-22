@@ -131,9 +131,14 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
+const recommendationReasonLabels: Record<string, string> = {
+  fresh_release: "최근 발매",
+  taste_match: "취향 일치",
+};
+
 function Gateway({ tracks, error, ready, onPlay, onAccept, onReject }: { tracks: Track[]; error: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
   if (error) return <div className="empty-state">개인화 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>;
   if (!ready) return <div className="empty-state">취향 분석이 완료되면 개인화 추천이 표시됩니다. <Link href="/onboarding">취향 분석 시작하기</Link></div>;
   if (!tracks.length) return <div className="empty-state">지금은 새로 추천할 곡이 없습니다. <Link href="/ems">EMS 카탈로그 둘러보기</Link></div>;
-  return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</div></>;
+  return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => { const reasons = (track.recommendation?.reasonCodes ?? []).map((code) => recommendationReasonLabels[code]).filter((label): label is string => Boolean(label)); return <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small>{reasons.length ? <div aria-label="추천 이유">{reasons.map((reason) => <span key={reason}>{reason}</span>)}</div> : null}<div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>; })}</div></>;
 }
