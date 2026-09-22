@@ -4,8 +4,48 @@ from ems_pipeline.editorial_sections import (
     SECTION_DEFINITIONS,
     EditorialMembership,
     rank_section_tracks,
+    sync_editorial_sections,
 )
 from ems_pipeline.tidal_popularity import EditorialTrack, resolve_next_page_url
+
+
+class RecordingTransaction:
+    def __init__(self, connection: "RecordingConnection") -> None:
+        self.connection = connection
+
+    def __enter__(self) -> "RecordingTransaction":
+        self.connection.transaction_count += 1
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        return None
+
+
+class RecordingResult:
+    def __init__(self, rows: list[dict[str, str]]) -> None:
+        self.rows = rows
+
+    def fetchall(self) -> list[dict[str, str]]:
+        return self.rows
+
+    def fetchone(self) -> dict[str, str]:
+        return {"id": "section-a"}
+
+
+class RecordingConnection:
+    def __init__(self, track_rows: list[dict[str, str]]) -> None:
+        self.track_rows = track_rows
+        self.statements: list[str] = []
+        self.transaction_count = 0
+
+    def transaction(self) -> RecordingTransaction:
+        return RecordingTransaction(self)
+
+    def execute(self, sql: str, _values: object = None) -> RecordingResult:
+        self.statements.append(sql)
+        if sql.lstrip().upper().startswith("SELECT ID, TIDAL_ID"):
+            return RecordingResult(self.track_rows)
+        return RecordingResult([])
 
 
 def test_definitions_keep_approved_copy_and_order() -> None:
@@ -49,3 +89,45 @@ def test_pagination_rejects_external_repeated_and_oversized_sequences() -> None:
             set(),
             page_count=1,
         )
+
+
+def test_sync_replaces_one_section_atomically_and_matches_tidal_id_before_isrc() -> None:
+    connection = RecordingConnection(
+        track_rows=[
+            {"id": "track-a", "tidal_id": "tidal-a", "isrc": "ISRC-A"},
+        ]
+    )
+
+    result = sync_editorial_sections(
+        connection,
+        SECTION_DEFINITIONS[:1],
+        [
+            EditorialMembership(
+                "new-releases",
+                "tidal-a",
+                "ISRC-A",
+                0,
+                "playlist-a",
+                "Best New Tracks",
+            ),
+        ],
+        dry_run=False,
+    )
+
+    sql = "\n".join(connection.statements)
+    assert "INSERT INTO ems_editorial_sections" in sql
+    assert "DELETE FROM ems_track_sections" in sql
+    assert "INSERT INTO ems_track_sections" in sql
+    assert connection.transaction_count == 1
+    assert result["new-releases"].stored == 1
+
+
+def test_sync_dry_run_performs_no_write() -> None:
+    connection = RecordingConnection(track_rows=[])
+
+    sync_editorial_sections(connection, SECTION_DEFINITIONS, [], dry_run=True)
+
+    assert not any(
+        statement.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE"))
+        for statement in connection.statements
+    )

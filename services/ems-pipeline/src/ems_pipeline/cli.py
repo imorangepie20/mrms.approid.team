@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
@@ -30,6 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     select_tidal.add_argument("--work-root", type=Path, default=None)
     select_tidal.add_argument("--limit", type=int, default=1000)
     select_tidal.add_argument("--playlist-limit", type=int, default=40)
+    sync_sections = subparsers.add_parser("sync-editorial-sections")
+    sync_sections.add_argument("--dry-run", action="store_true")
+    sync_sections.add_argument("--playlist-limit", type=int, default=12)
     stage = subparsers.add_parser("stage")
     stage.add_argument("--manifest", type=Path, required=True)
     stage.add_argument("--candidates", type=Path, required=True)
@@ -95,6 +99,42 @@ def main(argv: list[str] | None = None) -> int:
             playlist_limit=args.playlist_limit,
         )
         print(json.dumps({"candidates": str(candidates_path), "manifest": str(manifest_path)}, sort_keys=True))
+        return 0
+    if args.command == "sync-editorial-sections":
+        from .editorial_sections import (
+            SECTION_DEFINITIONS,
+            discover_editorial_memberships,
+            sync_editorial_sections,
+        )
+        from .tidal import TidalCatalogClient
+
+        database_url = os.environ.get("DATABASE_URL", "").strip()
+        client_id = os.environ.get("TIDAL_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("TIDAL_CLIENT_SECRET", "").strip()
+        if not database_url or not client_id or not client_secret:
+            raise SystemExit(
+                "DATABASE_URL, TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET are required"
+            )
+        client = TidalCatalogClient(client_id, client_secret)
+        token = client.get_token()
+        memberships = discover_editorial_memberships(
+            client,
+            token,
+            playlist_limit=args.playlist_limit,
+        )
+        with psycopg.connect(database_url, row_factory=dict_row) as connection:
+            counts = sync_editorial_sections(
+                connection,
+                SECTION_DEFINITIONS,
+                memberships,
+                dry_run=args.dry_run,
+            )
+        print(
+            json.dumps(
+                {slug: asdict(count) for slug, count in counts.items()},
+                sort_keys=True,
+            )
+        )
         return 0
     if args.command == "stage":
         validated = ManifestImporter.validate(args.manifest, args.candidates)

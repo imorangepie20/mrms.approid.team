@@ -61,3 +61,16 @@ def test_parser_accepts_tidal_editorial_snapshot() -> None:
     assert args.command == "select-tidal-editorial"
     assert args.limit == 1000
     assert args.playlist_limit == 40
+
+
+def test_parser_accepts_editorial_section_sync() -> None:
+    args = cli.build_parser().parse_args([
+        "sync-editorial-sections",
+        "--dry-run",
+        "--playlist-limit",
+        "8",
+    ])
+
+    assert args.command == "sync-editorial-sections"
+    assert args.dry_run is True
+    assert args.playlist_limit == 8

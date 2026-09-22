@@ -30,6 +30,13 @@ class EditorialMembership:
     source_playlist_name: str
 
 
+@dataclass(frozen=True)
+class SectionSyncCount:
+    discovered: int
+    joined: int
+    stored: int
+
+
 SECTION_DEFINITIONS = (
     SectionDefinition(
         "new-releases",
@@ -117,10 +124,14 @@ def rank_section_tracks(
 def discover_editorial_memberships(
     client: TidalCatalogClient,
     token: str,
+    *,
+    playlist_limit: int = 12,
 ) -> list[EditorialMembership]:
     memberships: list[EditorialMembership] = []
     for definition in SECTION_DEFINITIONS:
-        playlists = fetch_editorial_playlists(client, token, definition.queries)
+        playlists = fetch_editorial_playlists(client, token, definition.queries)[
+            :playlist_limit
+        ]
         playlist = next(
             (
                 item
@@ -143,3 +154,88 @@ def discover_editorial_memberships(
             )
         )
     return memberships
+
+
+def sync_editorial_sections(
+    connection: object,
+    definitions: Iterable[SectionDefinition],
+    memberships: Iterable[EditorialMembership],
+    *,
+    dry_run: bool,
+) -> dict[str, SectionSyncCount]:
+    definition_list = list(definitions)
+    membership_list = list(memberships)
+    tidal_ids = sorted({item.tidal_id for item in membership_list})
+    isrcs = sorted({item.isrc.upper() for item in membership_list})
+    rows = connection.execute(
+        """SELECT id, tidal_id, upper(isrc) AS isrc
+           FROM ems_tracks
+           WHERE status = 'active'
+             AND (tidal_id = ANY(%s) OR upper(isrc) = ANY(%s))""",
+        (tidal_ids, isrcs),
+    ).fetchall()
+    by_tidal = {str(row["tidal_id"]): row for row in rows}
+    by_isrc = {str(row["isrc"]).upper(): row for row in rows if row.get("isrc")}
+
+    counts: dict[str, SectionSyncCount] = {}
+    for sort_order, definition in enumerate(definition_list):
+        discovered = [
+            item for item in membership_list if item.section_slug == definition.slug
+        ]
+        joined: list[tuple[EditorialMembership, object]] = []
+        seen_track_ids: set[str] = set()
+        for item in discovered:
+            row = by_tidal.get(item.tidal_id) or by_isrc.get(item.isrc.upper())
+            if row is None or str(row["id"]) in seen_track_ids:
+                continue
+            seen_track_ids.add(str(row["id"]))
+            joined.append((item, row["id"]))
+
+        stored = 0
+        if not dry_run:
+            with connection.transaction():
+                section = connection.execute(
+                    """INSERT INTO ems_editorial_sections
+                         (slug, title, description, sort_order, active, updated_at)
+                       VALUES (%s, %s, %s, %s, true, now())
+                       ON CONFLICT (slug) DO UPDATE SET
+                         title = EXCLUDED.title,
+                         description = EXCLUDED.description,
+                         sort_order = EXCLUDED.sort_order,
+                         active = true,
+                         updated_at = now()
+                       RETURNING id""",
+                    (
+                        definition.slug,
+                        definition.title,
+                        definition.description,
+                        sort_order,
+                    ),
+                ).fetchone()
+                section_id = section["id"]
+                connection.execute(
+                    "DELETE FROM ems_track_sections WHERE section_id = %s",
+                    (section_id,),
+                )
+                for item, track_id in joined:
+                    connection.execute(
+                        """INSERT INTO ems_track_sections
+                             (section_id, track_id, rank, source_playlist_id,
+                              source_playlist_name, last_seen_at)
+                           VALUES (%s, %s, %s, %s, %s, now())""",
+                        (
+                            section_id,
+                            track_id,
+                            item.rank,
+                            item.source_playlist_id,
+                            item.source_playlist_name,
+                        ),
+                    )
+                stored = len(joined)
+
+        counts[definition.slug] = SectionSyncCount(
+            discovered=len(discovered),
+            joined=len(joined),
+            stored=stored,
+        )
+    return counts
