@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { calculateEmsScore, filterPermanentlyRejected, recordRecommendationDecision } from "./gms";
+import type { TransactionExecutor } from "@/lib/db/music-library";
 
 describe("EMS GMS scoring", () => {
   it("uses the approved weighted score components", () => {
@@ -16,8 +17,8 @@ describe("EMS GMS scoring", () => {
   });
 
   it("stores an auditable recommendation decision without embedding input text", async () => {
-    const query = vi.fn(async () => ({ rows: [] }));
-    await recordRecommendationDecision({ query }, {
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => ({ rows: [] }));
+    await recordRecommendationDecision({ query: query as unknown as TransactionExecutor["query"] }, {
       userId: "user-a", sourceTrackId: "track-a", profileVersion: "ems-v1", decision: "reject",
       reasonCodes: ["low_similarity"], scoreComponents: { similarity: 0.2 },
     });

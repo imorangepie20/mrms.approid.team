@@ -8,6 +8,7 @@ import subprocess
 import tarfile
 import tempfile
 import sys
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterable
@@ -204,6 +205,24 @@ class MusicBrainzSnapshotClient:
             raise DownloadError("mbdump checksum missing")
         verify_sha256(archive_path, expected)
         return latest
+
+    def download_latest_canonical(self, work_root: Path) -> str:
+        index = self._read("https://data.metabrainz.org/pub/musicbrainz/canonical_data/").decode("utf-8")
+        snapshots = sorted(set(re.findall(r"musicbrainz-canonical-dump-(\d{8}-\d{6})/", index)))
+        if not snapshots:
+            raise DownloadError("canonical snapshot not found")
+        snapshot_id = snapshots[-1]
+        name = f"musicbrainz-canonical-dump-{snapshot_id}.tar.zst"
+        snapshot_dir = work_root / f"canonical-{snapshot_id}"
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = snapshot_dir / name
+        checksum_path = snapshot_dir / f"{name}.sha256"
+        base = f"https://data.metabrainz.org/pub/musicbrainz/canonical_data/musicbrainz-canonical-dump-{snapshot_id}/"
+        self._download_atomic(base + name, archive_path)
+        self._download_atomic(base + f"{name}.sha256", checksum_path)
+        expected = checksum_path.read_text(encoding="utf-8").split()[0]
+        verify_sha256(archive_path, expected)
+        return snapshot_id
 
 
 if __name__ == "__main__":

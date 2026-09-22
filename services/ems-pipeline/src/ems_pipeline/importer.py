@@ -38,6 +38,69 @@ class ValidatedManifest:
     seed: int
 
 
+@dataclass(frozen=True)
+class TidalMatch:
+    tidal_id: str
+    title: str
+    artist: str
+    album: str | None
+    duration_ms: int
+    recording_mbid: str | None
+    isrc: str | None
+    match_confidence: float
+    region: str = "KR"
+
+
+def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
+    with connection.transaction():
+        with connection.cursor() as cursor:
+            track = cursor.execute(
+                """
+                INSERT INTO ems_tracks
+                  (recording_mbid, isrc, tidal_id, title, artist, album, duration_ms,
+                   status, match_confidence, catalog_priority, last_verified_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
+                ON CONFLICT (tidal_id) DO UPDATE SET
+                  recording_mbid = COALESCE(ems_tracks.recording_mbid, EXCLUDED.recording_mbid),
+                  isrc = COALESCE(ems_tracks.isrc, EXCLUDED.isrc),
+                  title = EXCLUDED.title, artist = EXCLUDED.artist, album = EXCLUDED.album,
+                  duration_ms = EXCLUDED.duration_ms, status = 'active',
+                  match_confidence = GREATEST(ems_tracks.match_confidence, EXCLUDED.match_confidence),
+                  last_verified_at = now(), updated_at = now()
+                RETURNING id
+                """,
+                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.duration_ms, match.match_confidence],
+            )
+            track_row = cursor.fetchone()
+            track_id = track_row["id"] if track_row else None
+            if not track_id:
+                raise RuntimeError("ems_track_promotion_missing")
+            cursor.execute(
+                """
+                INSERT INTO ems_track_sources (track_id, source_type, source_id, source_license, last_seen_at)
+                VALUES (%s, 'tidal', %s, 'tidal-authorized-use', now())
+                ON CONFLICT (source_type, source_id) DO UPDATE SET track_id = EXCLUDED.track_id, last_seen_at = now()
+                """,
+                [track_id, match.tidal_id],
+            )
+            cursor.execute(
+                """
+                INSERT INTO ems_availability_events (track_id, region, capability, playable)
+                VALUES (%s, %s, 'STREAM', true)
+                """,
+                [track_id, match.region],
+            )
+            cursor.execute(
+                """
+                UPDATE ems_ingest_candidates
+                   SET resolver_status = 'matched', tidal_id = %s, match_rule = 'validated', resolved_at = now(), lease_expires_at = NULL
+                 WHERE id = %s
+                """,
+                [match.tidal_id, candidate_id],
+            )
+            return str(track_id)
+
+
 class ManifestImporter:
     @staticmethod
     def validate(manifest_path: Path, candidates_path: Path) -> ValidatedManifest:

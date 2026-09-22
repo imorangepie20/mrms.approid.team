@@ -16,7 +16,7 @@ describe("EMS catalog migration contract", () => {
     expect(up).toMatch(/CREATE TABLE ems_availability_events/i);
     expect(up).toMatch(/CREATE TABLE ems_track_embeddings/i);
     expect(up).toMatch(/CREATE TABLE user_recommendation_decisions/i);
-    expect(up).toMatch(/candidate.*active.*stale.*inactive.*rejected/s);
+    expect(up).toMatch(/candidate[\s\S]*active[\s\S]*stale[\s\S]*inactive[\s\S]*rejected/);
     expect(up).toMatch(/FOR UPDATE|SKIP LOCKED|lease_expires_at/i);
     expect(up).not.toMatch(/DROP TABLE|ALTER TABLE\s+(music_tracks|track_embeddings)/i);
   });
