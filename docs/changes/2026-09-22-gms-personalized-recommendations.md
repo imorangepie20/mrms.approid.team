@@ -14,6 +14,7 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 - 취향 유사도는 전체 중심 0.3과 가장 가까운 군집 0.7을 결합한다.
 - 최종 점수는 `ems-v1`의 취향 유사도 65%, 신뢰도·카탈로그 우선순위 15%, 신규성 10%, 다양성 10%를 사용한다.
 - GMS는 실제 EMS `tidal_id`·아트워크를 표시하며, fixture로 대체하지 않는다.
+- 취향 프로필은 준비됐지만 필터링 후 후보가 0곡인 경우를 별도 빈 상태로 안내하고 EMS 카탈로그 링크를 제공한다.
 - 수락·거절은 인증된 사용자 기준으로 `user_recommendation_decisions`에 기록한다.
 - 프로필이 없거나 분석이 완료되지 않은 경우 추천 카드를 만들지 않고 온보딩 안내를 표시한다.
 
@@ -23,6 +24,7 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 - `apps/web`: `npm run lint` — 오류 0건; 기존 경고 3건 유지
 - `apps/web`: `npm run build` — Next.js production build·TypeScript 통과
 - 추천 repository·API·GMS 결정 저장 focused 테스트 통과
+- GMS 빈 후보 상태 UI 테스트 포함: 전체 Web 83개 파일, 332개 테스트 통과
 
 ## Zorin 배포
 

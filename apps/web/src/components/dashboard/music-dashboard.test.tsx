@@ -163,6 +163,20 @@ it("does not fall back to fixture tracks when personalized recommendations are u
   expect(screen.queryByText("Midnight City")).not.toBeInTheDocument();
 });
 
+it("explains when a ready profile has no remaining recommendation candidates", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[]}
+    />,
+  );
+
+  expect(screen.getByText("지금은 새로 추천할 곡이 없습니다.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "EMS 카탈로그 둘러보기" })).toHaveAttribute("href", "/ems");
+});
+
 it("persists GMS decisions separately from the MMS like action", async () => {
   const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
   vi.stubGlobal("fetch", fetcher);
