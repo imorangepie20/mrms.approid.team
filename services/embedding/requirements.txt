@@ -1,0 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi[standard]==0.141.1
+sentence-transformers==6.1.0
+torch==2.14.0+cpu
+pytest==9.0.2
+httpx==0.28.1
