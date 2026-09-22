@@ -9,6 +9,15 @@ import {
   type CompletedEmbeddingJob,
 } from "@/lib/db/embeddings";
 import { getSharedGenreVocabulary } from "@/lib/db/music-library";
+import {
+  loadCompletedTasteProfileInputs,
+  replaceTasteProfile,
+} from "@/lib/db/taste-profiles";
+import {
+  buildTasteProfile,
+  type TasteProfileInput,
+  type TasteProfileResult,
+} from "@/lib/recommendations/taste-profile";
 
 import {
   embedTexts,
@@ -26,6 +35,7 @@ export type AnalysisProgress = {
 };
 
 export type EmbeddingJobDependencies = {
+  buildProfile: (inputs: TasteProfileInput[]) => TasteProfileResult;
   claimJobs: (
     auth0Subject: string,
     limit: number,
@@ -37,6 +47,11 @@ export type EmbeddingJobDependencies = {
   countFailed: (auth0Subject: string) => Promise<number>;
   countRemaining: (auth0Subject: string) => Promise<number>;
   embed: (texts: string[]) => Promise<EmbeddingBatch>;
+  loadProfileInputs: (auth0Subject: string) => Promise<TasteProfileInput[]>;
+  replaceProfile: (
+    auth0Subject: string,
+    result: TasteProfileResult,
+  ) => Promise<void>;
   retryJobs: (
     auth0Subject: string,
     jobs: ClaimedEmbeddingJob[],
@@ -46,11 +61,22 @@ export type EmbeddingJobDependencies = {
 };
 
 const productionDependencies: EmbeddingJobDependencies = {
+  buildProfile: buildTasteProfile,
   claimJobs: claimEmbeddingJobs,
   completeJobs: completeEmbeddingJobs,
   countFailed: countFailedEmbeddingJobs,
   countRemaining: countPendingEmbeddingJobs,
   embed: embedTexts,
+  loadProfileInputs: loadCompletedTasteProfileInputs,
+  replaceProfile: (auth0Subject, result) => replaceTasteProfile(
+    auth0Subject,
+    result,
+    {
+      algorithmVersion: "taste-v1",
+      modelId: EMBEDDING_MODEL_ID,
+      modelRevision: EMBEDDING_MODEL_REVISION,
+    },
+  ),
   retryJobs: retryEmbeddingJobs,
   syncJobs: async (auth0Subject) => syncEmbeddingJobs(
     auth0Subject,
@@ -69,7 +95,7 @@ async function progress(
 ): Promise<AnalysisProgress> {
   const remaining = await dependencies.countRemaining(auth0Subject);
   const failedTrackCount = await dependencies.countFailed(auth0Subject);
-  return {
+  const result: AnalysisProgress = {
     embeddedTrackCount: Math.max(
       totalTrackCount - remaining - failedTrackCount,
       0,
@@ -78,6 +104,13 @@ async function progress(
     profileReady: false,
     remaining,
   };
+  if (remaining === 0 && failedTrackCount === 0) {
+    const inputs = await dependencies.loadProfileInputs(auth0Subject);
+    const profile = dependencies.buildProfile(inputs);
+    await dependencies.replaceProfile(auth0Subject, profile);
+    result.profileReady = true;
+  }
+  return result;
 }
 
 export async function processEmbeddingBatch(

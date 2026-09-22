@@ -4,6 +4,10 @@ import type {
   ClaimedEmbeddingJob,
   CompletedEmbeddingJob,
 } from "@/lib/db/embeddings";
+import type {
+  TasteProfileInput,
+  TasteProfileResult,
+} from "@/lib/recommendations/taste-profile";
 
 import { EmbeddingClientError } from "./client";
 import {
@@ -32,6 +36,15 @@ function statefulDependencies(
   const completed: CompletedEmbeddingJob[] = [];
   const calls: string[] = [];
   const dependencies: EmbeddingJobDependencies = {
+    buildProfile: vi.fn((inputs: TasteProfileInput[]): TasteProfileResult => ({
+      centroids: [{
+        clusterIndex: 0,
+        embedding: [1],
+        trackCount: inputs.length,
+        weight: 1,
+      }],
+      uniqueTrackCount: inputs.length,
+    })),
     claimJobs: vi.fn(async (_subject, limit) => {
       calls.push("claim");
       const claimed = jobs
@@ -59,6 +72,18 @@ function statefulDependencies(
       ).length;
     }),
     embed,
+    loadProfileInputs: vi.fn(async () => {
+      calls.push("loadProfile");
+      return jobs.map((item) => ({
+        artist: item.trackId,
+        embedding: [1],
+        playlistCount: 1,
+        trackId: item.trackId,
+      }));
+    }),
+    replaceProfile: vi.fn(async () => {
+      calls.push("replaceProfile");
+    }),
     retryJobs: vi.fn(async (
       _subject: string,
       claimedJobs: ClaimedEmbeddingJob[],
@@ -83,7 +108,7 @@ describe("embedding batch processing", () => {
     ).resolves.toEqual({
       embeddedTrackCount: 2,
       failedTrackCount: 0,
-      profileReady: false,
+      profileReady: true,
       remaining: 0,
     });
     expect(state.completed.map(({ embedding, trackId }) => ({ embedding, trackId })))
@@ -97,17 +122,22 @@ describe("embedding batch processing", () => {
       "complete",
       "countRemaining",
       "countFailed",
+      "loadProfile",
+      "replaceProfile",
     ]);
   });
 
   it("returns remaining work without calling the model when no jobs are claimable", async () => {
     const embed = vi.fn();
     const dependencies: EmbeddingJobDependencies = {
+      buildProfile: vi.fn(),
       claimJobs: vi.fn().mockResolvedValue([]),
       completeJobs: vi.fn(),
       countFailed: vi.fn().mockResolvedValue(1),
       countRemaining: vi.fn().mockResolvedValue(3),
       embed,
+      loadProfileInputs: vi.fn(),
+      replaceProfile: vi.fn(),
       retryJobs: vi.fn(),
       syncJobs: vi.fn().mockResolvedValue(10),
     };
@@ -121,6 +151,7 @@ describe("embedding batch processing", () => {
       remaining: 3,
     });
     expect(embed).not.toHaveBeenCalled();
+    expect(dependencies.replaceProfile).not.toHaveBeenCalled();
   });
 
   it("returns every claimed job to retryable state when the batch request times out", async () => {
