@@ -15,6 +15,7 @@ describe("EMS catalog migration contract", () => {
     expect(up).toMatch(/CREATE TABLE ems_track_sources/i);
     expect(up).toMatch(/CREATE TABLE ems_availability_events/i);
     expect(up).toMatch(/CREATE TABLE ems_track_embeddings/i);
+    expect(up).toMatch(/CREATE TABLE user_recommendation_decisions/i);
     expect(up).toMatch(/candidate.*active.*stale.*inactive.*rejected/s);
     expect(up).toMatch(/FOR UPDATE|SKIP LOCKED|lease_expires_at/i);
     expect(up).not.toMatch(/DROP TABLE|ALTER TABLE\s+(music_tracks|track_embeddings)/i);
@@ -22,6 +23,7 @@ describe("EMS catalog migration contract", () => {
 
   it("removes only the EMS objects in reverse dependency order", () => {
     expect(down).toMatch(/DROP TABLE IF EXISTS ems_track_embeddings/i);
+    expect(down).toMatch(/DROP TABLE IF EXISTS user_recommendation_decisions/i);
     expect(down).toMatch(/DROP TABLE IF EXISTS ems_availability_events/i);
     expect(down).toMatch(/DROP TABLE IF EXISTS ems_track_sources/i);
     expect(down).toMatch(/DROP TABLE IF EXISTS ems_tracks/i);

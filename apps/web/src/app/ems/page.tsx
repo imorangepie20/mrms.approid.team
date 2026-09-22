@@ -1,2 +1,5 @@
-import { MusicDashboard } from "@/components/dashboard/music-dashboard";
-export default function EmsPage() { return <MusicDashboard space="ems" />; }
+import { EmsBrowser } from "@/components/ems/ems-browser";
+
+export default function EmsPage() {
+  return <EmsBrowser />;
+}

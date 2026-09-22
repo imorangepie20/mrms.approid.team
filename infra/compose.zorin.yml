@@ -37,6 +37,29 @@ services:
     cpus: 4.0
     logging: *default-logging
 
+  ems-pipeline:
+    image: music-pie-ems-pipeline:current
+    build:
+      context: ../services/ems-pipeline
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: /home/approid/apps/music-pie/shared/secrets/ems.env
+    environment:
+      EMBEDDING_SERVICE_URL: http://embedding:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      embedding:
+        condition: service_healthy
+    networks: [backend, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "from ems_pipeline.worker import HealthGate; assert HealthGate().can_run(disk_used_percent=0, database_ready=True, embedding_ready=True)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
   web:
     image: music-pie-web:current
     build:

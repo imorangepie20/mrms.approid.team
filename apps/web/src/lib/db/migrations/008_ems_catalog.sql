@@ -110,4 +110,17 @@ CREATE TABLE ems_track_embeddings (
   CHECK ((status = 'completed') = (embedding IS NOT NULL))
 );
 
+CREATE TABLE user_recommendation_decisions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+  source_track_id UUID NOT NULL REFERENCES ems_tracks(id) ON DELETE CASCADE,
+  profile_version TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('accept', 'reject', 'skip')),
+  reason_codes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  score_components JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX user_recommendation_decisions_lookup_idx
+  ON user_recommendation_decisions (user_id, source_track_id, created_at DESC);
+
 COMMIT;

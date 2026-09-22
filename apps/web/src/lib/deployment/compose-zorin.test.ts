@@ -48,4 +48,14 @@ describe("Zorin Compose", () => {
     });
     expect(web.depends_on).not.toHaveProperty("embedding");
   });
+
+  it("keeps EMS pipeline private with backend access and a readiness check", () => {
+    const pipeline = compose.services["ems-pipeline"];
+
+    expect(pipeline).toBeDefined();
+    expect(pipeline.networks).toEqual(["backend", "egress"]);
+    expect(pipeline.ports).toBeUndefined();
+    expect(pipeline.healthcheck).toBeDefined();
+    expect(pipeline.restart).toBe("unless-stopped");
+  });
 });

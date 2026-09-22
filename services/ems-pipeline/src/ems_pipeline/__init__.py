@@ -1,0 +1,2 @@
+"""EMS catalog ingestion worker."""
+

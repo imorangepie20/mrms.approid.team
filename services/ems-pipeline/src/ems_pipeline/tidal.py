@@ -1,0 +1,205 @@
+from __future__ import annotations
+
+import base64
+import hashlib
+import re
+import time
+import unicodedata
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any
+from urllib.parse import quote
+
+import httpx
+
+from .select import Candidate
+
+
+class ResolveStatus(str, Enum):
+    MATCHED = "matched"
+    AMBIGUOUS = "ambiguous"
+    NOT_FOUND = "not_found"
+    UNAVAILABLE = "unavailable"
+    RETRYABLE = "retryable"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+
+
+@dataclass(frozen=True)
+class ResolveResult:
+    status: ResolveStatus
+    tidal_id: str | None = None
+    match_rule: str | None = None
+    match_confidence: float = 0.0
+    query_hash: str | None = None
+    retry_after_seconds: int | None = None
+    error_code: str | None = None
+
+
+@dataclass(frozen=True)
+class _Track:
+    id: str
+    title: str
+    artist: str
+    album: str
+    isrc: str | None
+    duration_ms: int | None
+    availability: list[dict[str, Any]]
+
+
+def normalize(value: str | None) -> str:
+    if not value:
+        return ""
+    decomposed = unicodedata.normalize("NFKD", value)
+    ascii_value = decomposed.encode("ascii", "ignore").decode("ascii")
+    ascii_value = re.sub(r"[\[\](){}]", " ", ascii_value)
+    return re.sub(r"[^a-z0-9]+", " ", ascii_value.lower()).strip()
+
+
+def duration_milliseconds(value: Any) -> int | None:
+    if isinstance(value, (int, float)):
+        return int(value)
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?", value)
+    if not match:
+        return None
+    return round((int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3) or 0)) * 1000)
+
+
+def _resources(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+    values = []
+    values.extend(item for item in document.get("included", []) if isinstance(item, dict))
+    values.extend(item for item in document.get("data", []) if isinstance(item, dict) and "attributes" in item)
+    return {(str(item.get("type")), str(item.get("id"))): item for item in values}
+
+
+def parse_tracks(document: dict[str, Any]) -> list[_Track]:
+    resources = _resources(document)
+    references = [item for item in document.get("data", []) if isinstance(item, dict) and item.get("type") == "tracks"]
+    tracks: list[_Track] = []
+    for reference in references:
+        track = resources.get(("tracks", str(reference.get("id"))))
+        if not track:
+            continue
+        attributes = track.get("attributes") if isinstance(track.get("attributes"), dict) else {}
+        artist_ref = ((track.get("relationships") or {}).get("artists") or {}).get("data", [])
+        album_ref = ((track.get("relationships") or {}).get("albums") or {}).get("data", [])
+        artist_identifier = artist_ref[0] if isinstance(artist_ref, list) and artist_ref else {}
+        album_identifier = album_ref[0] if isinstance(album_ref, list) and album_ref else {}
+        artist_resource = resources.get((str(artist_identifier.get("type")), str(artist_identifier.get("id"))), {})
+        album_resource = resources.get((str(album_identifier.get("type")), str(album_identifier.get("id"))), {})
+        artist_attributes = artist_resource.get("attributes") if isinstance(artist_resource.get("attributes"), dict) else {}
+        album_attributes = album_resource.get("attributes") if isinstance(album_resource.get("attributes"), dict) else {}
+        availability = attributes.get("availability", [])
+        if not isinstance(availability, list):
+            availability = []
+        tracks.append(_Track(
+            id=str(reference.get("id")),
+            title=str(attributes.get("title") or ""),
+            artist=str(artist_attributes.get("name") or attributes.get("artistName") or ""),
+            album=str(album_attributes.get("title") or attributes.get("albumTitle") or ""),
+            isrc=str(attributes["isrc"]) if attributes.get("isrc") else None,
+            duration_ms=duration_milliseconds(attributes.get("duration")),
+            availability=[item for item in availability if isinstance(item, dict)],
+        ))
+    return tracks
+
+
+class TidalCatalogClient:
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        *,
+        token_url: str = "https://auth.tidal.com/v1/oauth2/token",
+        api_base_url: str = "https://openapi.tidal.com/v2",
+        country_code: str = "KR",
+        request_budget: int = 1000,
+        http_client: httpx.Client | None = None,
+    ) -> None:
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.token_url = token_url
+        self.api_base_url = api_base_url.rstrip("/")
+        self.country_code = country_code
+        self.request_budget = max(0, request_budget)
+        self.used_requests = 0
+        self.http_client = http_client or httpx.Client(timeout=30)
+        self._token: str | None = None
+        self._token_expires_at = 0.0
+
+    def get_token(self, force_refresh: bool = False) -> str:
+        if self._token and not force_refresh and time.time() < self._token_expires_at - 30:
+            return self._token
+        encoded = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        response = self.http_client.post(
+            self.token_url,
+            headers={"Authorization": f"Basic {encoded}", "Content-Type": "application/x-www-form-urlencoded"},
+            data={"grant_type": "client_credentials"},
+        )
+        if response.status_code >= 400:
+            raise httpx.HTTPStatusError("token request failed", request=response.request, response=response)
+        payload = response.json()
+        token = payload.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise ValueError("token response missing access_token")
+        self._token = token
+        self._token_expires_at = time.time() + int(payload.get("expires_in", 3600))
+        return token
+
+    def resolve(self, candidate: Candidate) -> ResolveResult:
+        query = " ".join(value for value in (candidate.artist, candidate.title, candidate.album or "") if value)
+        query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()
+        if self.used_requests >= self.request_budget:
+            return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
+        try:
+            token = self.get_token()
+        except (httpx.HTTPError, ValueError):
+            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_request")
+        url = f"{self.api_base_url}/searchResults/{quote(query, safe='')}"
+        response = self.http_client.get(url, params={"countryCode": self.country_code}, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+        if response.status_code == 401:
+            try:
+                token = self.get_token(force_refresh=True)
+            except (httpx.HTTPError, ValueError):
+                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_refresh")
+            response = self.http_client.get(url, params={"countryCode": self.country_code}, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+        self.used_requests += 1
+        if response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+            try:
+                retry_seconds = max(0, min(3600, int(float(retry_after)))) if retry_after else None
+            except ValueError:
+                retry_seconds = None
+            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, retry_after_seconds=retry_seconds, error_code="rate_limited")
+        if response.status_code >= 500:
+            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="upstream_5xx")
+        if response.status_code >= 400:
+            return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="catalog_http")
+        try:
+            tracks = parse_tracks(response.json())
+        except (TypeError, ValueError):
+            return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="invalid_response")
+        exact_isrc = [track for track in tracks if candidate.isrc and track.isrc and track.isrc.upper() == candidate.isrc.upper()]
+        if exact_isrc:
+            matches = [track for track in exact_isrc if _duration_matches(candidate.duration_ms, track.duration_ms)] or exact_isrc
+            rule = "isrc_exact"
+            confidence = 1.0
+        else:
+            matches = [track for track in tracks if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist) and (not candidate.album or normalize(track.album) == normalize(candidate.album)) and _duration_matches(candidate.duration_ms, track.duration_ms)]
+            rule = "metadata_exact_duration"
+            confidence = 0.95
+        if not matches:
+            return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="no_match")
+        if len(matches) != 1:
+            return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
+        match = matches[0]
+        if not any(item.get("countryCode") == self.country_code and item.get("type") == "STREAM" for item in match.availability):
+            return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="kr_stream_missing")
+        if match.duration_ms is not None and match.duration_ms < 30_000:
+            return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="duration_too_short")
+        return ResolveResult(ResolveStatus.MATCHED, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence)
+
+
+def _duration_matches(left: int | None, right: int | None) -> bool:
+    return left is None or right is None or abs(left - right) <= 2_000

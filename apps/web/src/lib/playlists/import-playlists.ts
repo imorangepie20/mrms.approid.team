@@ -7,6 +7,7 @@ import {
   type UpdateImportInput,
 } from "@/lib/db/music-library";
 import { getUsableTidalAccessToken } from "@/lib/db/user-connections";
+import { stageImportedTidalTracks } from "@/lib/ems/import-user-tracks";
 import type { PositionedTrack } from "@/lib/music/library-types";
 import {
   getPlaylistTrackPages,
@@ -78,8 +79,8 @@ const productionDependencies: ImportDependencies = {
     } while (next);
     return playlists;
   },
-  savePage: (auth0Subject, playlist, tracks) =>
-    upsertPlaylistPage({
+  savePage: async (auth0Subject, playlist, tracks) => {
+    const saved = await upsertPlaylistPage({
       auth0Subject,
       playlist: {
         description: playlist.description,
@@ -88,7 +89,10 @@ const productionDependencies: ImportDependencies = {
         tidalPlaylistId: playlist.id,
       },
       tracks,
-    }),
+    });
+    await stageImportedTidalTracks(auth0Subject, tracks.map((item) => item));
+    return saved;
+  },
   trackPages: async function* (auth0Subject, playlistId) {
     const token = await getUsableTidalAccessToken(auth0Subject);
     yield* getPlaylistTrackPages(playlistId, tidalCredentials(token));

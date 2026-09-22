@@ -1,5 +1,7 @@
 BEGIN;
 
+DROP INDEX IF EXISTS user_recommendation_decisions_lookup_idx;
+DROP TABLE IF EXISTS user_recommendation_decisions;
 DROP TABLE IF EXISTS ems_track_embeddings;
 DROP TABLE IF EXISTS ems_availability_events;
 DROP TABLE IF EXISTS ems_track_sources;
