@@ -14,7 +14,7 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 ## 코드·검증
 
 - `008_ems_catalog.sql`을 Zorin PostgreSQL 컨테이너에 `ON_ERROR_STOP=1`로 적용했다.
-- `services/ems-pipeline` 테스트: `23 passed`.
+- `services/ems-pipeline` 테스트: `25 passed`.
 - Web 테스트: `74 files, 300 tests passed`; lint와 Next.js build 통과.
 - Zorin Docker build: `music-pie-web:current`, `music-pie-ems-pipeline:current` 생성 성공.
 - 후보 매니페스트 검증: `run_id=canary-1k`, `row_count=1000`, checksum 일치, `dry_run=true`.
@@ -32,10 +32,12 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 - ISRC가 있는 1M enriched 표본에서 `US`/`KR` ISRC 후보 111,395행을 추출해 1,000행 artifact를 만들었다. 지역 비율은 `US=111,377`, `KR=18`이며 selector 결과는 `US=998`, `KR=2`다.
 - 신규 run `56c8cb55-56ef-4a4b-befc-69f48e87bf28` 20곡 canary는 `matched=15`, `not_found=2`, `retryable=3`, `unavailable=0`이었다. 처리 완료 17곡 기준 매칭률은 88.2%지만 rate limit 재시도가 남아 있어 최종 품질 수치로 확정하지 않는다.
 - TIDAL 검색·매칭에서 앨범명을 제거했다. 앨범 에디션 차이로 검색 결과가 0개가 되거나 매칭이 누락되지 않도록 아티스트+제목+재생시간을 기준으로 하고, 동률은 `ambiguous`로 격리한다.
+- ISRC가 있는 후보는 TIDAL v2 `/tracks?filter[isrc]=...`를 먼저 조회하고, 결과가 여러 개면 제목·아티스트로 2차 축소한 뒤 그래도 동률이면 `ambiguous`로 남긴다. 실제 API 응답 `HTTP 200/data=1`을 확인했다.
+- release `3f5ea5e2c270` 배포 후 1,000행 run `56c8cb55-56ef-4a4b-befc-69f48e87bf28`에서 누적 처리 결과는 `matched=32`, `ambiguous=10`, `not_found=3`, `retryable=2`, `unavailable=2`, `budget_exhausted=1`, `pending=950`이다. `ems_tracks=34`가 실제 DB에 있다. 80~90% 품질 기준 전까지 run은 paused다.
 
 ## Zorin 결과
 
-- 배포 release: `a5ac776e93e5`, `/home/approid/apps/music-pie/releases/a5ac776e93e5`.
+- 배포 release: `3f5ea5e2c270`, `/home/approid/apps/music-pie/releases/3f5ea5e2c270`.
 - `music-pie-postgres`, `music-pie-embedding`, `music-pie-web`, 기존 tunnel이 healthy/running 상태다.
 - 로컬·공개 `/api/health/live`, `/api/health/ready`, `/ems`, 공개 `/api/ems/catalog` 모두 HTTP 200.
 - DB 보존 확인: `app_users=1`, `music_tracks=101`, `ems_ingest_runs=0`, `ems_tracks=0`.
