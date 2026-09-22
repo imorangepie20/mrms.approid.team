@@ -143,6 +143,27 @@ def resolve_next_page_url(api_base_url: str, next_url: str, visited: set[str], *
     return resolved
 
 
+def fetch_editorial_playlists(
+    client: TidalCatalogClient,
+    token: str,
+    queries: Iterable[str],
+) -> list[EditorialPlaylist]:
+    documents = [
+        _get_document(
+            client,
+            token,
+            f"{client.api_base_url}/searchResults",
+            {
+                "filter[query]": query,
+                "countryCode": client.country_code,
+                "include": "playlists",
+            },
+        )
+        for query in queries
+    ]
+    return rank_editorial_playlists(documents)
+
+
 def _parse_editorial_tracks(document: dict[str, Any], playlist_followers: int) -> list[EditorialTrack]:
     resources = {
         (str(item.get("type")), str(item.get("id"))): item
@@ -186,6 +207,38 @@ def _parse_editorial_tracks(document: dict[str, Any], playlist_followers: int) -
     return tracks
 
 
+def fetch_playlist_tracks(
+    client: TidalCatalogClient,
+    token: str,
+    playlist: EditorialPlaylist,
+) -> list[EditorialTrack]:
+    url = f"{client.api_base_url}/playlists/{playlist.playlist_id}/relationships/items"
+    params: dict[str, str] | None = {
+        "countryCode": client.country_code,
+        "include": "items,items.albums,items.artists",
+    }
+    visited = {url}
+    page_count = 0
+    tracks: list[EditorialTrack] = []
+    while url:
+        page_count += 1
+        document = _get_document(client, token, url, params)
+        tracks.extend(_parse_editorial_tracks(document, playlist.followers))
+        next_url = (document.get("links") or {}).get("next")
+        url = (
+            resolve_next_page_url(
+                client.api_base_url,
+                str(next_url),
+                visited,
+                page_count=page_count,
+            )
+            if next_url
+            else ""
+        )
+        params = None
+    return tracks
+
+
 def build_tidal_editorial_snapshot(
     *,
     client_id: str,
@@ -197,24 +250,10 @@ def build_tidal_editorial_snapshot(
 ) -> tuple[Path, Path]:
     client = TidalCatalogClient(client_id, client_secret)
     token = client.get_token()
-    search_documents = [
-        _get_document(client, token, f"{client.api_base_url}/searchResults", {"filter[query]": query, "countryCode": client.country_code, "include": "playlists"})
-        for query in DEFAULT_QUERIES
-    ]
-    playlists = rank_editorial_playlists(search_documents)[:playlist_limit]
+    playlists = fetch_editorial_playlists(client, token, DEFAULT_QUERIES)[:playlist_limit]
     tracks: list[EditorialTrack] = []
     for playlist in playlists:
-        url = f"{client.api_base_url}/playlists/{playlist.playlist_id}/relationships/items"
-        params: dict[str, str] | None = {"countryCode": client.country_code, "include": "items,items.albums,items.artists"}
-        visited_pages = {url}
-        page_count = 0
-        while url:
-            page_count += 1
-            document = _get_document(client, token, url, params)
-            tracks.extend(_parse_editorial_tracks(document, playlist.followers))
-            next_url = (document.get("links") or {}).get("next")
-            url = resolve_next_page_url(client.api_base_url, str(next_url), visited_pages, page_count=page_count) if next_url else ""
-            params = None
+        tracks.extend(fetch_playlist_tracks(client, token, playlist))
 
     selected = select_editorial_candidates(tracks, limit)
     if len(selected) != limit:
