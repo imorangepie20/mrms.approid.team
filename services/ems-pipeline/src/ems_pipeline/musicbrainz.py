@@ -71,7 +71,7 @@ def safe_extract_members(archive_path: Path, destination: Path, allowed: frozens
     destination.mkdir(parents=True, exist_ok=True)
     extracted: list[str] = []
     with tarfile.open(archive_path, "r:*") as archive:
-        for member in archive.getmembers():
+        for member in archive:
             if member.name not in allowed:
                 continue
             if member.issym() or member.islnk() or not member.isfile():
