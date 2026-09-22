@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-22
 
-최신 기능 기준 커밋: `ce9cda8`
+최신 기능 기준 커밋: `690101d`
 
-최신 Zorin 배포 기준 커밋: `ce9cda8`
+최신 Zorin 배포 기준 커밋: `690101d`
 
 ## 이번 목표
 
@@ -37,7 +37,7 @@
 - 공개 주소는 `https://mrms.approid.team/`다. production은 Zorin OS의 Docker Compose에서 실행되며 Web loopback port는 `3104`다. Windows의 기존 `44119` Web과 tunnel connector는 중지했고 PostgreSQL 원본 volume은 rollback용으로 유지했다.
 - 초기 개인화 추천 전략과 사용자별 영구 제외 규칙은 기존 결정 문서를 따른다.
 - 2026-09-21 사용자가 TIDAL Developer Terms의 AI 서비스 제한 제약을 해소했다. 테스트 배포까지 가져온 TIDAL 트랙 메타데이터를 취향 분석 임베딩 입력으로 사용할 수 있다. 근거는 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`에 있다.
-- 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보 1,000곡을 생성하고 `008_ems_catalog.sql`을 Zorin에 적용했다. EMS API·UI는 배포됐지만 TIDAL Client Credentials가 준비되지 않아 resolver live canary는 아직 시작하지 않았다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
+- 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보를 생성하고 `008_ems_catalog.sql`과 tracked migration runner를 Zorin에 적용했다. 카탈로그용 `TIDAL_CLIENT_ID`·`TIDAL_CLIENT_SECRET`를 승인된 secret 경로에 추가하고 token smoke를 HTTP 200으로 확인했다. TIDAL v2 검색은 `filter[query]`·관계형 `tracks` 응답으로 수정했으며, bounded canary의 결과를 커밋·일시정지 상태로 기록한다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
 
 ## 검증 결과
 
