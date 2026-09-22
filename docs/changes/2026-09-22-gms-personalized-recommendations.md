@@ -27,19 +27,23 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 ## Zorin 배포
 
 - Web release/image: `796b5e2`
+- EMS catalog embedding image: `music-pie-ems-pipeline:b91afce`
 - 기존 이미지 rollback tag: `music-pie-web:rollback-before-gms-20260922`
 - `/api/health/ready`: HTTP 200, `{"status":"ready"}`
 - 공개 `/gms`: HTTP 200
 - 비로그인 `GET /api/recommendations`: HTTP 401
 - 비로그인 `POST /api/recommendations/decisions`: HTTP 401
+- 운영 `ems_track_embeddings` 배치: active EMS 2,038곡 중 completed 2,038곡
+- embedding 입력 원문은 저장하지 않고 model revision·input hash·vector만 기록했다.
 
 ## 미검증
 
 - 실제 로그인 계정의 completed taste profile을 사용한 공개 GMS 브라우저 화면은 아직 확인하지 않았다.
 - Zorin production에 새 Web image를 배포하고 실제 사용자 추천 후보·결정 저장을 smoke test하지 않았다.
+- 현재 운영 DB의 completed taste profile은 0건이므로, 로그인 사용자가 TIDAL 온보딩 분석을 한 번 완료해야 실제 후보 카드가 생성된다.
 
 ## 다음 작업
 
 1. 실제 completed profile이 있는 계정으로 GMS 후보·점수·제외 동작을 확인한다.
 2. GMS 카드에 추천 이유 문구를 노출할지 UX를 검토한다.
-3. 실제 운영 배포 전 EMS embedding 완료율과 추천 후보 수를 점검한다.
+3. 실제 completed profile 계정으로 GMS 후보·결정 저장을 smoke test한다.
