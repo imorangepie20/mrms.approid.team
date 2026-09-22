@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `b91afce`
 
-최신 Zorin Web 배포 기준 커밋: `7fea63e` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `12e4050` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -43,7 +43,7 @@
 - 2026-09-22 GMS fixture 추천을 실제 EMS·사용자 taste profile 연결로 교체했다. 완료된 profile의 전체/군집 중심 유사도와 `ems-v1` 점수, 사용자별 보유·수락·영구 거절 제외를 적용하며, 인증된 수락·거절은 `user_recommendation_decisions`에 기록한다. 실제 completed profile을 이용한 production browser 검증은 아직 남아 있다. 상세 결과는 `docs/changes/2026-09-22-gms-personalized-recommendations.md`에 기록했다.
 - GMS 프로필이 준비됐지만 후보가 0곡인 경우에는 `결정 대기 중 0곡` 대신 후보 소진 안내와 EMS 카탈로그 링크를 표시한다. 프로필 미완료·API 오류 상태와 구분하며 회귀 테스트를 추가했다.
 - GMS 추천 카드에는 서버의 `taste_match`·`fresh_release` reason code를 `취향 일치`·`최근 발매` 라벨로 표시해 추천 근거를 확인할 수 있게 했다.
-- 2026-09-22 GMS 개인화 추천 Web release `7fea63e`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
+- 2026-09-22 GMS 개인화 추천 Web release `12e4050`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
 - 2026-09-22 Zorin의 active EMS 2,142곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,142건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다.
 
 ## 검증 결과

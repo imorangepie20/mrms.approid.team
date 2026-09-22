@@ -30,9 +30,9 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 
 ## Zorin 배포
 
-- Web release/image: `7fea63e`
+- Web release/image: `12e4050`
 - EMS catalog embedding image: `music-pie-ems-pipeline:b91afce`
-- 기존 이미지 rollback tag: `music-pie-web:rollback-before-gms-empty-20260922`
+- 기존 이미지 rollback tag: `music-pie-web:rollback-before-gms-reasons-20260922`
 - `/api/health/ready`: HTTP 200, `{"status":"ready"}`
 - 공개 `/gms`: HTTP 200
 - 비로그인 `GET /api/recommendations`: HTTP 401
