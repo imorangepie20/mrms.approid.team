@@ -109,6 +109,7 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                         title=result.title or candidate.title,
                         artist=result.artist or candidate.artist,
                         album=result.album if result.album is not None else candidate.album,
+                        artwork_url=result.artwork_url,
                         duration_ms=max(30_000, int(result.duration_ms or candidate.duration_ms or 30_000)),
                         recording_mbid=candidate.recording_mbid,
                         isrc=candidate.isrc,

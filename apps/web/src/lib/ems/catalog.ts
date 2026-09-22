@@ -55,7 +55,7 @@ export async function listEmsTracks(options: EmsListOptions, executor: QueryExec
   const searchClause = normalized.query ? " AND (e.title ILIKE $4 OR e.artist ILIKE $4 OR COALESCE(e.album, '') ILIKE $4)" : "";
   if (normalized.query) values.push(`%${normalized.query}%`);
   const result = await executor.query<EmsRow>(
-    `SELECT e.id, e.tidal_id, e.title, e.artist, e.album, e.duration_ms
+    `SELECT e.id, e.tidal_id, e.title, e.artist, e.album, e.duration_ms, e.artwork_url
        FROM ems_tracks AS e
        JOIN LATERAL (
          SELECT a.playable

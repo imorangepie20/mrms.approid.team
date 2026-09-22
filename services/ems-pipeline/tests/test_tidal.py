@@ -42,13 +42,25 @@ def track(track_id: str, *, isrc: str | None = "ISRC-A", title: str = "One More 
     }
 
 
-def search_document(tracks: list[dict[str, object]]) -> dict[str, object]:
+def search_document(tracks: list[dict[str, object]], *, with_artwork: bool = False) -> dict[str, object]:
+    album = {"type": "albums", "id": "album-a", "attributes": {"title": "Discovery"}}
+    included: list[dict[str, object]] = tracks + [
+        {"type": "artists", "id": "artist-a", "attributes": {"name": "Daft Punk"}},
+        album,
+    ]
+    if with_artwork:
+        album["relationships"] = {"coverArt": {"data": [{"type": "artworks", "id": "art-a"}]}}
+        included.append({
+            "type": "artworks",
+            "id": "art-a",
+            "attributes": {"files": [
+                {"href": "https://resources.tidal.com/320.jpg", "meta": {"width": 320, "height": 320}},
+                {"href": "https://resources.tidal.com/1280.jpg", "meta": {"width": 1280, "height": 1280}},
+            ]},
+        })
     return {
         "data": [{"type": "tracks", "id": item["id"]} for item in tracks],
-        "included": tracks + [
-            {"type": "artists", "id": "artist-a", "attributes": {"name": "Daft Punk"}},
-            {"type": "albums", "id": "album-a", "attributes": {"title": "Discovery"}},
-        ],
+        "included": included,
     }
 
 
@@ -72,7 +84,7 @@ def test_v2_search_results_uses_filter_query_and_country_filtered_stream_availab
             return token_response()
         assert request.url.path == "/v2/searchResults"
         assert request.url.params.get("filter[query]") == "Daft Punk One More Time"
-        assert request.url.params.get("include") == "tracks,tracks.artists,tracks.albums"
+        assert request.url.params.get("include") == "tracks,tracks.artists,tracks.albums,tracks.albums.coverArt"
         assert request.url.params.get("countryCode") == "KR"
         return httpx.Response(200, json=search_results_document([track("tidal-a", availability=["STREAM", "DJ"])]))
 
@@ -89,7 +101,7 @@ def test_isrc_lookup_uses_tracks_filter_before_search() -> None:
         api_calls.append(request.url.path)
         assert request.url.path == "/v2/tracks"
         assert request.url.params.get("filter[isrc]") == "ISRC-A"
-        assert request.url.params.get("include") == "artists,albums"
+        assert request.url.params.get("include") == "artists,albums,albums.coverArt"
         return httpx.Response(200, json=search_document([track("tidal-a")]))
 
     client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
@@ -130,6 +142,17 @@ def test_isrc_exact_match_wins_and_records_only_query_hash() -> None:
     assert result.match_rule == "isrc_exact"
     assert result.query_hash and "One%20More" not in result.query_hash
     assert all("secret" not in str(request.content) for request in requests)
+
+
+def test_resolver_returns_the_largest_album_artwork() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        return httpx.Response(200, json=search_document([track("tidal-a")], with_artwork=True))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+
+    assert client.resolve(candidate()).artwork_url == "https://resources.tidal.com/1280.jpg"
 
 
 def test_fallback_requires_exact_metadata_and_duration() -> None:

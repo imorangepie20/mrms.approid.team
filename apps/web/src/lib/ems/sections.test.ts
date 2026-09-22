@@ -14,6 +14,7 @@ type SectionRow = {
   artist: string;
   album: string;
   duration_ms: number;
+  artwork_url: string;
 };
 
 function row(slug: string, sortOrder: number, trackId: string, rank: number): SectionRow {
@@ -29,6 +30,7 @@ function row(slug: string, sortOrder: number, trackId: string, rank: number): Se
     artist: "Artist",
     album: "Album",
     duration_ms: 180_000,
+    artwork_url: `https://resources.tidal.com/${trackId}.jpg`,
   };
 }
 
@@ -74,10 +76,11 @@ describe("EMS editorial section repository", () => {
     ).resolves.toMatchObject({
       totalCount: 54,
       sections: [
-        { slug: "new-releases", tracks: [{ id: "track-a" }] },
+        { slug: "new-releases", tracks: [{ id: "track-a", artworkUrl: "https://resources.tidal.com/track-a.jpg" }] },
         { slug: "seasonal-jazz", tracks: [{ id: "track-b" }] },
       ],
     });
+    expect(executor.sql.join("\n")).toMatch(/e\.artwork_url/i);
   });
 
   it("uses only the newest KR STREAM availability event", async () => {

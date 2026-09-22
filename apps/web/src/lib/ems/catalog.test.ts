@@ -21,15 +21,16 @@ describe("EMS catalog", () => {
       void values;
       return { rows: [{
         id: "track-a", tidal_id: "tidal-a", title: "One More Time", artist: "Daft Punk", album: "Discovery", duration_ms: 310000,
-        artwork_url: null,
+        artwork_url: "https://resources.tidal.com/cover.jpg",
       }] };
     });
     const result = await listEmsTracks({ limit: 999, region: "KR", sort: "new" }, { query } as never);
 
-    expect(result.tracks[0]).toMatchObject({ id: "track-a", tidalTrackId: "tidal-a", title: "One More Time" });
+    expect(result.tracks[0]).toMatchObject({ id: "track-a", tidalTrackId: "tidal-a", title: "One More Time", artworkUrl: "https://resources.tidal.com/cover.jpg" });
     expect(query).toHaveBeenCalledWith(expect.stringMatching(/status = 'active'/i), expect.arrayContaining([100]));
     const sql = query.mock.calls[0]?.[0] ?? "";
     expect(sql).not.toContain("ems_track_embeddings");
+    expect(sql).toMatch(/e\.artwork_url/i);
     expect(sql).toMatch(/ORDER BY a\.observed_at DESC[\s\S]*LIMIT 1/i);
   });
 });

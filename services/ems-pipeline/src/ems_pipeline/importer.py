@@ -44,6 +44,7 @@ class TidalMatch:
     title: str
     artist: str
     album: str | None
+    artwork_url: str | None
     duration_ms: int
     recording_mbid: str | None
     isrc: str | None
@@ -58,19 +59,20 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
             track = cursor.execute(
                 """
                 INSERT INTO ems_tracks
-                  (recording_mbid, isrc, tidal_id, title, artist, album, duration_ms,
+                  (recording_mbid, isrc, tidal_id, title, artist, album, artwork_url, duration_ms,
                    status, match_confidence, catalog_priority, last_verified_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
                 ON CONFLICT (tidal_id) DO UPDATE SET
                   recording_mbid = COALESCE(ems_tracks.recording_mbid, EXCLUDED.recording_mbid),
                   isrc = COALESCE(ems_tracks.isrc, EXCLUDED.isrc),
                   title = EXCLUDED.title, artist = EXCLUDED.artist, album = EXCLUDED.album,
+                  artwork_url = COALESCE(EXCLUDED.artwork_url, ems_tracks.artwork_url),
                   duration_ms = EXCLUDED.duration_ms, status = 'active',
                   match_confidence = GREATEST(ems_tracks.match_confidence, EXCLUDED.match_confidence),
                   last_verified_at = now(), updated_at = now()
                 RETURNING id
                 """,
-                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.duration_ms, match.match_confidence],
+                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.artwork_url, match.duration_ms, match.match_confidence],
             )
             track_row = cursor.fetchone()
             track_id = track_row["id"] if track_row else None

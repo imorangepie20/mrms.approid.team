@@ -98,12 +98,14 @@ class _Connection:
         return self.cursor_value
 
 
-def test_promote_match_writes_track_source_and_availability_atomically() -> None:
+def test_promote_match_writes_artwork_track_source_and_availability_atomically() -> None:
     connection = _Connection()
-    promote_match(connection, "candidate-a", TidalMatch(tidal_id="tidal-a", title="Track", artist="Artist", album="Album", duration_ms=31000, recording_mbid="mbid-a", isrc="ISRC-A", match_confidence=1.0, match_rule="isrc_exact_tiebreak", region="KR"))
+    promote_match(connection, "candidate-a", TidalMatch(tidal_id="tidal-a", title="Track", artist="Artist", album="Album", artwork_url="https://resources.tidal.com/cover.jpg", duration_ms=31000, recording_mbid="mbid-a", isrc="ISRC-A", match_confidence=1.0, match_rule="isrc_exact_tiebreak", region="KR"))
     sql = "\n".join(connection.cursor_value.statements)
     assert "INSERT INTO ems_tracks" in sql
     assert "INSERT INTO ems_track_sources" in sql
     assert "INSERT INTO ems_availability_events" in sql
     assert "UPDATE ems_ingest_candidates" in sql
+    assert "artwork_url" in connection.cursor_value.statements[0]
+    assert "https://resources.tidal.com/cover.jpg" in connection.cursor_value.values[0]
     assert connection.cursor_value.values[-1] == ["tidal-a", "isrc_exact_tiebreak", "candidate-a"]

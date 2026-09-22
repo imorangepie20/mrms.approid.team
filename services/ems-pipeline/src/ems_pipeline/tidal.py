@@ -36,6 +36,7 @@ class ResolveResult:
     artist: str | None = None
     album: str | None = None
     duration_ms: int | None = None
+    artwork_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,7 @@ class _Track:
     isrc: str | None
     duration_ms: int | None
     availability: list[Any]
+    artwork_url: str | None
 
 
 def normalize(value: str | None) -> str:
@@ -74,6 +76,27 @@ def _resources(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]
     values.extend(item for item in document.get("included", []) if isinstance(item, dict))
     values.extend(item for item in document.get("data", []) if isinstance(item, dict) and "attributes" in item)
     return {(str(item.get("type")), str(item.get("id"))): item for item in values}
+
+
+def _artwork_url(album: dict[str, Any], resources: dict[tuple[str, str], dict[str, Any]]) -> str | None:
+    cover_refs = ((album.get("relationships") or {}).get("coverArt") or {}).get("data", [])
+    if not isinstance(cover_refs, list):
+        cover_refs = [cover_refs]
+    cover_ref = next((item for item in cover_refs if isinstance(item, dict)), None)
+    if cover_ref is None:
+        return None
+    artwork = resources.get((str(cover_ref.get("type")), str(cover_ref.get("id"))), {})
+    files = (artwork.get("attributes") or {}).get("files", [])
+    if not isinstance(files, list):
+        return None
+    candidates = [item for item in files if isinstance(item, dict) and isinstance(item.get("href"), str)]
+    if not candidates:
+        return None
+    chosen = max(
+        candidates,
+        key=lambda item: int((item.get("meta") or {}).get("width") or 0) * int((item.get("meta") or {}).get("height") or 0),
+    )
+    return str(chosen["href"])
 
 
 def parse_tracks(document: dict[str, Any]) -> list[_Track]:
@@ -112,6 +135,7 @@ def parse_tracks(document: dict[str, Any]) -> list[_Track]:
             isrc=str(attributes["isrc"]) if attributes.get("isrc") else None,
             duration_ms=duration_milliseconds(attributes.get("duration")),
             availability=[item for item in availability if isinstance(item, (dict, str))],
+            artwork_url=_artwork_url(album_resource, resources),
         ))
     return tracks
 
@@ -197,7 +221,7 @@ class TidalCatalogClient:
         if candidate.isrc:
             direct = request(
                 f"{self.api_base_url}/tracks",
-                {"filter[isrc]": candidate.isrc, "countryCode": self.country_code, "include": "artists,albums"},
+                {"filter[isrc]": candidate.isrc, "countryCode": self.country_code, "include": "artists,albums,albums.coverArt"},
             )
             if isinstance(direct, ResolveResult):
                 return direct
@@ -219,7 +243,7 @@ class TidalCatalogClient:
 
         response = request(
             f"{self.api_base_url}/searchResults",
-            {"filter[query]": query, "countryCode": self.country_code, "include": "tracks,tracks.artists,tracks.albums"},
+            {"filter[query]": query, "countryCode": self.country_code, "include": "tracks,tracks.artists,tracks.albums,tracks.albums.coverArt"},
         )
         if isinstance(response, ResolveResult):
             return response
@@ -278,6 +302,7 @@ def _validated_match(candidate: Candidate, match: _Track, query_hash: str, rule:
         "artist": match.artist,
         "album": match.album,
         "duration_ms": match.duration_ms,
+        "artwork_url": match.artwork_url,
     }
     if not _has_stream_availability(match.availability, country_code):
         return ResolveResult(ResolveStatus.UNAVAILABLE, error_code="kr_stream_missing", **resolved)

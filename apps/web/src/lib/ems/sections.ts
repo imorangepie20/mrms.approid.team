@@ -31,6 +31,7 @@ type EmsSectionRow = {
   artist: string;
   album: string | null;
   duration_ms: number;
+  artwork_url: string | null;
 };
 
 const COUNT_SQL = `
@@ -56,6 +57,7 @@ const SECTION_SQL = `
            s.description AS section_description, s.sort_order,
            m.rank, e.id AS track_id, e.tidal_id,
            e.title AS track_title, e.artist, e.album, e.duration_ms,
+           e.artwork_url,
            row_number() OVER (
              PARTITION BY s.id ORDER BY m.rank, e.id
            ) AS row_number
@@ -82,7 +84,7 @@ function mapEmsTrack(row: EmsSectionRow): Track {
     artist: row.artist,
     album: row.album ?? "Unknown Album",
     durationSeconds: Math.round(row.duration_ms / 1000),
-    artworkUrl: "",
+    artworkUrl: row.artwork_url ?? "",
     artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
     playbackAvailable: true,
   };
