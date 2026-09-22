@@ -97,6 +97,22 @@ def test_isrc_lookup_uses_tracks_filter_before_search() -> None:
     assert api_calls == ["/v2/tracks"]
 
 
+def test_isrc_duplicate_prefers_title_artist_metadata() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        return httpx.Response(200, json=search_document([
+            track("tidal-other", title="One More Night"),
+            track("tidal-exact"),
+        ]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    result = client.resolve(candidate())
+
+    assert result.status is ResolveStatus.MATCHED
+    assert result.tidal_id == "tidal-exact"
+
+
 def test_isrc_exact_match_wins_and_records_only_query_hash() -> None:
     requests: list[httpx.Request] = []
 

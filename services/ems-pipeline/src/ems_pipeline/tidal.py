@@ -208,6 +208,10 @@ class TidalCatalogClient:
                 exact_isrc = [track for track in direct_tracks if track.isrc and track.isrc.upper() == candidate.isrc.upper()]
                 if exact_isrc:
                     matches = [track for track in exact_isrc if _duration_matches(candidate.duration_ms, track.duration_ms)] or exact_isrc
+                    if len(matches) > 1:
+                        metadata_matches = [track for track in matches if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist)]
+                        if len(metadata_matches) == 1:
+                            matches = metadata_matches
                     if len(matches) == 1:
                         return _validated_match(candidate, matches[0], query_hash, "isrc_exact", 1.0, self.country_code)
                     return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
