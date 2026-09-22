@@ -15,6 +15,13 @@ export type PlaylistImportStatus = {
     | "failed";
 };
 
+export type AnalysisProgress = {
+  embeddedTrackCount: number;
+  failedTrackCount: number;
+  profileReady: boolean;
+  remaining: number;
+};
+
 async function responseJson<T>(response: Response, errorCode: string) {
   if (!response.ok) throw new Error(errorCode);
   return (await response.json()) as T;
@@ -68,4 +75,12 @@ export async function enrichNextTrack(signal?: AbortSignal) {
     response,
     "musicbrainz_enrichment_failed",
   );
+}
+
+export async function processTasteAnalysis(signal?: AbortSignal) {
+  const response = await fetch("/api/recommendations/analyze", {
+    method: "POST",
+    signal,
+  });
+  return responseJson<AnalysisProgress>(response, "taste_analysis_failed");
 }

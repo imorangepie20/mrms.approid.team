@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -113,7 +113,7 @@ describe("TidalOnboarding", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
-  it("opens MMS when import completes while enrichment remains", async () => {
+  it("runs embedding batches only after MusicBrainz enrichment reaches zero", async () => {
     window.history.replaceState({}, "", "/onboarding?tidal=connected");
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -144,7 +144,15 @@ describe("TidalOnboarding", () => {
         });
       }
       if (url === "/api/musicbrainz/enrich") {
-        return json({ processed: true, remaining: 11 });
+        return json({ processed: true, remaining: 0 });
+      }
+      if (url === "/api/recommendations/analyze") {
+        return json({
+          embeddedTrackCount: 38,
+          failedTrackCount: 0,
+          profileReady: true,
+          remaining: 0,
+        });
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -161,12 +169,102 @@ describe("TidalOnboarding", () => {
       await screen.findByText("MMS와 첫 추천이 준비됐어요"),
     ).toBeInTheDocument();
     expect(screen.getByText(/38곡을 저장/)).toBeInTheDocument();
-    await waitFor(() =>
-      expect(fetcher).toHaveBeenCalledWith(
-        "/api/musicbrainz/enrich",
-        expect.objectContaining({ method: "POST" }),
-      ),
+    const urls = fetcher.mock.calls.map(([input]) => String(input));
+    expect(urls.indexOf("/api/musicbrainz/enrich")).toBeLessThan(
+      urls.indexOf("/api/recommendations/analyze"),
     );
+  });
+
+  it("shows embedded and remaining counts while analysis runs", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") {
+        return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Focus", saved: false, trackCount: 38 }] });
+      }
+      if (url === "/api/playlists/import") return json({ importId: "import-progress" }, 202);
+      if (url === "/api/playlists/import/import-progress") {
+        return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      }
+      return json({ embeddedTrackCount: 16, failedTrackCount: 0, profileReady: false, remaining: 22 });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Focus/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    expect(await screen.findByText(/16곡 분석 완료/)).toBeInTheDocument();
+    expect(screen.getByText(/22곡 남음/)).toBeInTheDocument();
+    expect(screen.queryByText("MMS와 첫 추천이 준비됐어요")).not.toBeInTheDocument();
+  });
+
+  it("shows recommendation ready only after profileReady is true", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    let analysisCalls = 0;
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Ready", saved: false, trackCount: 38 }] });
+      if (url === "/api/playlists/import") return json({ importId: "import-ready" }, 202);
+      if (url === "/api/playlists/import/import-ready") return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      analysisCalls += 1;
+      return json({ embeddedTrackCount: analysisCalls * 16, failedTrackCount: 0, profileReady: analysisCalls > 1, remaining: analysisCalls > 1 ? 0 : 22 });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+    await user.click(await screen.findByRole("checkbox", { name: /Ready/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    expect(await screen.findByText(/16곡 분석 완료/)).toBeInTheDocument();
+    expect(screen.queryByText("MMS와 첫 추천이 준비됐어요")).not.toBeInTheDocument();
+    expect(await screen.findByText("MMS와 첫 추천이 준비됐어요")).toBeInTheDocument();
+  });
+
+  it("keeps saved MMS and offers analysis retry after a 503 response", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Retry", saved: false, trackCount: 38 }] });
+      if (url === "/api/playlists/import") return json({ importId: "import-retry" }, 202);
+      if (url === "/api/playlists/import/import-retry") return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      return json({ code: "embedding_service_unavailable" }, 503);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+    await user.click(await screen.findByRole("checkbox", { name: /Retry/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    expect(await screen.findByText("MMS는 저장됐어요. 취향 분석을 다시 시도해 주세요.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "분석 다시 시도" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "MMS 보러 가기" })).toHaveAttribute("href", "/mms");
+  });
+
+  it("resumes remaining jobs after retry without starting another playlist import", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    let analysisCalls = 0;
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Resume", saved: false, trackCount: 38 }] });
+      if (url === "/api/playlists/import") return json({ importId: "import-resume" }, 202);
+      if (url === "/api/playlists/import/import-resume") return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      analysisCalls += 1;
+      return analysisCalls === 1
+        ? json({ code: "embedding_service_unavailable" }, 503)
+        : json({ embeddedTrackCount: 38, failedTrackCount: 0, profileReady: true, remaining: 0 });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+    await user.click(await screen.findByRole("checkbox", { name: /Resume/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+    await screen.findByRole("button", { name: "분석 다시 시도" });
+    await user.click(screen.getByRole("button", { name: "분석 다시 시도" }));
+
+    expect(await screen.findByText("MMS와 첫 추천이 준비됐어요")).toBeInTheDocument();
+    expect(fetcher.mock.calls.filter(([input]) => String(input) === "/api/playlists/import")).toHaveLength(1);
   });
 
   it("keeps recommendation setup open when fewer than 15 unique tracks were imported", async () => {

@@ -6,7 +6,9 @@ import {
   enrichNextTrack,
   fetchPlaylistImportStatus,
   fetchTidalPlaylists,
+  processTasteAnalysis,
   startPlaylistImport,
+  type AnalysisProgress,
   type PlaylistImportStatus,
 } from "@/lib/tidal/client-api";
 import type { TidalPlaylistSummary } from "@/lib/tidal/api";
@@ -27,10 +29,17 @@ type TidalOnboardingProps = {
   onConnect?: () => Promise<void>;
 };
 
-type Step = "connect" | "select" | "importing" | "complete";
+type Step =
+  | "connect"
+  | "select"
+  | "importing"
+  | "analyzing"
+  | "analysisFailed"
+  | "complete";
 
 const IMPORT_POLL_INTERVAL_MS = 750;
 const ENRICHMENT_INTERVAL_MS = 1_100;
+const ANALYSIS_INTERVAL_MS = 250;
 const MINIMUM_TASTE_TRACKS = 15;
 const RECOMMENDED_TASTE_TRACKS = 30;
 const MULTI_TASTE_TRACKS = 60;
@@ -89,10 +98,13 @@ export function TidalOnboarding({
   const [isConnecting, setIsConnecting] = useState(false);
   const [completedImport, setCompletedImport] =
     useState<PlaylistImportStatus | null>(null);
+  const [analysisProgress, setAnalysisProgress] =
+    useState<AnalysisProgress | null>(null);
   const callbackConnected = useSuccessfulTidalCallback();
   const visibleStep = step === "connect" && callbackConnected ? "select" : step;
   const workflowAbort = useRef<AbortController | null>(null);
   const enrichmentAbort = useRef<AbortController | null>(null);
+  const enrichmentRemaining = useRef(0);
   const selectedTrackCount = (playlists ?? []).reduce(
     (total, playlist) =>
       selectedPlaylistIds.includes(playlist.id)
@@ -147,24 +159,45 @@ export function TidalOnboarding({
     setError(null);
   };
 
-  const continueEnrichment = (pendingCount: number) => {
-    if (pendingCount <= 0) return;
+  const continueAnalysis = (pendingCount: number) => {
     const controller = new AbortController();
     enrichmentAbort.current?.abort();
     enrichmentAbort.current = controller;
+    enrichmentRemaining.current = pendingCount;
+    setAnalysisProgress(null);
+    setError(null);
+    setStep("analyzing");
 
-    const processNext = async () => {
+    const processRemaining = async () => {
       try {
-        const result = await enrichNextTrack(controller.signal);
-        if (result.remaining > 0) {
-          await delay(ENRICHMENT_INTERVAL_MS, controller.signal);
-          await processNext();
+        while (enrichmentRemaining.current > 0) {
+          const result = await enrichNextTrack(controller.signal);
+          enrichmentRemaining.current = result.remaining;
+          if (result.remaining > 0) {
+            await delay(ENRICHMENT_INTERVAL_MS, controller.signal);
+          }
         }
-      } catch (enrichmentError) {
-        if (!isAbortError(enrichmentError)) return;
+
+        while (!controller.signal.aborted) {
+          const result = await processTasteAnalysis(controller.signal);
+          setAnalysisProgress(result);
+          if (result.profileReady) {
+            setStep("complete");
+            return;
+          }
+          if (result.remaining === 0 && result.failedTrackCount > 0) {
+            throw new Error("taste_analysis_failed");
+          }
+          await delay(ANALYSIS_INTERVAL_MS, controller.signal);
+        }
+      } catch (analysisError) {
+        if (!isAbortError(analysisError)) {
+          setError("MMS는 저장됐어요. 취향 분석을 다시 시도해 주세요.");
+          setStep("analysisFailed");
+        }
       }
     };
-    void processNext();
+    void processRemaining();
   };
 
   const waitForImport = async (importId: string, signal: AbortSignal) => {
@@ -210,8 +243,7 @@ export function TidalOnboarding({
         return;
       }
       setCompletedImport(status);
-      setStep("complete");
-      continueEnrichment(status.enrichmentPendingCount);
+      continueAnalysis(status.enrichmentPendingCount);
     } catch (importError) {
       if (!isAbortError(importError)) {
         setError("플레이리스트를 가져오지 못했습니다. 다시 시도해 주세요.");
@@ -220,7 +252,55 @@ export function TidalOnboarding({
     }
   };
 
-  if (visibleStep === "complete" && completedImport) {
+  if (
+    completedImport
+    && ["analyzing", "analysisFailed", "complete"].includes(visibleStep)
+  ) {
+    if (visibleStep === "analyzing") {
+      return (
+        <section className="rounded-3xl border border-fuchsia-300/30 bg-fuchsia-400/10 p-6 text-white sm:p-10">
+          <p className="text-sm font-semibold tracking-[0.18em] text-fuchsia-200">
+            BUILDING YOUR TASTE
+          </p>
+          <h1 className="onboarding-title mt-3">취향을 분석하고 있어요</h1>
+          <p className="mt-3 max-w-xl leading-7 text-fuchsia-50/85" role="status">
+            {analysisProgress
+              ? `${analysisProgress.embeddedTrackCount}곡 분석 완료 · ${analysisProgress.remaining}곡 남음`
+              : "앨범 정보를 보강한 뒤 취향 벡터를 만들고 있습니다."}
+          </p>
+        </section>
+      );
+    }
+
+    if (visibleStep === "analysisFailed") {
+      return (
+        <section className="rounded-3xl border border-amber-300/30 bg-amber-400/10 p-6 text-white sm:p-10">
+          <p className="text-sm font-semibold tracking-[0.18em] text-amber-200">
+            MMS SAVED
+          </p>
+          <h1 className="onboarding-title mt-3">취향 분석을 이어갈 수 있어요</h1>
+          <p className="mt-3 max-w-xl leading-7 text-amber-50/85" role="alert">
+            {error}
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <button
+              className="min-h-11 rounded-xl bg-white px-5 font-bold text-amber-950 transition hover:bg-amber-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              type="button"
+              onClick={() => continueAnalysis(enrichmentRemaining.current)}
+            >
+              분석 다시 시도
+            </button>
+            <a
+              className="inline-flex min-h-11 items-center rounded-xl border border-white/30 px-5 font-bold text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              href="/mms"
+            >
+              MMS 보러 가기
+            </a>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section className="rounded-3xl border border-emerald-300/30 bg-emerald-400/10 p-6 text-white sm:p-10">
         <p className="text-sm font-semibold tracking-[0.18em] text-emerald-200">
@@ -229,7 +309,7 @@ export function TidalOnboarding({
         <h1 className="onboarding-title mt-3">MMS와 첫 추천이 준비됐어요</h1>
         <p className="mt-3 max-w-xl leading-7 text-emerald-50/85">
           {completedImport.savedTrackCount}곡을 저장했습니다. 중복 제거 후 고유 트랙은{" "}
-          {completedImport.uniqueTrackCount}곡입니다. 앨범 정보 보강은 백그라운드에서 계속됩니다.
+          {completedImport.uniqueTrackCount}곡입니다. 취향 분석과 첫 추천 준비를 마쳤습니다.
         </p>
         <a
           className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-white px-5 font-bold text-emerald-950 transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
