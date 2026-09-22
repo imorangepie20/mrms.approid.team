@@ -16,6 +16,14 @@ docker run --rm --network music-pie-backend \
   music-pie-ems-pipeline:current python -c 'from pathlib import Path; from ems_pipeline.importer import ManifestImporter; m=ManifestImporter.validate(Path("/artifacts/manifest.json"), Path("/artifacts/candidates.csv.gz")); print(m.row_count, m.snapshot_id, m.sha256)'
 ```
 
+DB migration은 Web image에 포함된 runner를 tools profile로 실행한다. 기존 스키마를 인수할 때는 baseline을 명시한다.
+
+```bash
+docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compose.zorin.yml \
+  --profile tools run --rm migrate node apps/web/scripts/migrate.mjs \
+  --baseline-through=008_ems_catalog.sql
+```
+
 성공 조건은 checksum·header·row count 검증, `row_count=1000`이다. 실패하면 DB write나 resolver를 시작하지 않는다.
 
 ## Live canary gate

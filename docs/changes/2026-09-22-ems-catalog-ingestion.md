@@ -30,8 +30,8 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 ## 미검증·보류
 
 - Zorin에 TIDAL Client Credentials가 없으므로 1,000곡 live resolve/import와 실제 `STREAM` 검증은 실행하지 않았다. 현재 후보는 dry-run artifact로만 전달됐다.
-- standalone 이미지에 계획서의 `migrate.mjs`가 포함되어 있지 않아 008 migration은 임시 SQL을 PostgreSQL 컨테이너에 직접 적용했다. 다음 작업에서 tracked migration runner와 운영용 stage/worker 명령을 추가해야 한다.
-- `ems-pipeline` 기본 CMD는 health gate 출력만 하므로 live worker를 시작하지 않았다. resolver loop·embedding enqueue를 구현하고 자격 증명을 주입한 뒤 profile로 활성화한다.
+- 후속 release `d1b7f5d`에 tracked `apps/web/scripts/migrate.mjs`와 `tools` profile을 추가했고, Zorin에서 `--baseline-through=008_ems_catalog.sql` 실행 결과 `0 pending migrations applied`를 확인했다.
+- `ems-pipeline` 기본 CMD는 health gate 출력만 하므로 live worker를 시작하지 않았다. resolver loop·embedding enqueue를 구현하고 카탈로그용 자격 증명을 주입한 뒤 활성화한다.
 - 로컬 Windows에서는 Zorin 절대 `env_file` 경로 때문에 Compose config를 실행하지 않았고, Zorin에서 `docker compose ... config --quiet`가 통과했다.
 
 ## 다음 작업
