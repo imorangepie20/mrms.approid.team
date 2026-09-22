@@ -8,7 +8,6 @@ import unicodedata
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
-from urllib.parse import quote
 
 import httpx
 
@@ -43,7 +42,7 @@ class _Track:
     album: str
     isrc: str | None
     duration_ms: int | None
-    availability: list[dict[str, Any]]
+    availability: list[Any]
 
 
 def normalize(value: str | None) -> str:
@@ -76,6 +75,14 @@ def _resources(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]
 def parse_tracks(document: dict[str, Any]) -> list[_Track]:
     resources = _resources(document)
     references = [item for item in document.get("data", []) if isinstance(item, dict) and item.get("type") == "tracks"]
+    if not references:
+        references = [
+            item
+            for search_result in document.get("data", [])
+            if isinstance(search_result, dict) and search_result.get("type") == "searchResults"
+            for item in ((search_result.get("relationships") or {}).get("tracks") or {}).get("data", [])
+            if isinstance(item, dict)
+        ]
     tracks: list[_Track] = []
     for reference in references:
         track = resources.get(("tracks", str(reference.get("id"))))
@@ -100,7 +107,7 @@ def parse_tracks(document: dict[str, Any]) -> list[_Track]:
             album=str(album_attributes.get("title") or attributes.get("albumTitle") or ""),
             isrc=str(attributes["isrc"]) if attributes.get("isrc") else None,
             duration_ms=duration_milliseconds(attributes.get("duration")),
-            availability=[item for item in availability if isinstance(item, dict)],
+            availability=[item for item in availability if isinstance(item, (dict, str))],
         ))
     return tracks
 
@@ -156,8 +163,16 @@ class TidalCatalogClient:
             token = self.get_token()
         except (httpx.HTTPError, ValueError):
             return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_request")
-        url = f"{self.api_base_url}/searchResults/{quote(query, safe='')}"
-        response = self.http_client.get(url, params={"countryCode": self.country_code}, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+        url = f"{self.api_base_url}/searchResults"
+        response = self.http_client.get(
+            url,
+            params={
+                "filter[query]": query,
+                "countryCode": self.country_code,
+                "include": "tracks,tracks.artists,tracks.albums",
+            },
+            headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"},
+        )
         if response.status_code == 401:
             try:
                 token = self.get_token(force_refresh=True)
@@ -194,7 +209,7 @@ class TidalCatalogClient:
         if len(matches) != 1:
             return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="tie")
         match = matches[0]
-        if not any(item.get("countryCode") == self.country_code and item.get("type") == "STREAM" for item in match.availability):
+        if not _has_stream_availability(match.availability, self.country_code):
             return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="kr_stream_missing")
         if match.duration_ms is not None and match.duration_ms < 30_000:
             return ResolveResult(ResolveStatus.UNAVAILABLE, tidal_id=match.id, query_hash=query_hash, match_rule=rule, match_confidence=confidence, error_code="duration_too_short")
@@ -203,3 +218,12 @@ class TidalCatalogClient:
 
 def _duration_matches(left: int | None, right: int | None) -> bool:
     return left is None or right is None or abs(left - right) <= 2_000
+
+
+def _has_stream_availability(availability: list[Any], country_code: str) -> bool:
+    for item in availability:
+        if isinstance(item, str) and item == "STREAM":
+            return True
+        if isinstance(item, dict) and item.get("countryCode") == country_code and item.get("type") == "STREAM":
+            return True
+    return False

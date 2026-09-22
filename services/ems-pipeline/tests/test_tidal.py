@@ -52,6 +52,34 @@ def search_document(tracks: list[dict[str, object]]) -> dict[str, object]:
     }
 
 
+def search_results_document(tracks: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "data": [{
+            "type": "searchResults",
+            "id": "search-a",
+            "relationships": {"tracks": {"data": [{"type": "tracks", "id": item["id"]} for item in tracks]}},
+        }],
+        "included": tracks + [
+            {"type": "artists", "id": "artist-a", "attributes": {"name": "Daft Punk"}},
+            {"type": "albums", "id": "album-a", "attributes": {"title": "Discovery"}},
+        ],
+    }
+
+
+def test_v2_search_results_uses_filter_query_and_country_filtered_stream_availability() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        assert request.url.path == "/v2/searchResults"
+        assert request.url.params.get("filter[query]") == "Daft Punk One More Time Discovery"
+        assert request.url.params.get("include") == "tracks,tracks.artists,tracks.albums"
+        assert request.url.params.get("countryCode") == "KR"
+        return httpx.Response(200, json=search_results_document([track("tidal-a", availability=["STREAM", "DJ"])]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    assert client.resolve(candidate()).status is ResolveStatus.MATCHED
+
+
 def test_isrc_exact_match_wins_and_records_only_query_hash() -> None:
     requests: list[httpx.Request] = []
 
