@@ -31,6 +31,34 @@ type Step = "connect" | "select" | "importing" | "complete";
 
 const IMPORT_POLL_INTERVAL_MS = 750;
 const ENRICHMENT_INTERVAL_MS = 1_100;
+const MINIMUM_TASTE_TRACKS = 15;
+const RECOMMENDED_TASTE_TRACKS = 30;
+const MULTI_TASTE_TRACKS = 60;
+
+function tasteReadiness(trackCount: number) {
+  if (trackCount < MINIMUM_TASTE_TRACKS) {
+    return {
+      detail: `${MINIMUM_TASTE_TRACKS - trackCount}곡 더 선택해 주세요`,
+      heading: "취향 분석을 시작하려면 최소 15곡이 필요해요",
+    };
+  }
+  if (trackCount < RECOMMENDED_TASTE_TRACKS) {
+    return {
+      detail: `더 정확한 추천까지 ${RECOMMENDED_TASTE_TRACKS - trackCount}곡 남았어요`,
+      heading: "최소 기준 15곡 달성",
+    };
+  }
+  if (trackCount < MULTI_TASTE_TRACKS) {
+    return {
+      detail: "60곡부터 여러 음악 취향을 나누어 분석할 수 있어요",
+      heading: "첫 추천을 만들기에 충분해요",
+    };
+  }
+  return {
+    detail: "최초 추천 준비가 충분해요",
+    heading: "여러 음악 취향을 나누어 분석할 수 있어요",
+  };
+}
 
 function delay(milliseconds: number, signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -65,6 +93,14 @@ export function TidalOnboarding({
   const visibleStep = step === "connect" && callbackConnected ? "select" : step;
   const workflowAbort = useRef<AbortController | null>(null);
   const enrichmentAbort = useRef<AbortController | null>(null);
+  const selectedTrackCount = (playlists ?? []).reduce(
+    (total, playlist) =>
+      selectedPlaylistIds.includes(playlist.id)
+        ? total + playlist.trackCount
+        : total,
+    0,
+  );
+  const readiness = tasteReadiness(selectedTrackCount);
 
   useEffect(() => {
     return () => {
@@ -166,6 +202,13 @@ export function TidalOnboarding({
         setStep("select");
         return;
       }
+      if (status.uniqueTrackCount < MINIMUM_TASTE_TRACKS) {
+        setError(
+          "취향 분석을 시작하려면 고유 트랙이 최소 15곡 필요해요. 플레이리스트를 더 선택해 주세요.",
+        );
+        setStep("select");
+        return;
+      }
       setCompletedImport(status);
       setStep("complete");
       continueEnrichment(status.enrichmentPendingCount);
@@ -185,8 +228,8 @@ export function TidalOnboarding({
         </p>
         <h1 className="onboarding-title mt-3">MMS와 첫 추천이 준비됐어요</h1>
         <p className="mt-3 max-w-xl leading-7 text-emerald-50/85">
-          {completedImport.savedTrackCount}곡을 저장했습니다. 앨범 정보 보강은
-          백그라운드에서 계속됩니다.
+          {completedImport.savedTrackCount}곡을 저장했습니다. 중복 제거 후 고유 트랙은{" "}
+          {completedImport.uniqueTrackCount}곡입니다. 앨범 정보 보강은 백그라운드에서 계속됩니다.
         </p>
         <a
           className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-white px-5 font-bold text-emerald-950 transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
@@ -266,6 +309,24 @@ export function TidalOnboarding({
               ))
             )}
           </fieldset>
+          {playlists && playlists.length > 0 ? (
+            <div className="mt-5 rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/5 p-4">
+              <p className="font-semibold">선택 예상 트랙 {selectedTrackCount}곡</p>
+              <progress
+                aria-label="첫 추천 권장 트랙 수"
+                className="mt-3 h-2 w-full accent-fuchsia-400"
+                max={RECOMMENDED_TASTE_TRACKS}
+                value={Math.min(selectedTrackCount, RECOMMENDED_TASTE_TRACKS)}
+              />
+              <p className="mt-2 text-sm font-semibold text-fuchsia-200">
+                {readiness.heading}
+              </p>
+              <p className="mt-1 text-sm text-slate-300">{readiness.detail}</p>
+              <p className="mt-2 text-xs text-slate-400">
+                플레이리스트 간 중복을 제거한 고유 트랙 수는 가져오기 후 확정됩니다.
+              </p>
+            </div>
+          ) : null}
           {visibleStep === "importing" ? (
             <p className="mt-5 text-slate-300" role="status">
               선택한 음악을 저장하는 중입니다.

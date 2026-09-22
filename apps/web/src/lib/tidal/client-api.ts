@@ -5,6 +5,7 @@ export type PlaylistImportStatus = {
   errorCode: string | null;
   savedPlaylistCount: number;
   savedTrackCount: number;
+  uniqueTrackCount: number;
   status:
     | "pending"
     | "running"

@@ -7,6 +7,7 @@ import {
   disconnectTidal,
   getCachedArtistGenres,
   getMusicBrainzSlotDelay,
+  getPlaylistImportById,
   getSavedPlaylistTracks,
   getSavedPlaylists,
   getSavedTracks,
@@ -188,6 +189,29 @@ describe("music library repository", () => {
     expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/WHERE\s+auth0_subject\s*=\s*\$1/i),
       ["auth0|listener-a", ["playlist-a"]],
+    );
+  });
+
+  it("reports the user's unique saved track count with import status", async () => {
+    const { database, query } = queryExecutor([{
+      completed_at: new Date("2026-09-22T00:00:00.000Z"),
+      enrichment_pending_count: 3,
+      error_code: null,
+      id: "import-row",
+      requested_playlist_ids: ["playlist-a"],
+      saved_playlist_count: 2,
+      saved_track_count: 40,
+      started_at: new Date("2026-09-21T23:59:00.000Z"),
+      status: "completed",
+      unique_track_count: 32,
+    }]);
+
+    await expect(
+      getPlaylistImportById("auth0|listener-a", "import-row", database),
+    ).resolves.toEqual(expect.objectContaining({ uniqueTrackCount: 32 }));
+    expect(query).toHaveBeenCalledWith(
+      expect.stringMatching(/count\(\*\)::integer[\s\S]*FROM music_tracks[\s\S]*unique_track_count/i),
+      ["auth0|listener-a", "import-row"],
     );
   });
 

@@ -49,6 +49,7 @@ type PlaylistImportRow = {
   saved_track_count?: number;
   started_at?: Date | null;
   status: PlaylistImportStatus;
+  unique_track_count?: number;
 };
 
 export type UpdateImportInput = {
@@ -442,6 +443,11 @@ export async function getPlaylistImportById(
        i.completed_at,
        (
          SELECT count(*)::integer
+         FROM music_tracks AS saved_track
+         WHERE saved_track.user_id = i.user_id
+       ) AS unique_track_count,
+       (
+         SELECT count(*)::integer
          FROM musicbrainz_enrichment_jobs AS j
          INNER JOIN music_tracks AS t ON t.id = j.track_id
          WHERE t.user_id = i.user_id AND j.status IN ('pending', 'running')
@@ -463,6 +469,7 @@ export async function getPlaylistImportById(
         savedTrackCount: row.saved_track_count ?? 0,
         startedAt: row.started_at ?? null,
         status: row.status,
+        uniqueTrackCount: row.unique_track_count ?? 0,
       }
     : null;
 }
