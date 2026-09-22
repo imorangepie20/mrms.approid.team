@@ -7,9 +7,11 @@ import { LikesProvider } from "@/providers/likes-provider";
 
 const session = vi.hoisted(() => ({
   acceptTrack: vi.fn(),
+  isAuthenticated: true,
   musicState: { mmsTrackIds: [], rejectedTrackIds: [] },
   playTrack: vi.fn(),
   rejectTrack: vi.fn(),
+  setQueue: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -28,6 +30,52 @@ function renderDashboard(node: React.ReactNode, initialLikes: LikeItem[] = []) {
     <LikesProvider initialLikes={initialLikes} isAuthenticated>{node}</LikesProvider>,
   );
 }
+
+it("renders the top three real EMS editorial sections without fixtures", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
+    totalCount: 54,
+    sections: [
+      {
+        slug: "new-releases",
+        title: "신곡 퍼레이드",
+        description: "지금 막 도착한 새로운 음악",
+        tracks: [{
+          album: "Discovery",
+          artist: "Daft Punk",
+          artworkClass: "from-violet-700 to-slate-900",
+          artworkUrl: "",
+          id: "track-a",
+          tidalTrackId: "tidal-a",
+          title: "One More Time",
+        }],
+      },
+      {
+        slug: "seasonal-jazz",
+        title: "시원한 가을 바람과 함께, 재즈",
+        description: "여유로운 재즈 셀렉션",
+        tracks: [],
+      },
+      {
+        slug: "night-rnb",
+        title: "도시의 밤을 채우는 R&B",
+        description: "늦은 시간에 어울리는 부드러운 트랙",
+        tracks: [],
+      },
+    ],
+  })));
+
+  renderDashboard(<MusicDashboard space="home" />);
+
+  expect(
+    await screen.findByRole("heading", { name: "신곡 퍼레이드" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("link", { name: "EMS에서 더 보기" })).toHaveLength(3);
+  expect(screen.queryByText("Midnight Frequencies")).not.toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining("sectionLimit=3"),
+    expect.anything(),
+  );
+});
 
 it("shows liked MMS content when TIDAL is disconnected", () => {
   renderDashboard(
