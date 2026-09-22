@@ -8,12 +8,10 @@ import { EditorialSectionRail } from "@/components/ems/editorial-section-rail";
 import { TrackList } from "@/components/music/track-list";
 import { LikeButton } from "@/components/music/like-button";
 import { MmsLibrary, type MmsImportedPlaylist } from "@/components/music/mms-library";
-import { catalog } from "@/lib/music/fixtures";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { fetchEmsSections } from "@/lib/ems/client";
 import type { EmsSectionsResponse } from "@/lib/ems/sections";
 import type { Track } from "@/lib/music/types";
-import { getGatewayTracks } from "@/lib/music/recommendations";
 import {
   canUsePersonalization,
   type PersonalizationAccess,
@@ -28,9 +26,9 @@ const copy = {
   mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
 } as const;
 
-export function MusicDashboard({ access, importedPlaylists = [], space, tracks: providedTracks }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; space: Space; tracks?: Track[] }) {
-  const { acceptTrack, musicState, playTrack, rejectTrack } = useMusicSession();
-  const tracks = space === "gms" ? getGatewayTracks(catalog, musicState.mmsTrackIds, musicState.rejectedTrackIds) : providedTracks ?? catalog;
+export function MusicDashboard({ access, importedPlaylists = [], space, tracks: providedTracks, recommendationError = false, recommendationReady = false, profileVersion = "ems-v1" }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; space: Space; tracks?: Track[]; recommendationError?: boolean; recommendationReady?: boolean; profileVersion?: string }) {
+  const { acceptTrack, playTrack, rejectTrack } = useMusicSession();
+  const tracks = space === "gms" ? providedTracks ?? [] : providedTracks ?? [];
 
   if (space === "home") return <Home />;
   if (space === "mms") {
@@ -41,7 +39,22 @@ export function MusicDashboard({ access, importedPlaylists = [], space, tracks: 
   }
   const meta = copy[space];
   const personalizationAllowed = access ? canUsePersonalization(access) : false;
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <p className="notice">★ 싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway tracks={tracks} active onPlay={playTrack} onAccept={acceptTrack} onReject={rejectTrack} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  const persistDecision = (track: Track, decision: "accept" | "reject") => {
+    void fetch("/api/recommendations/decisions", {
+      body: JSON.stringify({
+        decision,
+        profileVersion,
+        reasonCodes: track.recommendation?.reasonCodes ?? ["user_action"],
+        scoreComponents: track.recommendation?.scoreComponents ?? {},
+        sourceTrackId: track.id,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    }).catch(() => {});
+    if (decision === "accept") acceptTrack(track.id);
+    else rejectTrack(track.id);
+  };
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <p className="notice">★ 싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
 }
 
 function PersonalizationGate({ access, returnTo }: { access: PersonalizationAccess; returnTo: string }) {
@@ -118,4 +131,4 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
-function Gateway({ tracks, active, onPlay, onAccept, onReject }: { tracks: typeof catalog; active: boolean; onPlay: (track: (typeof catalog)[number]) => void; onAccept: (id: string) => void; onReject: (id: string) => void }) { if (!active) return <div className="empty-state">개인화 추천은 TIDAL 연결과 플레이리스트 분석 후 제공됩니다. <Link href="/onboarding">연결하기</Link></div>; return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}><Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /><button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track.id)}>추천 수락</button><button onClick={() => onReject(track.id)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</div></>; }
+function Gateway({ tracks, error, ready, onPlay, onAccept, onReject }: { tracks: Track[]; error: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) { if (error) return <div className="empty-state">개인화 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</div>; if (!ready) return <div className="empty-state">취향 분석이 완료되면 개인화 추천이 표시됩니다. <Link href="/onboarding">취향 분석 시작하기</Link></div>; return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><div className="gateway-row">{tracks.map((track) => <article className="gateway-card" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<button aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}>▶</button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</div></>; }

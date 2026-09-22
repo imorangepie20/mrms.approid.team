@@ -40,6 +40,7 @@
 - 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보를 생성하고 `008_ems_catalog.sql`과 tracked migration runner를 Zorin에 적용했다. 카탈로그용 `TIDAL_CLIENT_ID`·`TIDAL_CLIENT_SECRET`를 승인된 secret 경로에 추가하고 token smoke를 HTTP 200으로 확인했다. TIDAL v2 검색은 `filter[query]`·관계형 `tracks` 응답으로 수정했으며, bounded canary의 결과를 커밋·일시정지 상태로 기록한다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
 - 2026-09-22 TIDAL 공개 에디토리얼 대중성 입력으로 1,000곡 artifact를 재생성했다. 같은 ISRC의 여러 에디션은 결정적 우선순위로 하나를 선택하며, 신규 20곡 bounded canary는 재시도 포함 20/20 matched, ambiguous/not_found/unavailable 0이었다. 전체 run은 승인 전까지 paused다.
 - Home과 EMS가 같은 TIDAL 에디토리얼 section API와 rail을 사용하도록 구현했다. Home은 상위 3개, EMS는 최대 5개와 별도 검색 모드를 제공하며, 최신 KR `STREAM` availability와 전역 중복 제거를 적용한다. Zorin에는 009 스키마만 비파괴 적용했고 live data gate 실패로 UI release 전환은 보류했다.
+- 2026-09-22 GMS fixture 추천을 실제 EMS·사용자 taste profile 연결로 교체했다. 완료된 profile의 전체/군집 중심 유사도와 `ems-v1` 점수, 사용자별 보유·수락·영구 거절 제외를 적용하며, 인증된 수락·거절은 `user_recommendation_decisions`에 기록한다. 실제 completed profile을 이용한 production browser 검증은 아직 남아 있다. 상세 결과는 `docs/changes/2026-09-22-gms-personalized-recommendations.md`에 기록했다.
 
 ## 검증 결과
 

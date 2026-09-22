@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 
 import type { LikeItem } from "@/lib/likes/types";
+import { catalog } from "@/lib/music/fixtures";
 import { LikesProvider } from "@/providers/likes-provider";
 
 const session = vi.hoisted(() => ({
@@ -137,6 +138,8 @@ it("keeps GMS recommendation decisions separate from persistent hearts", async (
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
       space="gms"
+      recommendationReady
+      tracks={[catalog[0]]}
     />,
   );
 
@@ -146,4 +149,56 @@ it("keeps GMS recommendation decisions separate from persistent hearts", async (
   expect(session.acceptTrack).not.toHaveBeenCalled();
   expect(session.rejectTrack).not.toHaveBeenCalled();
   expect(session.playTrack).not.toHaveBeenCalled();
+});
+
+it("does not fall back to fixture tracks when personalized recommendations are unavailable", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      space="gms"
+    />,
+  );
+
+  expect(screen.getByText("취향 분석이 완료되면 개인화 추천이 표시됩니다.")).toBeInTheDocument();
+  expect(screen.queryByText("Midnight City")).not.toBeInTheDocument();
+});
+
+it("persists GMS decisions separately from the MMS like action", async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetcher);
+  const user = userEvent.setup();
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[{
+        ...catalog[0],
+        id: "ems-track-a",
+        recommendation: {
+          reasonCodes: ["taste_match"],
+          score: 0.91,
+          scoreComponents: {
+            catalogPriority: 0.8,
+            diversity: 1,
+            freshness: 0.7,
+            matchConfidence: 0.9,
+            similarity: 0.88,
+          },
+        },
+      }]}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "추천 수락" }));
+
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/recommendations/decisions",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toMatchObject({
+    decision: "accept",
+    sourceTrackId: "ems-track-a",
+  });
+  vi.unstubAllGlobals();
 });

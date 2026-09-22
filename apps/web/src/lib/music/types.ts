@@ -20,6 +20,17 @@ export type Track = {
   playbackAvailable?: boolean;
   tags?: string[];
   tidalTrackId?: string;
+  recommendation?: {
+    reasonCodes: string[];
+    score: number;
+    scoreComponents: {
+      catalogPriority: number;
+      diversity: number;
+      freshness: number;
+      matchConfidence: number;
+      similarity: number;
+    };
+  };
 };
 
 export type MusicState = {

@@ -1,0 +1,36 @@
+# GMS 개인화 추천 연결
+
+날짜: 2026-09-22
+
+## 변경 이유
+
+GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로필과 EMS 공용 카탈로그가 실제 추천에 연결되지 않았다. 기존 설계의 `ems-v1` 점수와 사용자별 제외 경계를 Web 런타임에 연결했다.
+
+## 변경 내용
+
+- 완료된 `user_taste_profiles`와 `user_taste_centroids`를 기준으로 EMS 후보를 조회한다.
+- 활성 상태·KR `STREAM` 최신 availability·완료된 EMS embedding만 후보로 사용한다.
+- 선택 플레이리스트 보유곡, 이미 수락한 곡, 영구 거절한 곡은 사용자별로 제외한다.
+- 취향 유사도는 전체 중심 0.3과 가장 가까운 군집 0.7을 결합한다.
+- 최종 점수는 `ems-v1`의 취향 유사도 65%, 신뢰도·카탈로그 우선순위 15%, 신규성 10%, 다양성 10%를 사용한다.
+- GMS는 실제 EMS `tidal_id`·아트워크를 표시하며, fixture로 대체하지 않는다.
+- 수락·거절은 인증된 사용자 기준으로 `user_recommendation_decisions`에 기록한다.
+- 프로필이 없거나 분석이 완료되지 않은 경우 추천 카드를 만들지 않고 온보딩 안내를 표시한다.
+
+## 검증
+
+- `apps/web`: `npm test` — 83개 파일, 331개 테스트 통과
+- `apps/web`: `npm run lint` — 오류 0건; 기존 경고 3건 유지
+- `apps/web`: `npm run build` — Next.js production build·TypeScript 통과
+- 추천 repository·API·GMS 결정 저장 focused 테스트 통과
+
+## 미검증
+
+- 실제 로그인 계정의 completed taste profile을 사용한 공개 GMS 브라우저 화면은 아직 확인하지 않았다.
+- Zorin production에 새 Web image를 배포하고 실제 사용자 추천 후보·결정 저장을 smoke test하지 않았다.
+
+## 다음 작업
+
+1. 실제 completed profile이 있는 계정으로 GMS 후보·점수·제외 동작을 확인한다.
+2. GMS 카드에 추천 이유 문구를 노출할지 UX를 검토한다.
+3. 실제 운영 배포 전 EMS embedding 완료율과 추천 후보 수를 점검한다.
