@@ -83,6 +83,17 @@ services:
     networks: [frontend, backend, egress]
     logging: *default-logging
 
+  migrate:
+    image: music-pie-web:current
+    profiles: [tools]
+    env_file: /home/approid/apps/music-pie/shared/secrets/web.env
+    command: ["node", "apps/web/scripts/migrate.mjs"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    logging: *default-logging
+
   tunnel:
     image: cloudflare/cloudflared:latest@sha256:ff69a2225ad7c6f85ed84fbd5f3087df46202426b2388ec60214098e0adf05e9
     profiles: [tunnel]
