@@ -1,4 +1,5 @@
-from ems_pipeline.worker import HealthGate, claim_candidates, retry_delay
+from ems_pipeline.tidal import ResolveResult, ResolveStatus
+from ems_pipeline.worker import HealthGate, claim_candidates, mark_resolution, retry_delay
 
 
 class FakeCursor:
@@ -60,3 +61,17 @@ def test_health_gate_pauses_when_disk_or_dependency_is_unhealthy() -> None:
 def test_retry_delay_prefers_retry_after_and_caps_exponential_backoff() -> None:
     assert retry_delay(attempt=4, retry_after_seconds=7) == 7
     assert retry_delay(attempt=20, retry_after_seconds=None) == 3600
+
+
+def test_mark_resolution_records_retry_checkpoint_without_query_text() -> None:
+    connection = FakeConnection()
+    mark_resolution(
+        connection,
+        "candidate-a",
+        ResolveResult(ResolveStatus.RETRYABLE, query_hash="a" * 64, retry_after_seconds=7, error_code="rate_limited"),
+        attempt_count=2,
+    )
+
+    assert "next_attempt_at" in connection.cursor_value.sql
+    assert "query_hash" in connection.cursor_value.sql
+    assert connection.cursor_value.values == ("retryable", "rate_limited", "a" * 64, None, 7, 7, "retryable", "candidate-a")

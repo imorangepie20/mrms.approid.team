@@ -4,6 +4,10 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from .importer import TidalMatch, promote_match
+from .select import Candidate
+from .tidal import ResolveResult, ResolveStatus
+
 
 @dataclass(frozen=True)
 class HealthGate:
@@ -50,3 +54,69 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                 (run_id, batch_size, lease_seconds),
             )
             return list(cursor.fetchall())
+
+
+def mark_resolution(connection: Any, candidate_id: str, result: ResolveResult, *, attempt_count: int) -> None:
+    delay = retry_delay(attempt_count, result.retry_after_seconds) if result.status == ResolveStatus.RETRYABLE else 0
+    with connection.transaction():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE ems_ingest_candidates
+                   SET resolver_status = %s,
+                       resolver_error_code = %s,
+                       query_hash = %s,
+                       match_rule = %s,
+                       next_attempt_at = CASE WHEN %s > 0 THEN now() + make_interval(secs => %s) ELSE NULL END,
+                       resolved_at = CASE WHEN %s IN ('ambiguous', 'not_found', 'unavailable', 'budget_exhausted') THEN now() ELSE NULL END,
+                       lease_expires_at = NULL
+                 WHERE id = %s
+                """,
+                (result.status.value, result.error_code, result.query_hash, result.match_rule, delay, delay, result.status.value, candidate_id),
+            )
+
+
+def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size: int = 50, max_batches: int | None = None) -> dict[str, int]:
+    counts = {status.value: 0 for status in ResolveStatus}
+    batches = 0
+    while max_batches is None or batches < max_batches:
+        claimed = claim_candidates(connection, run_id, batch_size=batch_size)
+        if not claimed:
+            break
+        batches += 1
+        for row in claimed:
+            candidate = Candidate(
+                candidate_key=str(row.get("candidate_key", "")),
+                recording_mbid=row.get("recording_mbid"),
+                isrc=row.get("isrc"),
+                title=str(row.get("title", "")),
+                artist=str(row.get("artist", "")),
+                album=row.get("album"),
+                duration_ms=row.get("duration_ms"),
+                release_date=None,
+                artist_region=None,
+                selection_bucket="canonical",
+                selection_score=0.0,
+            )
+            result = catalog_client.resolve(candidate)
+            counts[result.status.value] += 1
+            if result.status == ResolveStatus.MATCHED and result.tidal_id:
+                promote_match(
+                    connection,
+                    str(row["id"]),
+                    TidalMatch(
+                        tidal_id=result.tidal_id,
+                        title=candidate.title,
+                        artist=candidate.artist,
+                        album=candidate.album,
+                        duration_ms=max(30_000, int(candidate.duration_ms or 30_000)),
+                        recording_mbid=candidate.recording_mbid,
+                        isrc=candidate.isrc,
+                        match_confidence=result.match_confidence,
+                    ),
+                )
+            else:
+                mark_resolution(connection, str(row["id"]), result, attempt_count=int(row.get("attempt_count", 1)))
+            if result.status == ResolveStatus.BUDGET_EXHAUSTED:
+                return counts
+    return counts
