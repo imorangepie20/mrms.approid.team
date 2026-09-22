@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-22
 
-최신 기능 기준 커밋: `530176b`
+최신 기능 기준 커밋: `ce9cda8`
 
-최신 Zorin 배포 기준 커밋: `530176b`
+최신 Zorin 배포 기준 커밋: `ce9cda8`
 
 ## 이번 목표
 
@@ -37,6 +37,7 @@
 - 공개 주소는 `https://mrms.approid.team/`다. production은 Zorin OS의 Docker Compose에서 실행되며 Web loopback port는 `3104`다. Windows의 기존 `44119` Web과 tunnel connector는 중지했고 PostgreSQL 원본 volume은 rollback용으로 유지했다.
 - 초기 개인화 추천 전략과 사용자별 영구 제외 규칙은 기존 결정 문서를 따른다.
 - 2026-09-21 사용자가 TIDAL Developer Terms의 AI 서비스 제한 제약을 해소했다. 테스트 배포까지 가져온 TIDAL 트랙 메타데이터를 취향 분석 임베딩 입력으로 사용할 수 있다. 근거는 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`에 있다.
+- 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보 1,000곡을 생성하고 `008_ems_catalog.sql`을 Zorin에 적용했다. EMS API·UI는 배포됐지만 TIDAL Client Credentials가 준비되지 않아 resolver live canary는 아직 시작하지 않았다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
 
 ## 검증 결과
 
@@ -86,10 +87,10 @@
 
 ## 다음 작업
 
-1. 로그인된 공개 브라우저에서 취향 분석을 실행하고 101곡 임베딩·사용자 취향 중심·군집 중심을 검증한다.
-2. 완성된 사용자 취향 벡터를 GMS 추천 후보 점수화에 연결한다.
-3. 로그인된 공개 브라우저에서 검색·EMS·GMS의 네 유형 좋아요와 MMS 반영을 확인한다.
-4. 실제 모바일 기기에서 TIDAL 오디오 출력과 백그라운드 재생을 확인한다.
+1. TIDAL Client Credentials를 승인된 secret 경로에 추가하고 EMS stage/worker loop를 구현한다.
+2. 1,000곡 순차 resolve/import, false-match 검토, embedding completion, rollback rehearsal를 수행한다.
+3. 10,000곡 gate 통과 후 snapshot diff 기반 지속 축적 scheduler를 활성화한다.
+4. 로그인된 공개 브라우저에서 취향 분석·GMS 추천·EMS 좋아요와 모바일 TIDAL 재생을 확인한다.
 
 ## 관련 문서
 
