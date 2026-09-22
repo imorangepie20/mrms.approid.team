@@ -16,5 +16,9 @@
   - 전체 `npm test`: 61개 파일, 247개 테스트 통과.
   - `npm run lint`: 통과.
   - `npm run build`: 통과. 비밀값 없는 빌드의 기존 Auth0 설정 경고만 발생했다.
-- 미검증: 공개 서버의 실제 TIDAL 플레이리스트 선택 화면과 15곡 미만 흐름은 배포 후 확인한다.
+- Zorin 테스트 배포:
+  - 기능 커밋 `dae510c`를 `/home/approid/apps/music-pie/releases/dae510c`에 배포했다.
+  - `music-pie-web-1`과 `music-pie-postgres-1` health 통과, 기존 저장 트랙 101곡 유지.
+  - 공개 `/api/health/ready`, `/onboarding`, `/gms`가 HTTP 200을 반환했다.
+- 미검증: 로그인된 실제 TIDAL 계정으로 플레이리스트 선택 상태와 15곡 미만 완료 차단을 브라우저에서 확인하지 않았다.
 - 다음 작업: `paraphrase-multilingual-mpnet-base-v2` 임베딩 런타임과 적응형 1~3개 취향 군집을 설계한다.
