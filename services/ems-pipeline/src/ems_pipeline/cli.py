@@ -49,7 +49,7 @@ def execute_run(
 ) -> tuple[dict[str, int], str]:
     with connection.transaction():
         counts = worker(connection, run_id, catalog_client, batch_size=batch_size, max_batches=max_batches)
-        status = "paused" if counts.get("budget_exhausted", 0) else "completed"
+        status = "paused" if counts.get("budget_exhausted", 0) or max_batches is not None else "completed"
         connection.execute(
             "UPDATE ems_ingest_runs SET status = %s, matched_count = %s, heartbeat_at = now(), finished_at = now() WHERE id = %s",
             (status, counts.get("matched", 0), run_id),

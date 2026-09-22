@@ -37,3 +37,15 @@ def test_execute_run_commits_resolution_results_and_run_status() -> None:
     assert status == "completed"
     assert connection.events == ["begin", "commit"]
     assert connection.update == ("completed", 2, "run-a")
+
+
+def test_execute_run_pauses_bounded_canary() -> None:
+    connection = FakeConnection()
+
+    def fake_worker(*_args: object, **_kwargs: object) -> dict[str, int]:
+        return {"matched": 0, "budget_exhausted": 0}
+
+    _counts, status = cli.execute_run(connection, "run-b", object(), fake_worker, max_batches=1)
+
+    assert status == "paused"
+    assert connection.update == ("paused", 0, "run-b")
