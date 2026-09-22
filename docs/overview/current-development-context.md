@@ -2,7 +2,7 @@
 
 최종 갱신: 2026-09-22
 
-최신 기능 기준 커밋: `3f5ea5e`
+최신 기능 기준 커밋: `439c934`
 
 최신 Zorin 배포 기준 커밋: `3f5ea5e`
 
@@ -39,6 +39,7 @@
 - 2026-09-21 사용자가 TIDAL Developer Terms의 AI 서비스 제한 제약을 해소했다. 테스트 배포까지 가져온 TIDAL 트랙 메타데이터를 취향 분석 임베딩 입력으로 사용할 수 있다. 근거는 `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`에 있다.
 - 2026-09-22 MusicBrainz 공식 CC0 snapshot에서 EMS 후보를 생성하고 `008_ems_catalog.sql`과 tracked migration runner를 Zorin에 적용했다. 카탈로그용 `TIDAL_CLIENT_ID`·`TIDAL_CLIENT_SECRET`를 승인된 secret 경로에 추가하고 token smoke를 HTTP 200으로 확인했다. TIDAL v2 검색은 `filter[query]`·관계형 `tracks` 응답으로 수정했으며, bounded canary의 결과를 커밋·일시정지 상태로 기록한다. 상세 결과는 `docs/changes/2026-09-22-ems-catalog-ingestion.md`와 `docs/runbooks/ems-catalog-ingestion.md`에 있다.
 - 2026-09-22 TIDAL 공개 에디토리얼 대중성 입력으로 1,000곡 artifact를 재생성했다. 같은 ISRC의 여러 에디션은 결정적 우선순위로 하나를 선택하며, 신규 20곡 bounded canary는 재시도 포함 20/20 matched, ambiguous/not_found/unavailable 0이었다. 전체 run은 승인 전까지 paused다.
+- Home과 EMS가 같은 TIDAL 에디토리얼 section API와 rail을 사용하도록 구현했다. Home은 상위 3개, EMS는 최대 5개와 별도 검색 모드를 제공하며, 최신 KR `STREAM` availability와 전역 중복 제거를 적용한다. Zorin에는 009 스키마만 비파괴 적용했고 live data gate 실패로 UI release 전환은 보류했다.
 
 ## 검증 결과
 
@@ -72,6 +73,7 @@
 | 2026-09-22 | Windows 자동화 검증, Zorin Docker build·Compose·DB restore, 공개 HTTP smoke | 전체 DB 보존, Zorin 단독 origin, 기존 서버 격리 | 통과: 61개 파일·242개 테스트, Docker build, DB 10개 table count 일치, local/public health, 공개 화면 HTTP 200, 비로그인 likes 401, Auth0 redirect 307 |
 | 2026-09-22 | `apps/web`: 관련 Vitest, `npm test`, `npm run lint`, `npm run build`; Zorin image build·Compose 배포·공개 HTTP smoke | 최초 취향 분석 기준 표시와 고유 트랙 15곡 최소 조건 | 통과: 관련 24개·전체 247개 테스트, ESLint, Next.js build·TypeScript, Web/PostgreSQL health, DB 101곡 유지, 공개 health·onboarding·GMS HTTP 200 |
 | 2026-09-22 | 전체 Web·Embedding test, lint, build; 로컬 Compose test/config/build; Zorin rollback dump·pgvector migration·실제 model probe·공개 HTTP smoke | 768차원 임베딩 서비스와 기존 데이터 보존, Web 장애 격리 | 통과: Web 68개 파일·288개 테스트, Embedding 4개 테스트, ESLint·Next.js build, Compose 테스트 3개, image build, dump 검증, pgvector 0.8.6, 기존 101곡 유지, 세 서비스 health, model norm 1.0, 공개 주요 경로 200, 비로그인 분석 401 |
+| 2026-09-22 | pipeline 전체 pytest, Web 전체 test·lint·build, diff check, Zorin image build·rollback dump·009 migration·editorial dry-run | 에디토리얼 섹션 구현 회귀와 production data gate | 코드 검증 통과: pipeline 44개, Web 79개 파일·319개 테스트, lint 오류 0, build·diff check. 운영 gate 실패: joined `0/0/3/10/0`, 실제 sync·UI 배포 보류, 기존 Web healthy |
 
 ## 미검증·제약
 
@@ -85,13 +87,14 @@
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
+- 에디토리얼 섹션 dry-run에서 최소 4개×6곡 gate를 충족하지 못했다. 신규 테이블은 비어 있고 공개 Home/EMS는 아직 기존 release다. production browser QA도 배포 뒤로 보류했다.
 
 ## 다음 작업
 
-1. TIDAL Client Credentials를 승인된 secret 경로에 추가하고 EMS stage/worker loop를 구현한다.
-2. 1,000곡 순차 resolve/import, false-match 검토, embedding completion, rollback rehearsal를 수행한다.
-3. 10,000곡 gate 통과 후 snapshot diff 기반 지속 축적 scheduler를 활성화한다.
-4. 로그인된 공개 브라우저에서 취향 분석·GMS 추천·EMS 좋아요와 모바일 TIDAL 재생을 확인한다.
+1. 별도 승인 후 paused 1,000곡 resolver에서 에디토리얼 section 조인 후보를 bounded 확장한다.
+2. 최소 4개 section×6곡 dry-run gate를 다시 확인하고, 통과할 때만 실제 section sync와 Web release 전환을 수행한다.
+3. 배포 뒤 Home top 3, EMS 전체 section·검색·재생을 desktop/mobile browser에서 확인한다.
+4. 1,000곡 순차 resolve/import, false-match 검토, embedding completion, rollback rehearsal 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
 
 ## 관련 문서
 
@@ -117,3 +120,4 @@
 - `docs/superpowers/specs/2026-09-22-track-embedding-taste-profile-design.md`
 - `docs/superpowers/plans/2026-09-22-track-embedding-taste-profile.md`
 - `docs/changes/2026-09-22-track-embedding-taste-profile.md`
+- `docs/changes/2026-09-22-ems-editorial-sections.md`

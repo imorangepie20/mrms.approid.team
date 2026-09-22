@@ -36,6 +36,23 @@ docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compos
 6. matched/ambiguous/not_found/unavailable/retryable, duplicate, embedding completion을 기록한다.
 7. false-match가 1% 미만이고 playback sample 20개 및 rollback rehearsal가 통과할 때만 EMS API를 공개한다.
 
+## 에디토리얼 섹션 동기화 gate
+
+`009_ems_editorial_sections.sql` 적용과 rollback dump 검증 뒤, 실제 write 전에 반드시 dry-run을 실행한다. Web 컨테이너의 network namespace를 공유해야 Zorin의 DB DNS와 TIDAL egress를 함께 사용할 수 있다.
+
+```bash
+docker run --rm --network container:music-pie-web-1 \
+  --env-file /home/approid/apps/music-pie/shared/secrets/ems.env \
+  music-pie-ems-pipeline:<검증한-release> \
+  python -m ems_pipeline.cli sync-editorial-sections --dry-run
+```
+
+- JSON의 `joined`를 dry-run projected stored count로 판정한다. dry-run의 `stored`는 write를 하지 않으므로 0이다.
+- 최소 4개 섹션이 각각 `joined >= 6`일 때만 같은 명령에서 `--dry-run`을 제거해 실제 동기화한다.
+- gate 실패 시 실제 sync, image `current` 전환, release symlink 전환, Web 재시작을 하지 않는다.
+- 실제 sync 뒤 section별 membership 수와 `(section_id, track_id)` 중복 0건을 확인한다.
+- 이 명령은 one-off 작업이다. `ems-pipeline` 상시 worker를 시작하지 않는다.
+
 ## Pause·rollback
 
 - health gate 실패 또는 예산 초과: 신규 candidate lease를 만들지 않고 run을 `paused`로 기록한다.
