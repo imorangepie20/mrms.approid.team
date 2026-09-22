@@ -44,6 +44,10 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--batch-size", type=int, default=50)
     run.add_argument("--max-batches", type=int, default=None)
     run.add_argument("--request-budget", type=int, default=None)
+    embed = subparsers.add_parser("embed")
+    embed.add_argument("--batch-size", type=int, default=16)
+    embed.add_argument("--max-batches", type=int, default=None)
+    embed.add_argument("--embedding-service-url", default=None)
     return parser
 
 
@@ -176,6 +180,33 @@ def main(argv: list[str] | None = None) -> int:
             client = TidalCatalogClient(client_id, client_secret, request_budget=budget)
             counts, status = execute_run(connection, args.run_id, client, run_worker, batch_size=args.batch_size, max_batches=args.max_batches)
         print(json.dumps({"run_id": args.run_id, "status": status, "counts": counts}, sort_keys=True))
+        return 0
+    if args.command == "embed":
+        from .embedding import embed_ems_batch, embed_remote
+
+        database_url = os.environ.get("DATABASE_URL", "").strip()
+        embedding_url = (
+            args.embedding_service_url
+            or os.environ.get("EMBEDDING_SERVICE_URL", "http://embedding:8000")
+        ).strip()
+        if not database_url:
+            raise SystemExit("DATABASE_URL is required")
+        total = 0
+        batch_count = 0
+        with psycopg.connect(database_url, row_factory=dict_row) as connection:
+            while args.max_batches is None or batch_count < args.max_batches:
+                with connection.transaction():
+                    result = embed_ems_batch(
+                        connection,
+                        lambda texts: embed_remote(texts, embedding_url),
+                        limit=args.batch_size,
+                    )
+                print(json.dumps({"batch": batch_count + 1, **result}, sort_keys=True))
+                total += result["embedded"]
+                batch_count += 1
+                if result["embedded"] == 0:
+                    break
+        print(json.dumps({"embedded": total, "batches": batch_count}, sort_keys=True))
         return 0
     raise SystemExit(f"unsupported command: {args.command}")
 
