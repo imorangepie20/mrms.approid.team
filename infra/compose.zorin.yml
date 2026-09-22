@@ -6,7 +6,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16.15-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+    image: pgvector/pgvector:0.8.6-pg16-bookworm@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b
     restart: unless-stopped
     env_file: /home/approid/apps/music-pie/shared/secrets/database.env
     volumes:
@@ -20,6 +20,23 @@ services:
     networks: [backend]
     logging: *default-logging
 
+  embedding:
+    image: music-pie-embedding:current
+    build:
+      context: ../services/embedding
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks: [backend]
+    mem_limit: 3g
+    cpus: 4.0
+    logging: *default-logging
+
   web:
     image: music-pie-web:current
     build:
@@ -27,6 +44,8 @@ services:
       dockerfile: apps/web/Dockerfile
     restart: unless-stopped
     env_file: /home/approid/apps/music-pie/shared/secrets/web.env
+    environment:
+      EMBEDDING_SERVICE_URL: http://embedding:8000
     depends_on:
       postgres:
         condition: service_healthy
