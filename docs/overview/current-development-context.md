@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-22
 
-최신 기능 기준 커밋: `dae510c`
+최신 기능 기준 커밋: `530176b`
 
-최신 Zorin 배포 기준 커밋: `dae510c`
+최신 Zorin 배포 기준 커밋: `530176b`
 
 ## 이번 목표
 
@@ -31,7 +31,8 @@
 - 실제 PostgreSQL에 `002_tidal_connection_runtime.sql`, `003_user_music_library.sql`, `005_user_likes.sql`이 적용되어 있다.
 - MusicBrainz ISRC 조회의 잘못된 `release-groups` 파라미터를 제거했고, 아티스트별 장르·태그 보강과 공용 캐시를 구현했다. `006_musicbrainz_genres.sql`을 실제 PostgreSQL에 적용했으며 저장 트랙 101곡의 보강 잡이 모두 완료됐다. 이 중 49곡에 장르가 채워졌고 아티스트 캐시 64건이 저장됐다.
 - 추천 임베딩 입력용 `buildEmbeddingText`는 제목·아티스트·앨범에 `mb_genres`를 붙인다. 장르가 없을 때는 공용 장르 어휘에 포함된 `mb_tags`만 최대 3개 사용해 국가·시대·사건 등 비장르 태그를 배제한다.
-- 실제 임베딩 모델 호출과 사용자 취향 벡터 구성은 아직 구현하지 않았다. 현재 구현은 임베딩 입력 텍스트 생성까지다.
+- `paraphrase-multilingual-mpnet-base-v2`를 revision에 고정한 비루트 임베딩 서비스를 구현했다. 트랙 입력은 768차원 L2 정규화 vector로 저장되며 잡 claim·lease·재시도 상태를 기록한다.
+- 사용자 취향 프로필은 사용자별 트랙 vector의 가중 중심과 최대 3개 군집 중심을 계산하고, 온보딩 화면은 MusicBrainz 보강·임베딩·프로필 준비 상태를 순서대로 표시한다.
 - TIDAL 온보딩은 선택한 플레이리스트의 예상 트랙 수와 `15곡 최소`·`30곡 권장`·`60곡 다중 취향` 기준을 표시한다. 가져오기 후 사용자별 고유 트랙이 15곡 미만이면 첫 추천 준비를 완료하지 않는다.
 - 공개 주소는 `https://mrms.approid.team/`다. production은 Zorin OS의 Docker Compose에서 실행되며 Web loopback port는 `3104`다. Windows의 기존 `44119` Web과 tunnel connector는 중지했고 PostgreSQL 원본 volume은 rollback용으로 유지했다.
 - 초기 개인화 추천 전략과 사용자별 영구 제외 규칙은 기존 결정 문서를 따른다.
@@ -68,6 +69,7 @@
 | 2026-09-22 | `apps/web`: `npm test`, `npm run lint`, `npm run build` | 기능 기준 커밋 `47de7c3` 전체 회귀와 production build | 통과: 57개 파일, 236개 테스트, ESLint, Next.js build·TypeScript |
 | 2026-09-22 | Windows 자동화 검증, Zorin Docker build·Compose·DB restore, 공개 HTTP smoke | 전체 DB 보존, Zorin 단독 origin, 기존 서버 격리 | 통과: 61개 파일·242개 테스트, Docker build, DB 10개 table count 일치, local/public health, 공개 화면 HTTP 200, 비로그인 likes 401, Auth0 redirect 307 |
 | 2026-09-22 | `apps/web`: 관련 Vitest, `npm test`, `npm run lint`, `npm run build`; Zorin image build·Compose 배포·공개 HTTP smoke | 최초 취향 분석 기준 표시와 고유 트랙 15곡 최소 조건 | 통과: 관련 24개·전체 247개 테스트, ESLint, Next.js build·TypeScript, Web/PostgreSQL health, DB 101곡 유지, 공개 health·onboarding·GMS HTTP 200 |
+| 2026-09-22 | 전체 Web·Embedding test, lint, build; 로컬 Compose test/config/build; Zorin rollback dump·pgvector migration·실제 model probe·공개 HTTP smoke | 768차원 임베딩 서비스와 기존 데이터 보존, Web 장애 격리 | 통과: Web 68개 파일·288개 테스트, Embedding 4개 테스트, ESLint·Next.js build, Compose 테스트 3개, image build, dump 검증, pgvector 0.8.6, 기존 101곡 유지, 세 서비스 health, model norm 1.0, 공개 주요 경로 200, 비로그인 분석 401 |
 
 ## 미검증·제약
 
@@ -77,15 +79,15 @@
 - 실제 모바일 기기의 codec 지원과 백그라운드 오디오 동작은 아직 검증하지 않았다.
 - AI 분석 입력 허용은 테스트 배포까지다. production 배포 범위와 TIDAL 연결 해제 시 데이터 삭제 의무는 아직 확정하지 않았다.
 - MusicBrainz 장르 라이선스 확인, 공용 장르 어휘의 콜드스타트 정책, 캐시 만료·갱신 정책은 아직 확정하지 않았다.
-- `paraphrase-multilingual-mpnet-base-v2` 런타임 의존성과 실제 임베딩 저장·갱신 경로는 아직 없다.
+- 로그인된 실제 계정의 분석 시작 UI는 Chrome 연결 도구가 두 번 timeout되어 확인하지 못했다. 배포 직후 임베딩·취향 프로필 테이블은 0건이며 인증 분석 1회 후 101곡 vector와 프로필 결과를 검증해야 한다.
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
 
 ## 다음 작업
 
-1. 임베딩 모델 런타임과 벡터 저장·갱신 방식을 설계한 뒤 `buildEmbeddingText` 출력으로 트랙 벡터를 생성한다.
-2. 사용자 취향 벡터 구성과 GMS 추천 후보 점수화에 트랙 임베딩을 연결한다.
+1. 로그인된 공개 브라우저에서 취향 분석을 실행하고 101곡 임베딩·사용자 취향 중심·군집 중심을 검증한다.
+2. 완성된 사용자 취향 벡터를 GMS 추천 후보 점수화에 연결한다.
 3. 로그인된 공개 브라우저에서 검색·EMS·GMS의 네 유형 좋아요와 MMS 반영을 확인한다.
 4. 실제 모바일 기기에서 TIDAL 오디오 출력과 백그라운드 재생을 확인한다.
 
@@ -110,3 +112,6 @@
 - `docs/changes/2026-09-21-musicbrainz-genre-enrichment.md`
 - `docs/changes/2026-09-21-genre-embedding-input.md`
 - `docs/plans/2026-09-21-genre-embedding-input.md`
+- `docs/superpowers/specs/2026-09-22-track-embedding-taste-profile-design.md`
+- `docs/superpowers/plans/2026-09-22-track-embedding-taste-profile.md`
+- `docs/changes/2026-09-22-track-embedding-taste-profile.md`
