@@ -39,7 +39,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    work_root = args.work_root or (Path(os.environ["MUSICBRAINZ_WORK_ROOT"]) if os.environ.get("MUSICBRAINZ_WORK_ROOT") else None)
+    work_root_arg = getattr(args, "work_root", None)
+    work_root = work_root_arg or (Path(os.environ["MUSICBRAINZ_WORK_ROOT"]) if os.environ.get("MUSICBRAINZ_WORK_ROOT") else None)
     if args.command in {"download", "download-canonical", "select"} and work_root is None:
         raise SystemExit("MUSICBRAINZ_WORK_ROOT or --work-root is required")
     if args.command in {"download", "download-canonical"}:
