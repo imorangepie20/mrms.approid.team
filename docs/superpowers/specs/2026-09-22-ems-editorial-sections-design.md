@@ -112,7 +112,8 @@ EMS 첫 화면은 다음 순서로 구성한다.
 
 - `ems_tracks.status = 'active'`
 - 요청 region에서 최신 availability가 `STREAM/playable=true`
-- embedding status가 `completed`
+
+EMS는 외부 카탈로그 탐색 공간이므로 임베딩 완료 여부를 노출 조건으로 사용하지 않는다. `ems_track_embeddings`는 GMS 추천과 취향 계산의 준비 상태이며, 임베딩 작업이 지연되더라도 검증된 EMS 트랙 탐색과 재생을 막지 않는다. 기존 `/api/ems/catalog`의 embedding `EXISTS` 조건도 함께 제거한다.
 - active section만 반환
 
 섹션은 `sort_order`, 트랙은 `rank` 순으로 반환한다. 앞 섹션에서 반환한 track은 뒤 섹션에서 제외한다. `totalCount`는 현재 필터에 맞는 전체 EMS 트랙 수이며, 첫 페이지에 로드된 배열 길이를 총 트랙으로 표시하지 않는다.
@@ -161,7 +162,7 @@ TIDAL 또는 동기화 작업은 페이지 요청 경로에 포함하지 않는�
 
 ### API
 
-- active·KR stream·embedding completed 조건
+- active·최신 KR stream 조건과 embedding 비의존성
 - section/track 정렬
 - 섹션 간 track 중복 제거
 - `totalCount` 정확성
