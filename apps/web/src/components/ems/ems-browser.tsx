@@ -12,14 +12,13 @@ export function EmsBrowser({ autoFocus = false }: { autoFocus?: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setError(false);
     const params = new URLSearchParams({ limit: "100", region: "KR", sort: "new" });
     if (query.trim()) params.set("query", query.trim());
     fetch(`/api/ems/catalog?${params.toString()}`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("ems_catalog_failed");
         const body = (await response.json()) as { tracks?: Track[] };
+        setError(false);
         setTracks(Array.isArray(body.tracks) ? body.tracks : []);
       })
       .catch((reason: unknown) => {
