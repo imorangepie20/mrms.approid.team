@@ -14,7 +14,7 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 ## 코드·검증
 
 - `008_ems_catalog.sql`을 Zorin PostgreSQL 컨테이너에 `ON_ERROR_STOP=1`로 적용했다.
-- `services/ems-pipeline` 테스트: `22 passed`.
+- `services/ems-pipeline` 테스트: `23 passed`.
 - Web 테스트: `74 files, 300 tests passed`; lint와 Next.js build 통과.
 - Zorin Docker build: `music-pie-web:current`, `music-pie-ems-pipeline:current` 생성 성공.
 - 후보 매니페스트 검증: `run_id=canary-1k`, `row_count=1000`, checksum 일치, `dry_run=true`.
@@ -27,10 +27,15 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 - 기존 resolver가 TIDAL v2 `/searchResults/{query}`를 리소스 ID로 호출해 `400 INVALID_RESOURCE_ID`를 받던 문제를 `filter[query]`·`include=tracks,tracks.artists,tracks.albums` 호출로 수정했다. v2의 문자열 `availability` 형식도 처리한다.
 - run CLI의 commit 누락을 수정해 resolver 상태와 run 상태가 실제 DB에 저장되도록 했고, `--max-batches` bounded 실행은 `paused`로 기록한다.
 - 신규 run `a352caf9-2be9-444b-971a-0bd864752832`에서 10곡 canary를 실행했다. 현재 DB 상태는 `not_found=19`, `pending=163`, `matched=0`이며, 1,000곡 전체 실행은 품질 게이트 전까지 보류한다.
+- 원인을 재현한 결과 full 검색어(아티스트+제목+앨범)는 HTTP 200이어도 트랙 0개를 반환했고, 아티스트+제목은 트랙을 반환했다. 검색어를 아티스트+제목으로 수정한 release `a5ac776e93e5`를 배포했다.
+- 신규 run `71944a60-8ed8-489f-bc4c-a0506088b438`의 20곡 bounded canary에서 `matched=2`, `not_found=14`, `retryable=4`, `pending=162`를 확인했다. `ems_tracks=2`가 실제 DB에 커밋됐다. 이 결과로 resolver 경로는 동작하지만 전체 품질 게이트는 아직 통과하지 않았다.
+- ISRC가 있는 1M enriched 표본에서 `US`/`KR` ISRC 후보 111,395행을 추출해 1,000행 artifact를 만들었다. 지역 비율은 `US=111,377`, `KR=18`이며 selector 결과는 `US=998`, `KR=2`다.
+- 신규 run `56c8cb55-56ef-4a4b-befc-69f48e87bf28` 20곡 canary는 `matched=15`, `not_found=2`, `retryable=3`, `unavailable=0`이었다. 처리 완료 17곡 기준 매칭률은 88.2%지만 rate limit 재시도가 남아 있어 최종 품질 수치로 확정하지 않는다.
+- TIDAL 검색·매칭에서 앨범명을 제거했다. 앨범 에디션 차이로 검색 결과가 0개가 되거나 매칭이 누락되지 않도록 아티스트+제목+재생시간을 기준으로 하고, 동률은 `ambiguous`로 격리한다.
 
 ## Zorin 결과
 
-- 배포 release: `690101de4b20`, `/home/approid/apps/music-pie/releases/690101de4b20`.
+- 배포 release: `a5ac776e93e5`, `/home/approid/apps/music-pie/releases/a5ac776e93e5`.
 - `music-pie-postgres`, `music-pie-embedding`, `music-pie-web`, 기존 tunnel이 healthy/running 상태다.
 - 로컬·공개 `/api/health/live`, `/api/health/ready`, `/ems`, 공개 `/api/ems/catalog` 모두 HTTP 200.
 - DB 보존 확인: `app_users=1`, `music_tracks=101`, `ems_ingest_runs=0`, `ems_tracks=0`.
@@ -38,7 +43,7 @@ MusicBrainz 공식 CC0 snapshot에서 1,000곡 후보를 결정적으로 선별�
 
 ## 미검증·보류
 
-- Zorin에 TIDAL Client Credentials를 추가하고 token smoke는 통과했다. bounded live canary는 실행했지만 `matched=0`으로 남아 1,000곡 전체 resolve/import와 실제 `STREAM` 승격은 보류했다.
+- Zorin에 TIDAL Client Credentials를 추가하고 token smoke는 통과했다. 검색어 수정 후 bounded live canary에서 `matched=2`를 확인했지만 표본 품질 게이트와 1,000곡 전체 resolve/import는 아직 보류했다.
 - 후속 release `d1b7f5d`에 tracked `apps/web/scripts/migrate.mjs`와 `tools` profile을 추가했고, Zorin에서 `--baseline-through=008_ems_catalog.sql` 실행 결과 `0 pending migrations applied`를 확인했다.
 - `ems-pipeline` 기본 CMD는 health gate 출력만 하므로 live worker를 시작하지 않았다. resolver loop·embedding enqueue를 구현하고 카탈로그용 자격 증명을 주입한 뒤 활성화한다.
 - 로컬 Windows에서는 Zorin 절대 `env_file` 경로 때문에 Compose config를 실행하지 않았고, Zorin에서 `docker compose ... config --quiet`가 통과했다.

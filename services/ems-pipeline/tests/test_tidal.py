@@ -112,6 +112,19 @@ def test_fallback_requires_exact_metadata_and_duration() -> None:
     assert result.match_rule == "metadata_exact_duration"
 
 
+def test_album_variant_does_not_block_unique_title_artist_duration_match() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "auth.test":
+            return token_response()
+        return httpx.Response(200, json=search_document([track("tidal-a", isrc=None)]))
+
+    client = TidalCatalogClient("client", "secret", http_client=httpx.Client(transport=httpx.MockTransport(handler)), token_url="https://auth.test/token", api_base_url="https://api.test/v2")
+    result = client.resolve(candidate(isrc=None, album="Discovery (Deluxe Edition)"))
+
+    assert result.status is ResolveStatus.MATCHED
+    assert result.match_rule == "metadata_exact_duration"
+
+
 def test_tie_is_quarantined_as_ambiguous() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.host == "auth.test":

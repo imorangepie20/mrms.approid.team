@@ -156,8 +156,7 @@ class TidalCatalogClient:
 
     def resolve(self, candidate: Candidate) -> ResolveResult:
         # TIDAL search treats a full artist/title/album string as one strict query.
-        # Album editions often differ, so use artist + title for discovery and
-        # validate album metadata after the API returns tracks.
+        # Album editions often differ, so discover by artist + title only.
         query = " ".join(value for value in (candidate.artist, candidate.title) if value)
         query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()
         if self.used_requests >= self.request_budget:
@@ -204,7 +203,7 @@ class TidalCatalogClient:
             rule = "isrc_exact"
             confidence = 1.0
         else:
-            matches = [track for track in tracks if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist) and (not candidate.album or normalize(track.album) == normalize(candidate.album)) and _duration_matches(candidate.duration_ms, track.duration_ms)]
+            matches = [track for track in tracks if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist) and _duration_matches(candidate.duration_ms, track.duration_ms)]
             rule = "metadata_exact_duration"
             confidence = 0.95
         if not matches:
