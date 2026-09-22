@@ -45,6 +45,7 @@
 - GMS 추천 카드에는 서버의 `taste_match`·`fresh_release` reason code를 `취향 일치`·`최근 발매` 라벨로 표시해 추천 근거를 확인할 수 있게 했다.
 - 2026-09-22 GMS 개인화 추천 Web release `12e4050`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
 - 2026-09-22 Zorin의 active EMS 2,159곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,159건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다. TIDAL 응답 지연으로 다음 bounded 후보 7개는 pending 상태다.
+- 2026-09-23 에디토리얼 section dry-run의 조회 지연을 bounded request budget/timeout과 playlist page cap으로 제한했다. 검증 이미지 `music-pie-ems-pipeline:editorial-20260923`로 5개 section 중 4개가 6곡 이상 조인되어 실제 membership sync를 수행했고, 이전 `temporary-*` placeholder section 5개는 비활성화했다. 현재 API는 `new-releases`, `seasonal-jazz`, `night-rnb`, `feel-good` 4개를 반환하며 `focus`는 조인 0곡이라 제외한다. DB membership 중복은 0건이고 readiness·Home·EMS HTTP smoke는 200이다.
 
 ## 검증 결과
 
@@ -95,14 +96,14 @@
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
-- 에디토리얼 섹션 dry-run에서 최소 4개×6곡 gate를 충족하지 못했다. 신규 테이블은 비어 있고 공개 Home/EMS는 아직 기존 release다. production browser QA도 배포 뒤로 보류했다.
+- 에디토리얼 section membership은 gate 통과 후 production DB에 반영됐지만, Web release symlink는 전환하지 않았다. 로그인 계정의 taste profile과 desktop/mobile 브라우저 QA는 아직 남아 있다.
 
 ## 다음 작업
 
-1. 별도 승인 후 paused 1,000곡 resolver에서 에디토리얼 section 조인 후보를 bounded 확장한다.
-2. 최소 4개 section×6곡 dry-run gate를 다시 확인하고, 통과할 때만 실제 section sync와 Web release 전환을 수행한다.
-3. 배포 뒤 Home top 3, EMS 전체 section·검색·재생을 desktop/mobile browser에서 확인한다.
-4. 1,000곡 순차 resolve/import, false-match 검토, embedding completion, rollback rehearsal 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
+1. 로그인된 실제 계정으로 TIDAL 온보딩 분석을 완료하고 taste profile·GMS 추천 카드를 검증한다.
+2. Home top 3, EMS section·검색·재생을 desktop/mobile browser에서 확인한다.
+3. paused resolver bounded batch와 embedding completion을 계속 확인한 뒤 false-match 검토·rollback rehearsal을 수행한다.
+4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
 
 ## 관련 문서
 

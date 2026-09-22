@@ -16,6 +16,10 @@ from .tidal import TidalCatalogClient, duration_milliseconds
 DEFAULT_QUERIES = ("Top 100", "Hits", "Pop", "K-Pop", "Hip-Hop", "R&B", "Rock", "Dance", "Latin", "Country", "Jazz", "Classical")
 
 
+class EditorialRequestBudgetExceeded(RuntimeError):
+    """Raised before an editorial request would exceed the configured budget."""
+
+
 @dataclass(frozen=True)
 class EditorialPlaylist:
     playlist_id: str
@@ -118,6 +122,9 @@ def select_editorial_candidates(tracks: Iterable[EditorialTrack], limit: int) ->
 def _get_document(client: TidalCatalogClient, token: str, url: str, params: dict[str, str] | None = None) -> dict[str, Any]:
     response: httpx.Response | None = None
     for attempt in range(5):
+        if client.used_requests >= client.request_budget:
+            raise EditorialRequestBudgetExceeded("editorial request budget exhausted")
+        client.used_requests += 1
         response = client.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
         if response.status_code != 429 and response.status_code < 500:
             response.raise_for_status()
@@ -224,7 +231,11 @@ def fetch_playlist_tracks(
     client: TidalCatalogClient,
     token: str,
     playlist: EditorialPlaylist,
+    *,
+    max_pages: int | None = None,
 ) -> list[EditorialTrack]:
+    if max_pages is not None and max_pages < 1:
+        raise ValueError("max_pages must be positive")
     url = f"{client.api_base_url}/playlists/{playlist.playlist_id}/relationships/items"
     params: dict[str, str] | None = {
         "countryCode": client.country_code,
@@ -244,6 +255,8 @@ def fetch_playlist_tracks(
                 position_offset=position_offset,
             )
         )
+        if max_pages is not None and page_count >= max_pages:
+            break
         data = document.get("data")
         position_offset += len(data) if isinstance(data, list) else 0
         next_url = (document.get("links") or {}).get("next")

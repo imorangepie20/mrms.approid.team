@@ -60,3 +60,29 @@ Home과 EMS의 fixture 중심 구성을 실제 TIDAL 공개 `EDITORIAL` 플레�
 1. paused 1,000곡 후보 중 에디토리얼 섹션과 조인 가능한 track을 우선해 bounded resolver batch를 별도 승인 후 확장한다.
 2. dry-run에서 최소 4개 섹션이 각 6곡 이상인지 다시 확인한다.
 3. gate 통과 후 실제 sync, 중복 검증, `current` 태그·release symlink 전환, 로컬·공개 smoke와 desktop/mobile browser QA를 수행한다.
+
+## 2026-09-23 순차 실행 결과
+
+- 로컬 pipeline 전체 테스트는 `50 passed`로 통과했고, Web EMS·Home 대상 테스트는 `6 files, 20 tests passed`로 통과했다.
+- 첫 dry-run이 TIDAL 조회 지연으로 90초 이상 완료되지 않는 원인을 확인했다. section별 playlist 전체 페이지를 순회하면서 요청 timeout과 editorial request budget을 사용하지 않는 경계 문제였다.
+- `EditorialRequestBudgetExceeded`, editorial request budget(기본 24), 요청 timeout(기본 8초), playlist별 `max_pages=1` bounded fetch를 추가했다. 기존 snapshot builder의 기본 동작은 유지한다.
+- 검증 이미지 `music-pie-ems-pipeline:editorial-20260923` (`sha256:5d95f8a90bb0d8dfc1ae315e2aa7baefe40921c775d3ea5ef365ec2ec9386b3d`)로 dry-run을 재실행했다.
+
+| slug | discovered | joined/projected stored | gate |
+|---|---:|---:|---|
+| `new-releases` | 38 | 8 | 통과 |
+| `seasonal-jazz` | 38 | 12 | 통과 |
+| `night-rnb` | 39 | 16 | 통과 |
+| `feel-good` | 32 | 17 | 통과 |
+| `focus` | 26 | 0 | 보류 |
+
+- 최소 4개 section×6곡 gate를 통과해 실제 sync를 수행했다. stored 결과는 `new-releases 8`, `seasonal-jazz 12`, `night-rnb 16`, `feel-good 17`, `focus 0`이다.
+- 이전 placeholder인 `temporary-*` section 5개는 active=false로 비활성화했다. EMS 원본 트랙은 삭제·변경하지 않았다.
+- DB 검증 결과 section membership 중복 pair는 `0`, active EMS total은 `2,159`다. API는 `new-releases 8`, `seasonal-jazz 12`, `night-rnb 12`, `feel-good 10`을 반환하며 빈 `focus`는 제외한다.
+- Zorin readiness, 내부 Home/EMS, 공개 Home/EMS HTTP smoke는 모두 `200`이다. 상시 worker/resolver는 시작하지 않았다.
+
+## 2026-09-23 미검증·다음 단계
+
+- 로그인된 실제 계정의 taste profile 생성과 GMS 추천 카드 검증은 별도 온보딩 단계로 남아 있다.
+- 에디토리얼 Home/EMS의 desktop/mobile 브라우저 시각 QA와 재생·검색 전환 확인은 다음 단계다.
+- `music-pie-ems-pipeline:editorial-20260923`은 one-off 검증 이미지로 사용했으며 Web release symlink는 전환하지 않았다.

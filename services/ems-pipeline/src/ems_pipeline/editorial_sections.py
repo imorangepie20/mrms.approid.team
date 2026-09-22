@@ -6,6 +6,7 @@ from typing import Iterable
 from .tidal import TidalCatalogClient
 from .tidal_popularity import (
     EditorialPlaylist,
+    EditorialRequestBudgetExceeded,
     EditorialTrack,
     fetch_editorial_playlists,
     fetch_playlist_tracks,
@@ -132,14 +133,17 @@ def discover_editorial_memberships(
 ) -> list[EditorialMembership]:
     memberships: list[EditorialMembership] = []
     for definition in SECTION_DEFINITIONS:
-        playlists = [
-            item
-            for item in fetch_editorial_playlists(client, token, definition.queries)
-            if any(
-                term.casefold() in item.name.casefold()
-                for term in definition.playlist_name_terms
-            )
-        ]
+        try:
+            playlists = [
+                item
+                for item in fetch_editorial_playlists(client, token, definition.queries)
+                if any(
+                    term.casefold() in item.name.casefold()
+                    for term in definition.playlist_name_terms
+                )
+            ]
+        except EditorialRequestBudgetExceeded:
+            break
         if definition.slug == "new-releases":
             playlists.sort(key=lambda item: item.playlist_id)
             playlists.sort(key=lambda item: item.followers, reverse=True)
@@ -147,12 +151,15 @@ def discover_editorial_memberships(
         playlists = playlists[:playlist_limit]
         if not playlists:
             continue
-        playlist_tracks = [
-            (playlist, track)
-            for playlist in playlists
-            for track in fetch_playlist_tracks(client, token, playlist)
-            if track.isrc.strip() and track.duration_ms >= 30_000
-        ]
+        try:
+            playlist_tracks = [
+                (playlist, track)
+                for playlist in playlists
+                for track in fetch_playlist_tracks(client, token, playlist, max_pages=1)
+                if track.isrc.strip() and track.duration_ms >= 30_000
+            ]
+        except EditorialRequestBudgetExceeded:
+            break
         playlist_order = {
             playlist.playlist_id: index for index, playlist in enumerate(playlists)
         }

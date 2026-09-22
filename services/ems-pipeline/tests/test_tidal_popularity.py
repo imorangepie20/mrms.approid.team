@@ -1,6 +1,17 @@
 import pytest
+import httpx
 
-from ems_pipeline.tidal_popularity import EditorialTrack, rank_editorial_playlists, resolve_next_page_url, select_editorial_candidates
+from ems_pipeline.tidal import TidalCatalogClient
+from ems_pipeline.tidal_popularity import (
+    EditorialPlaylist,
+    EditorialTrack,
+    EditorialRequestBudgetExceeded,
+    fetch_editorial_playlists,
+    fetch_playlist_tracks,
+    rank_editorial_playlists,
+    resolve_next_page_url,
+    select_editorial_candidates,
+)
 
 
 def editorial_track(
@@ -77,3 +88,45 @@ def test_next_page_url_rejects_external_origin_and_repeated_cursor() -> None:
         resolve_next_page_url(base, "https://example.test/steal", set(), page_count=1)
     with pytest.raises(ValueError, match="page limit"):
         resolve_next_page_url(base, "/playlists/p/relationships/items?page[cursor]=two", set(), page_count=100)
+
+
+def test_editorial_fetch_does_not_issue_http_after_budget_is_exhausted() -> None:
+    calls = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(200, json={"included": []})
+
+    client = TidalCatalogClient(
+        "client",
+        "secret",
+        request_budget=0,
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        api_base_url="https://api.test/v2",
+    )
+
+    with pytest.raises(EditorialRequestBudgetExceeded):
+        fetch_editorial_playlists(client, "token", ("Jazz",))
+    assert calls == 0
+
+
+def test_editorial_playlist_fetch_honors_page_cap(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = 0
+
+    def fake_document(*_args: object, **_kwargs: object) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return {"data": [], "included": [], "links": {"next": "/next"}}
+
+    monkeypatch.setattr("ems_pipeline.tidal_popularity._get_document", fake_document)
+    client = TidalCatalogClient("client", "secret", api_base_url="https://api.test/v2")
+
+    fetch_playlist_tracks(
+        client,
+        "token",
+        EditorialPlaylist("playlist", "Jazz", 10),
+        max_pages=1,
+    )
+
+    assert calls == 1

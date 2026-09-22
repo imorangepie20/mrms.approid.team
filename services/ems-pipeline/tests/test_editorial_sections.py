@@ -7,6 +7,7 @@ from ems_pipeline.editorial_sections import (
     rank_section_tracks,
     sync_editorial_sections,
 )
+from ems_pipeline.tidal_popularity import EditorialRequestBudgetExceeded
 from ems_pipeline.tidal_popularity import (
     EditorialPlaylist,
     EditorialTrack,
@@ -115,7 +116,7 @@ def test_discovery_prefers_recent_new_editorial_and_playlist_position(
     def fake_playlists(_client: object, _token: str, queries: tuple[str, ...]):
         return [old, recent] if queries == SECTION_DEFINITIONS[0].queries else []
 
-    def fake_tracks(_client: object, _token: str, playlist: EditorialPlaylist):
+    def fake_tracks(_client: object, _token: str, playlist: EditorialPlaylist, **_kwargs: object):
         if playlist.playlist_id == "old":
             return [
                 EditorialTrack(
@@ -150,6 +151,19 @@ def test_discovery_prefers_recent_new_editorial_and_playlist_position(
 
     assert [item.tidal_id for item in new_releases] == ["recent-b", "recent-a"]
     assert {item.source_playlist_id for item in new_releases} == {"recent"}
+
+
+def test_discovery_returns_collected_sections_when_request_budget_is_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "ems_pipeline.editorial_sections.fetch_editorial_playlists",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            EditorialRequestBudgetExceeded("editorial request budget exhausted")
+        ),
+    )
+
+    assert discover_editorial_memberships(object(), "token") == []
 
 
 def test_sync_replaces_one_section_atomically_and_matches_tidal_id_before_isrc() -> None:

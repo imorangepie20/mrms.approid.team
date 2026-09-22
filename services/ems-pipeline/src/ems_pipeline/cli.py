@@ -9,6 +9,7 @@ from typing import Any, Callable
 from uuid import uuid4
 
 import psycopg
+import httpx
 from psycopg.rows import dict_row
 
 from .importer import ManifestImporter, stage_candidates
@@ -33,7 +34,9 @@ def build_parser() -> argparse.ArgumentParser:
     select_tidal.add_argument("--playlist-limit", type=int, default=40)
     sync_sections = subparsers.add_parser("sync-editorial-sections")
     sync_sections.add_argument("--dry-run", action="store_true")
-    sync_sections.add_argument("--playlist-limit", type=int, default=12)
+    sync_sections.add_argument("--playlist-limit", type=int, default=2)
+    sync_sections.add_argument("--request-budget", type=int, default=None)
+    sync_sections.add_argument("--request-timeout", type=float, default=8.0)
     stage = subparsers.add_parser("stage")
     stage.add_argument("--manifest", type=Path, required=True)
     stage.add_argument("--candidates", type=Path, required=True)
@@ -119,20 +122,24 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(
                 "DATABASE_URL, TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET are required"
             )
-        client = TidalCatalogClient(client_id, client_secret)
-        token = client.get_token()
-        memberships = discover_editorial_memberships(
-            client,
-            token,
-            playlist_limit=args.playlist_limit,
-        )
-        with psycopg.connect(database_url, row_factory=dict_row) as connection:
-            counts = sync_editorial_sections(
-                connection,
-                SECTION_DEFINITIONS,
-                memberships,
-                dry_run=args.dry_run,
+        request_budget = args.request_budget
+        if request_budget is None:
+            request_budget = int(os.environ.get("TIDAL_EDITORIAL_REQUEST_BUDGET", "24"))
+        with httpx.Client(timeout=args.request_timeout) as http_client:
+            client = TidalCatalogClient(
+                client_id,
+                client_secret,
+                request_budget=max(0, request_budget),
+                http_client=http_client,
             )
+            token = client.get_token()
+            memberships = discover_editorial_memberships(
+                client,
+                token,
+                playlist_limit=args.playlist_limit,
+            )
+        with psycopg.connect(database_url, row_factory=dict_row) as connection:
+            counts = sync_editorial_sections(connection, SECTION_DEFINITIONS, memberships, dry_run=args.dry_run)
         print(
             json.dumps(
                 {slug: asdict(count) for slug, count in counts.items()},
