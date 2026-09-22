@@ -243,3 +243,18 @@ export async function countPendingEmbeddingJobs(
   );
   return result.rows[0]?.count ?? 0;
 }
+
+export async function countFailedEmbeddingJobs(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+): Promise<number> {
+  const result = await database(executor).query<{ count: number }>(
+    `SELECT count(*)::integer AS count
+     FROM track_embeddings AS e
+     INNER JOIN music_tracks AS t ON t.id = e.track_id
+     INNER JOIN app_users AS u ON u.id = t.user_id
+     WHERE u.auth0_subject = $1 AND e.status = 'failed'`,
+    [auth0Subject],
+  );
+  return result.rows[0]?.count ?? 0;
+}

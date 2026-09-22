@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   claimEmbeddingJobs,
   completeEmbeddingJobs,
+  countFailedEmbeddingJobs,
   countPendingEmbeddingJobs,
   retryEmbeddingJobs,
   syncEmbeddingJobs,
@@ -184,10 +185,14 @@ describe("embedding job repository", () => {
     await expect(
       countPendingEmbeddingJobs("auth0|listener-a", database),
     ).resolves.toBe(3);
+    await expect(
+      countFailedEmbeddingJobs("auth0|listener-a", database),
+    ).resolves.toBe(3);
 
     const allSql = query.mock.calls.map(([sql]) => sql).join("\n");
-    expect(allSql.match(/u\.auth0_subject = \$1/g)).toHaveLength(3);
+    expect(allSql.match(/u\.auth0_subject = \$1/g)).toHaveLength(4);
     expect(allSql).toMatch(/embedding = \$4::vector/i);
     expect(allSql).toMatch(/status = CASE WHEN e\.attempt_count >= 5 THEN 'failed' ELSE 'pending' END/i);
+    expect(allSql).toMatch(/e\.status = 'failed'/i);
   });
 });

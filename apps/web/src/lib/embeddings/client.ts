@@ -1,7 +1,7 @@
 const BATCH_LIMIT = 16;
 const DIMENSIONS = 768;
-const MODEL_ID = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2";
-const MODEL_REVISION = "088a2c0bb2f721158b8350700bf0f2a250df25ae";
+export const EMBEDDING_MODEL_ID = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2";
+export const EMBEDDING_MODEL_REVISION = "088a2c0bb2f721158b8350700bf0f2a250df25ae";
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export type EmbeddingBatch = {
@@ -41,8 +41,8 @@ function parseBatch(body: unknown, expectedCount: number): EmbeddingBatch {
   }
   const candidate = body as Record<string, unknown>;
   if (
-    candidate.modelId !== MODEL_ID
-    || candidate.modelRevision !== MODEL_REVISION
+    candidate.modelId !== EMBEDDING_MODEL_ID
+    || candidate.modelRevision !== EMBEDDING_MODEL_REVISION
   ) {
     throw new EmbeddingClientError("embedding_model_mismatch");
   }
@@ -56,8 +56,8 @@ function parseBatch(body: unknown, expectedCount: number): EmbeddingBatch {
   }
   return {
     embeddings: candidate.embeddings as number[][],
-    modelId: MODEL_ID,
-    modelRevision: MODEL_REVISION,
+    modelId: EMBEDDING_MODEL_ID,
+    modelRevision: EMBEDDING_MODEL_REVISION,
   };
 }
 
