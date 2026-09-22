@@ -71,7 +71,7 @@ def test_v2_search_results_uses_filter_query_and_country_filtered_stream_availab
         if request.url.host == "auth.test":
             return token_response()
         assert request.url.path == "/v2/searchResults"
-        assert request.url.params.get("filter[query]") == "Daft Punk One More Time Discovery"
+        assert request.url.params.get("filter[query]") == "Daft Punk One More Time"
         assert request.url.params.get("include") == "tracks,tracks.artists,tracks.albums"
         assert request.url.params.get("countryCode") == "KR"
         return httpx.Response(200, json=search_results_document([track("tidal-a", availability=["STREAM", "DJ"])]))

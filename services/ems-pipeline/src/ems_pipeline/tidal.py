@@ -155,7 +155,10 @@ class TidalCatalogClient:
         return token
 
     def resolve(self, candidate: Candidate) -> ResolveResult:
-        query = " ".join(value for value in (candidate.artist, candidate.title, candidate.album or "") if value)
+        # TIDAL search treats a full artist/title/album string as one strict query.
+        # Album editions often differ, so use artist + title for discovery and
+        # validate album metadata after the API returns tracks.
+        query = " ".join(value for value in (candidate.artist, candidate.title) if value)
         query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()
         if self.used_requests >= self.request_budget:
             return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
