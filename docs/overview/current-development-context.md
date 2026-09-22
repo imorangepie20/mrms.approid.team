@@ -42,7 +42,7 @@
 - Home과 EMS가 같은 TIDAL 에디토리얼 section API와 rail을 사용하도록 구현했다. Home은 상위 3개, EMS는 최대 5개와 별도 검색 모드를 제공하며, 최신 KR `STREAM` availability와 전역 중복 제거를 적용한다. Zorin에는 009 스키마만 비파괴 적용했고 live data gate 실패로 UI release 전환은 보류했다.
 - 2026-09-22 GMS fixture 추천을 실제 EMS·사용자 taste profile 연결로 교체했다. 완료된 profile의 전체/군집 중심 유사도와 `ems-v1` 점수, 사용자별 보유·수락·영구 거절 제외를 적용하며, 인증된 수락·거절은 `user_recommendation_decisions`에 기록한다. 실제 completed profile을 이용한 production browser 검증은 아직 남아 있다. 상세 결과는 `docs/changes/2026-09-22-gms-personalized-recommendations.md`에 기록했다.
 - 2026-09-22 GMS 개인화 추천 Web release `796b5e2`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천·결정 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
-- 2026-09-22 Zorin의 active EMS 2,038곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,038건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다.
+- 2026-09-22 Zorin의 active EMS 2,121곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,121건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다.
 
 ## 검증 결과
 
@@ -77,7 +77,7 @@
 | 2026-09-22 | `apps/web`: 관련 Vitest, `npm test`, `npm run lint`, `npm run build`; Zorin image build·Compose 배포·공개 HTTP smoke | 최초 취향 분석 기준 표시와 고유 트랙 15곡 최소 조건 | 통과: 관련 24개·전체 247개 테스트, ESLint, Next.js build·TypeScript, Web/PostgreSQL health, DB 101곡 유지, 공개 health·onboarding·GMS HTTP 200 |
 | 2026-09-22 | 전체 Web·Embedding test, lint, build; 로컬 Compose test/config/build; Zorin rollback dump·pgvector migration·실제 model probe·공개 HTTP smoke | 768차원 임베딩 서비스와 기존 데이터 보존, Web 장애 격리 | 통과: Web 68개 파일·288개 테스트, Embedding 4개 테스트, ESLint·Next.js build, Compose 테스트 3개, image build, dump 검증, pgvector 0.8.6, 기존 101곡 유지, 세 서비스 health, model norm 1.0, 공개 주요 경로 200, 비로그인 분석 401 |
 | 2026-09-22 | pipeline 전체 pytest, Web 전체 test·lint·build, diff check, Zorin image build·rollback dump·009 migration·editorial dry-run | 에디토리얼 섹션 구현 회귀와 production data gate | 코드 검증 통과: pipeline 44개, Web 79개 파일·319개 테스트, lint 오류 0, build·diff check. 운영 gate 실패: joined `0/0/3/10/0`, 실제 sync·UI 배포 보류, 기존 Web healthy |
-| 2026-09-22 | `services/ems-pipeline`: 임베딩 focused/full pytest, Zorin `music-pie-ems-pipeline:b91afce` 배치, PostgreSQL 상태 조회 | active EMS 임베딩 완료와 원문 비저장 | 통과: pipeline focused 2개·full 47개, `ems_track_embeddings` completed 2,038건, 입력 원문 컬럼 미사용 |
+| 2026-09-22 | `services/ems-pipeline`: 임베딩 focused/full pytest, Zorin `music-pie-ems-pipeline:b91afce` 배치, PostgreSQL 상태 조회 | active EMS 임베딩 완료와 원문 비저장 | 통과: pipeline focused 2개·full 47개, `ems_track_embeddings` completed 2,121건, 입력 원문 컬럼 미사용 |
 
 ## 미검증·제약
 
