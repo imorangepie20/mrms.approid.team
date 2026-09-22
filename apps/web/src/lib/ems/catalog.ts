@@ -57,15 +57,15 @@ export async function listEmsTracks(options: EmsListOptions, executor: QueryExec
   const result = await executor.query<EmsRow>(
     `SELECT e.id, e.tidal_id, e.title, e.artist, e.album, e.duration_ms
        FROM ems_tracks AS e
+       JOIN LATERAL (
+         SELECT a.playable
+         FROM ems_availability_events AS a
+         WHERE a.track_id = e.id AND a.region = $1 AND a.capability = 'STREAM'
+         ORDER BY a.observed_at DESC, a.id DESC
+         LIMIT 1
+       ) AS availability ON availability.playable = true
       WHERE e.status = 'active'
-        AND EXISTS (
-          SELECT 1 FROM ems_availability_events AS a
-           WHERE a.track_id = e.id AND a.region = $1 AND a.capability = 'STREAM' AND a.playable = true
-        )
-        AND EXISTS (
-          SELECT 1 FROM ems_track_embeddings AS v
-           WHERE v.track_id = e.id AND v.status = 'completed'
-        )${searchClause}
+        ${searchClause}
       ORDER BY ${orderBy}
       LIMIT $2 OFFSET $3`,
     values,

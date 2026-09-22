@@ -14,7 +14,7 @@ describe("EMS catalog", () => {
     expect(() => decodeEmsCursor(cursor, "different")).toThrow("ems_cursor_invalid");
   });
 
-  it("clamps page size and maps only active Korean playable embeddings", async () => {
+  it("clamps page size and maps active tracks using only latest Korean availability", async () => {
     process.env.EMS_CURSOR_SECRET = "test-secret";
     const query = vi.fn(async () => ({ rows: [{
       id: "track-a", tidal_id: "tidal-a", title: "One More Time", artist: "Daft Punk", album: "Discovery", duration_ms: 310000,
@@ -24,5 +24,8 @@ describe("EMS catalog", () => {
 
     expect(result.tracks[0]).toMatchObject({ id: "track-a", tidalTrackId: "tidal-a", title: "One More Time" });
     expect(query).toHaveBeenCalledWith(expect.stringMatching(/status = 'active'/i), expect.arrayContaining([100]));
+    const sql = query.mock.calls[0]?.[0] ?? "";
+    expect(sql).not.toContain("ems_track_embeddings");
+    expect(sql).toMatch(/ORDER BY a\.observed_at DESC[\s\S]*LIMIT 1/i);
   });
 });
