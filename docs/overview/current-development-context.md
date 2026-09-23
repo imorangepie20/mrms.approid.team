@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-23
 
-최신 기능 기준 커밋: `bb49710`
+최신 기능 기준 커밋: `4b5da7f`
 
-최신 Zorin Web 배포 기준 커밋: `bb49710` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `4b5da7f` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 

@@ -25,4 +25,5 @@
 - 커밋 `fa3d121`을 `origin/codex/ems-artwork-2k`에 푸시하고 Zorin release `/home/approid/apps/music-pie/releases/fa3d121`에 배포했다.
 - GMS 전용 버튼 스타일 연결 수정 커밋 `f9443da`를 추가 배포했고, 현재 release symlink는 `/home/approid/apps/music-pie/releases/f9443da`이다.
 - 아이콘 중앙 정렬 커밋 `bb49710`을 추가 배포했고, 현재 release symlink는 `/home/approid/apps/music-pie/releases/bb49710`이다.
+- GMS 추천 이유 제거 커밋 `4b5da7f`를 추가 배포했고, 현재 release symlink는 `/home/approid/apps/music-pie/releases/4b5da7f`이다.
 - Web health와 로컬·공개 `/`, `/ems`, `/gms`, `/api/health/ready`가 HTTP 200이며, 비로그인 `/api/recommendations`는 HTTP 401이다.
