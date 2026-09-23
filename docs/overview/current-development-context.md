@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-23
 
-최신 기능 기준 커밋: `d2e8320`
+최신 기능 기준 커밋: `a00a1bb`
 
-최신 Zorin Web 배포 기준 커밋: `d2e8320` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `a00a1bb` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -59,7 +59,7 @@
 - 2026-09-23 검색 결과가 있어도 입력 중 제시어를 유지하도록 UI 조건을 분리했다. 새 검색어 입력 시 이전 제시어를 비우고, 결과 탭 선택 시 제시어를 닫는다. 통합 결과와 제시어 동시 표시 회귀 테스트를 추가했으며 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 - 2026-09-23 전역 하단·전체 화면 플레이어에 현재 트랙 좋아요 버튼을 추가했다. 기존 `trackLikeItem`·`LikeButton`을 재사용해 컴팩트·전체 화면의 상태와 저장 흐름을 공유하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
 - 2026-09-23 전체 화면 플레이어의 커버 영역에 현재 트랙 앨범 이미지를 표시하도록 확장했다. 이미지 로드 실패 시 기존 그라데이션 fallback을 유지하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
-- 2026-09-23 Home EMS 트랙 카드의 재생 오버레이를 항상 표시·클릭 가능하게 복구했다. 전역 hover CSS와 충돌하던 `opacity`·`pointer-events` 조건을 TrackCard 전용 규칙으로 덮고 345개 테스트·lint·build를 통과한 뒤 Zorin `d2e8320`으로 배포했다. 상세 결과는 `docs/changes/2026-09-23-main-play-overlay.md`에 기록했다.
+- 2026-09-23 Home·EMS·GMS 트랙 카드의 재생 오버레이를 항상 표시·클릭 가능하게 통일했다. 전역 hover CSS와 충돌하던 `opacity`·`pointer-events` 조건을 TrackCard 전용 규칙으로 덮고, 별도 Gateway 카드에도 같은 클래스를 적용했다. 345개 테스트·lint·build를 통과한 뒤 Zorin `a00a1bb`으로 배포했다. 상세 결과는 `docs/changes/2026-09-23-main-play-overlay.md`에 기록했다.
 
 ## 검증 결과
 
@@ -73,7 +73,7 @@
 | 2026-09-21 | 공개 도메인 브라우저 확인 | 검색·재생 선택·셔플 상태·현재 대기열 표시 | 통과 |
 | 2026-09-21 | 공개 도메인 TIDAL 재생 확인 | 재생 시간 증가와 미디어 오류 없음 | 통과: `paused: false`, `readyState: 4`, `errorCode: null` |
 | 2026-09-21 | 공개 도메인 MMS 데스크톱·390×844 모바일 확인 | 빈 상태, 요약, CTA, 모바일 제목과 내비게이션 정상 | 통과 |
-| 2026-09-23 | `apps/web`: `npm run test -- --run`, `npm run lint`, `npm run build`, `git diff --check`; 공개 `/`·`/api/health/ready`; Zorin `d2e8320` 컨테이너 health | Home 카드 재생 오버레이 표시·상호작용 회귀와 production 배포 상태 | 통과: 84개 파일·345개 테스트, lint 오류 0개(기존 경고 3개), build 통과, HTTP 200/ready, 컨테이너 healthy |
+| 2026-09-23 | `apps/web`: `npm run test -- --run`, `npm run lint`, `npm run build`, `git diff --check`; 공개 `/`·`/api/health/ready`; Zorin `a00a1bb` 컨테이너 health | Home·EMS·GMS 카드 재생 오버레이 일관성과 production 배포 상태 | 통과: 84개 파일·345개 테스트, lint 오류 0개(기존 경고 3개), build 통과, HTTP 200/ready, 컨테이너 healthy |
 | 2026-09-21 | PostgreSQL 확장 migration 적용 전후 확인 | 기존 사용자·연결 보존, 라이브러리 테이블 생성 | 통과: 사용자 1명·연결 1건 유지, 라이브러리 테이블 4개 생성 |
 | 2026-09-21 | 공개 도메인 앨범·플레이리스트 상세 확인 | 실제 컬렉션의 전체 트랙과 검색 상태 복원 | 통과: 앨범 13곡, 플레이리스트 25곡, 상대 cursor pagination 확인 |
 | 2026-09-21 | `apps/web`: `npm test`, `npm run lint`, `npm run build`; 저장소: `git diff --check` | TIDAL Embed 폴백 회귀와 production 검증 | 통과: 46개 파일, 147개 테스트, ESLint, build, diff 검사 |

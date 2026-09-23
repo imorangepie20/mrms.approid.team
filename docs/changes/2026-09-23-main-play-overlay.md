@@ -1,14 +1,15 @@
-# 메인 재생 오버레이 복구
+# 메인·GMS 재생 오버레이 통일
 
 ## 변경 이유
 
-Home의 EMS 카드가 `.cover-play-button`의 전역 hover 스타일과 TrackCard 내부의 `opacity-0`·`pointer-events-none` 조건을 동시에 적용하고 있었다. 데스크톱에서 artwork 위로 hover가 정확히 유지되지 않으면 재생 아이콘이 사라지고 버튼을 누를 수 없어 메인 재생이 간헐적으로 동작하는 것처럼 보였다.
+Home의 EMS 카드가 `.cover-play-button`의 전역 hover 스타일과 TrackCard 내부의 `opacity-0`·`pointer-events-none` 조건을 동시에 적용하고 있었다. GMS는 별도 `gateway-cover` 마크업이라 같은 규칙을 사용하지 않아 페이지별로 재생 버튼 표시가 달랐다.
 
 ## 변경 내용
 
 - TrackCard의 재생 오버레이를 기본 표시 상태로 변경했다.
 - 재생 버튼에 전용 `track-card-play-button` 클래스를 부여하고 항상 `pointer-events-auto`로 유지했다.
 - 전역 GMS/Gateway hover 규칙과 충돌하지 않도록 TrackCard 전용 CSS override를 추가했다.
+- GMS Gateway 카드에도 같은 표시·상호작용 클래스를 적용해 Home·EMS·GMS의 동작을 통일했다.
 - 오버레이 표시·상호작용 클래스 회귀 테스트를 추가했다.
 
 ## 확인 결과
