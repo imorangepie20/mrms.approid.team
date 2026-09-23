@@ -342,7 +342,13 @@
 }
 
 .track-rail-track > * {
+  flex: 0 0 auto;
   scroll-snap-align: start;
+}
+
+.track-rail-track > .track-card {
+  width: 208px;
+  flex-basis: 208px;
 }
 
 .track-rail-control {
@@ -433,6 +439,16 @@
 
   .track-rail-control {
     display: none;
+  }
+
+  .track-rail-track > .track-card {
+    width: 176px;
+    flex-basis: 176px;
+  }
+
+  .gateway-card--fixed {
+    width: 220px;
+    flex-basis: 220px;
   }
 }
 
@@ -529,6 +545,33 @@
 
 .gateway-card {
   min-width: 238px;
+}
+
+.gateway-card--fixed {
+  width: 238px;
+  flex: 0 0 238px;
+}
+
+.gateway-card--fixed > b,
+.gateway-card--fixed > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gateway-card--fixed > div[aria-label="추천 이유"] {
+  display: flex;
+  min-height: 22px;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.gateway-card--fixed > div[aria-label="추천 이유"] span {
+  color: var(--brand-soft);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .gateway-cover {

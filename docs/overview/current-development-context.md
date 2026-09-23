@@ -50,7 +50,7 @@
 - 2026-09-23 온보딩 화면을 음악 중심 히어로·진행 rail·선택 상태 강조·반응형 레이아웃으로 개선했다. 변경 영향 범위 테스트 15개와 ESLint, Impeccable detector를 통과했다. OAuth 후 운영 DB에서 TIDAL 연결 `connected=1`, 플레이리스트 3개·고유 트랙 101곡을 확인했고 실제 임베딩·취향 프로필 완료까지 처리했다.
 - 2026-09-23 운영 계정 취향 분석을 완료했다. `user_taste_profiles`는 `completed|101`, `user_taste_centroids`는 3개이며, GMS 유사도 조회 대상 후보는 active·KR STREAM 기준 2,159곡이다. 상세 결과는 `docs/changes/2026-09-23-taste-profile-completion.md`에 기록했다.
 - 2026-09-23 GMS의 프로필 미완료·후보 소진·오류 빈 상태를 음악형 패널과 다음 행동 CTA로 개선했다. 카드 재생·안내 아이콘도 CSS 기반으로 통일했으며 관련 온보딩·GMS 테스트 25개, ESLint, Impeccable detector, diff 검사를 통과했다.
-- 2026-09-23 Home·EMS·GMS 트랙 카드 레일을 공통 `TrackRail`로 통합했다. 브라우저 스크롤바를 숨기고 좌우 `scrollBy` 이동 버튼·키보드 방향키·Home/End·reduced-motion 경로를 추가했으며 전체 339개 테스트, build, ESLint, Impeccable detector를 통과했다. 상세 결과는 `docs/changes/2026-09-23-track-rail-motion.md`에 기록했다.
+- 2026-09-23 Home·EMS·GMS 트랙 카드 레일을 공통 `TrackRail`로 통합했다. 브라우저 스크롤바를 숨기고 좌우 `scrollBy` 이동 버튼·키보드 방향키·Home/End·reduced-motion 경로를 추가했으며, 긴 메타데이터가 레일 폭을 흔들지 않도록 카드 폭과 텍스트 클램프를 고정했다. 전체 339개 테스트, build, ESLint, Impeccable detector를 통과했다. 상세 결과는 `docs/changes/2026-09-23-track-rail-motion.md`에 기록했다.
 
 ## 검증 결과
 

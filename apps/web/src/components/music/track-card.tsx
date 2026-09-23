@@ -34,7 +34,7 @@ export function TrackCard<TTrack extends Track>({
   };
 
   return (
-    <article className="group min-w-44 snap-start rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-2.5 transition-colors hover:border-purple-400/30 sm:min-w-52">
+    <article className="track-card group min-w-44 snap-start rounded-[14px] border border-[var(--border)] bg-[var(--surface)] p-2.5 transition-colors hover:border-purple-400/30 sm:min-w-52">
       <div className={`group/artwork relative aspect-square overflow-hidden rounded-xl bg-gradient-to-br ${track.artworkClass}`}>
         {track.artworkUrl && failedArtworkUrl !== track.artworkUrl ? (
           <Image

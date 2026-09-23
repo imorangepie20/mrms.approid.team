@@ -8,6 +8,7 @@
   - 레일에 키보드 포커스와 `ArrowLeft`·`ArrowRight`·`Home`·`End` 동작을 추가했다.
   - `prefers-reduced-motion`에서는 즉시 이동으로 전환하며 모바일에서는 기존 터치 스와이프를 유지한다.
   - Home·EMS 에디토리얼·GMS 추천 레일이 같은 컴포넌트와 시각 규칙을 사용하도록 통합했다.
+  - 레일 카드의 폭을 고정하고 제목·아티스트·앨범 텍스트를 한 줄로 클램프해 긴 메타데이터가 인접 카드를 밀어내지 않도록 했다.
 - 검증:
   - `apps/web`: TrackRail focused test 2개 통과
   - `apps/web`: 전체 Vitest 84개 파일·339개 테스트 통과

@@ -260,6 +260,7 @@ it("shows concise recommendation reasons on GMS cards", () => {
   );
 
   expect(screen.getByRole("region", { name: "GMS 추천" })).toBeInTheDocument();
+  expect(screen.getByRole("article")).toHaveClass("gateway-card--fixed");
   expect(screen.getByText("취향 일치")).toBeInTheDocument();
   expect(screen.getByText("최근 발매")).toBeInTheDocument();
 });
