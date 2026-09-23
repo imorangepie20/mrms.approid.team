@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `fb1535f`
 
-최신 Zorin Web 배포 기준 커밋: `b5acc4e` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `5ca1bd9` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -102,6 +102,7 @@
 | 2026-09-23 | `apps/web`: 앨범 아티스트 fallback 회귀 test·full Vitest·lint·build | `albums.artists` 생략 시 트랙 아티스트로 앨범 카드 표기 | 통과: focused 8개·전체 84개 파일 343개 테스트 |
 | 2026-09-23 | 내비게이션 focused Vitest·전체 Vitest·lint·build·Impeccable detector | 검색 메뉴 위치·형태와 반응형 진입점 | 통과: focused 5개·전체 84개 파일 341개 테스트, lint 오류 0(기존 경고 3), build, findings 0 |
 | 2026-09-23 | `apps/web`: 검색 제시어·카탈로그 동시 표시 focused/full Vitest·lint·build | 결과가 있어도 제시어 표시, 새 입력·탭 선택 시 제시어 정리 | 통과: focused 7개·전체 84개 파일 344개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
+| 2026-09-23 | Zorin Web `5ca1bd9` image build·Compose 교체·공개 HTTP 및 Chrome AX smoke | 제시어·카탈로그 동시 표시 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, `bj` 입력 시 결과와 `검색어 추천` 목록 동시 표시 |
 
 ## 미검증·제약
 
