@@ -21,6 +21,7 @@ import {
     ShoppingBag,
     DollarSign,
     Image,
+    Database,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -37,6 +38,16 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
     { title: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
+    {
+        title: 'EMS',
+        icon: <Database size={20} />,
+        children: [
+            { title: 'Overview', path: '/ems' },
+            { title: 'Sections', path: '/ems/sections' },
+            { title: 'Tracks', path: '/ems/tracks' },
+            { title: 'Ingestion', path: '/ems/ingestion' },
+        ],
+    },
     { title: 'Analytics', icon: <BarChart3 size={20} />, path: '/analytics' },
     {
         title: 'Email',

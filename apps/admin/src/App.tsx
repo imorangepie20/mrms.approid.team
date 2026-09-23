@@ -1,59 +1,103 @@
-import { NavLink, Route, Routes } from "react-router-dom";
-import Dashboard from "./pages/Dashboard";
-import Sections from "./pages/Sections";
-import Tracks from "./pages/Tracks";
-import Ingestion from "./pages/Ingestion";
+import { Route, Routes } from "react-router-dom";
+import { ThemeProvider } from "./context/ThemeContext";
+import MainLayout from "./layouts/MainLayout";
 
-const pages = [
-  { href: "/", label: "Dashboard" },
-  { href: "/sections", label: "Sections" },
-  { href: "/tracks", label: "Tracks" },
-  { href: "/ingestion", label: "Ingestion" },
-];
+import Dashboard from "./pages/dashboard/Dashboard";
+import Analytics from "./pages/dashboard/Analytics";
+import Widgets from "./pages/Widgets";
+import Calendar from "./pages/Calendar";
+import Gallery from "./pages/Gallery";
+import Pricing from "./pages/Pricing";
+import Products from "./pages/Products";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
+import ScrumBoard from "./pages/ScrumBoard";
+import Error404 from "./pages/Error404";
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import AiChat from "./pages/ai/AiChat";
+import AiImageGenerator from "./pages/ai/AiImageGenerator";
+import EmailCompose from "./pages/email/EmailCompose";
+import EmailDetail from "./pages/email/EmailDetail";
+import EmailInbox from "./pages/email/EmailInbox";
+import PosCounterCheckout from "./pages/pos/PosCounterCheckout";
+import PosCustomerOrder from "./pages/pos/PosCustomerOrder";
+import PosKitchenOrder from "./pages/pos/PosKitchenOrder";
+import PosMenuStock from "./pages/pos/PosMenuStock";
+import PosTableBooking from "./pages/pos/PosTableBooking";
+import ChartJs from "./pages/charts/ChartJs";
+import FormElements from "./pages/forms/FormElements";
+import FormPlugins from "./pages/forms/FormPlugins";
+import FormWizards from "./pages/forms/FormWizards";
+import TableElements from "./pages/tables/TableElements";
+import TablePlugins from "./pages/tables/TablePlugins";
+import UiBootstrap from "./pages/ui/UiBootstrap";
+import UiButtons from "./pages/ui/UiButtons";
+import UiCard from "./pages/ui/UiCard";
+import UiIcons from "./pages/ui/UiIcons";
+import UiModalNotification from "./pages/ui/UiModalNotification";
+import UiTabsAccordions from "./pages/ui/UiTabsAccordions";
+import UiTypography from "./pages/ui/UiTypography";
+
+import EmsDashboard from "./pages/Dashboard";
+import EmsSections from "./pages/Sections";
+import EmsTracks from "./pages/Tracks";
+import EmsIngestion from "./pages/Ingestion";
+
+function TemplateRoutes() {
+  return (
+    <Routes>
+      <Route element={<MainLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="widgets" element={<Widgets />} />
+        <Route path="calendar" element={<Calendar />} />
+        <Route path="gallery" element={<Gallery />} />
+        <Route path="pricing" element={<Pricing />} />
+        <Route path="products" element={<Products />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
+        <Route path="scrum-board" element={<ScrumBoard />} />
+        <Route path="email/inbox" element={<EmailInbox />} />
+        <Route path="email/compose" element={<EmailCompose />} />
+        <Route path="email/detail/:id" element={<EmailDetail />} />
+        <Route path="ai/chat" element={<AiChat />} />
+        <Route path="ai/image-generator" element={<AiImageGenerator />} />
+        <Route path="pos/customer-order" element={<PosCustomerOrder />} />
+        <Route path="pos/kitchen-order" element={<PosKitchenOrder />} />
+        <Route path="pos/counter-checkout" element={<PosCounterCheckout />} />
+        <Route path="pos/table-booking" element={<PosTableBooking />} />
+        <Route path="pos/menu-stock" element={<PosMenuStock />} />
+        <Route path="ui/bootstrap" element={<UiBootstrap />} />
+        <Route path="ui/buttons" element={<UiButtons />} />
+        <Route path="ui/card" element={<UiCard />} />
+        <Route path="ui/icons" element={<UiIcons />} />
+        <Route path="ui/modal-notification" element={<UiModalNotification />} />
+        <Route path="ui/tabs-accordions" element={<UiTabsAccordions />} />
+        <Route path="ui/typography" element={<UiTypography />} />
+        <Route path="form/elements" element={<FormElements />} />
+        <Route path="form/plugins" element={<FormPlugins />} />
+        <Route path="form/wizards" element={<FormWizards />} />
+        <Route path="table/elements" element={<TableElements />} />
+        <Route path="table/plugins" element={<TablePlugins />} />
+        <Route path="chart/chartjs" element={<ChartJs />} />
+        <Route path="ems" element={<EmsDashboard />} />
+        <Route path="ems/sections" element={<EmsSections />} />
+        <Route path="ems/tracks" element={<EmsTracks />} />
+        <Route path="ems/ingestion" element={<EmsIngestion />} />
+        <Route path="*" element={<Error404 />} />
+      </Route>
+      <Route path="login" element={<Login />} />
+      <Route path="register" element={<Register />} />
+      <Route path="*" element={<Error404 />} />
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-hud-bg-primary hud-grid-bg text-hud-text-primary">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-64 border-r border-hud-border-secondary bg-hud-bg-secondary/95 p-5 md:block">
-        <div className="flex items-center gap-3 border-b border-hud-border-secondary pb-5">
-          <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-hud-accent-primary to-hud-accent-secondary font-bold text-hud-bg-primary">M</div>
-          <div>
-            <p className="font-semibold">Music Pie</p>
-            <p className="text-xs text-hud-text-muted">EMS control</p>
-          </div>
-        </div>
-        <nav className="mt-6 space-y-1" aria-label="관리자 메뉴">
-          {pages.map((page) => (
-            <NavLink
-              key={page.href}
-              to={page.href}
-              end={page.href === "/"}
-              className={({ isActive }) => `block rounded-lg px-3 py-2.5 text-sm transition ${isActive ? "bg-hud-accent-primary/15 text-hud-accent-primary" : "text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary"}`}
-            >
-              {page.label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-      <main className="min-h-screen p-5 md:ml-64 md:p-8">
-        <header className="mb-8 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.25em] text-hud-accent-primary">MRMS / ADMIN</p>
-            <p className="mt-1 text-sm text-hud-text-secondary">EMS catalog operations</p>
-          </div>
-          <a className="text-sm text-hud-text-secondary hover:text-hud-accent-primary" href="/">사용자 화면</a>
-        </header>
-        <nav className="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-hud-border-secondary bg-hud-bg-secondary/80 p-2 md:hidden" aria-label="모바일 관리자 메뉴">
-          {pages.map((page) => <NavLink key={page.href} to={page.href} end={page.href === "/"} className={({ isActive }) => `rounded-lg px-3 py-2 text-center text-sm ${isActive ? "bg-hud-accent-primary/15 text-hud-accent-primary" : "text-hud-text-secondary"}`}>{page.label}</NavLink>)}
-        </nav>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/sections" element={<Sections />} />
-          <Route path="/tracks" element={<Tracks />} />
-          <Route path="/ingestion" element={<Ingestion />} />
-          <Route path="*" element={<Dashboard />} />
-        </Routes>
-      </main>
-    </div>
+    <ThemeProvider>
+      <TemplateRoutes />
+    </ThemeProvider>
   );
 }
