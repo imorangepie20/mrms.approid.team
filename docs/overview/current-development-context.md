@@ -116,6 +116,7 @@
 | 2026-09-23 | Zorin Web `b253636` image build·Compose 교체·공개 HTTP smoke | 전체 화면 플레이어 앨범 이미지 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
 | 2026-09-23 | `apps/web`·`apps/admin`: Vitest, ESLint, Next/Vite build, `git diff --check`; Docker `music-pie-web:ems-admin` build와 image asset 검사 | same-origin `/admin`, EMS 관리자 API 인증·조회·섹션 수정, 기존 사용자 회귀 | 통과: Web 93개 파일·367개 테스트, admin 2개 테스트, web lint 오류 0(기존 경고 3), admin lint 오류 0(템플릿 경고 39), 두 build 통과, Docker image에 `/app/public/admin/assets/index.js|css` 존재. Auth0 미설정 로컬에서 API HTTP 500은 운영 자격 증명 부재로 미검증 |
 | 2026-09-23 | `apps/web`: 관리자 셸 루트 ID 회귀 테스트·전체 Vitest·lint·build; Zorin 재배포·Chrome headless smoke | 빈 `/admin` 화면의 `admin_root_missing` 수정 | 통과: Web 93개 파일·370개 테스트, lint 오류 0(기존 경고 3), build, 커밋 `a665f2f`, Web healthy, 공개 `/admin` 200, `MRMS / ADMIN`·`EMS 운영 현황` 렌더링 및 콘솔 오류 미재현 |
+| 2026-09-23 | `apps/admin`: 템플릿 레이아웃·전체 라우팅 복원, Vitest·ESLint·Vite build; Zorin Web 강제 재생성·Chrome headless screenshot | 관리자 커스텀 셸을 제거하고 제공 템플릿을 기본 화면으로 사용, EMS는 템플릿 메뉴 아래 유지 | 통과: admin 2개 테스트, build·lint 오류 0, 커밋 `d9d981d`, Web healthy, 다크 템플릿 대시보드·`ALPHA TEAM`·EMS 메뉴 렌더링 확인 |
 
 ## 미검증·제약
 
