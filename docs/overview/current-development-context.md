@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `a5e3cb8`
 
-최신 Zorin Web 배포 기준 커밋: `12e4050` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `d31d5c3` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -88,6 +88,7 @@
 | 2026-09-22 | `services/ems-pipeline`: 임베딩 focused/full pytest, Zorin `music-pie-ems-pipeline:b91afce` 배치, PostgreSQL 상태 조회 | active EMS 임베딩 완료와 원문 비저장 | 통과: pipeline focused 2개·full 47개, `ems_track_embeddings` completed 2,159건, 입력 원문 컬럼 미사용 |
 | 2026-09-22 | `apps/web`: GMS 빈 후보 focused test, `npm test`, `npm run lint`, `npm run build` | 프로필 준비·후보 0곡 상태를 프로필 미완료·API 오류와 구분 | 통과: 전체 83개 파일·332개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 | 2026-09-22 | `apps/web`: GMS 추천 근거 focused test, `npm test`, `npm run lint`, `npm run build` | 추천 카드에 취향·최근성 근거 표시 | 통과: 전체 83개 파일·333개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
+| 2026-09-23 | `npm test`, `npm run build`; Zorin Web image build·container health·local/public HTTP smoke | 트랙 카드 레일 모션 변경 배포와 인증 경계 보존 | 통과: 전체 84개 파일·339개 테스트, build, Zorin `music-pie-web-1 healthy`, 공개 `/`·`/ems`·`/gms`·readiness 200, 비로그인 recommendations 401 |
 
 ## 미검증·제약
 

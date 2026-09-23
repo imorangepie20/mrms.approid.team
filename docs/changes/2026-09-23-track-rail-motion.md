@@ -18,3 +18,9 @@
 - 미검증·제약:
   - 운영 브라우저에서의 실제 드래그·터치 감각은 별도 시각 QA가 필요하다.
 - 다음 작업: 데스크톱·모바일 운영 화면에서 레일 버튼과 카드 포커스 순서를 확인한다.
+
+## 운영 배포
+
+- 커밋 `d31d5c3`를 `origin/codex/ems-artwork-2k`에 푸시했다.
+- Zorin release `/home/approid/apps/music-pie/releases/d31d5c3`를 생성하고 `music-pie-web:current` 이미지를 빌드했다.
+- Web 컨테이너 health와 로컬·공개 `/`, `/ems`, `/gms`, `/api/health/ready`가 모두 HTTP 200이며, 비로그인 `/api/recommendations`는 HTTP 401이다.
