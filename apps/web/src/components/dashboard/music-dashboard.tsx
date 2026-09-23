@@ -133,16 +133,11 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
-const recommendationReasonLabels: Record<string, string> = {
-  fresh_release: "최근 발매",
-  taste_match: "취향 일치",
-};
-
 function Gateway({ tracks, error, ready, onPlay, onAccept, onReject }: { tracks: Track[]; error: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
   if (error) return <GatewayEmptyState variant="error" />;
   if (!ready) return <GatewayEmptyState variant="not-ready" />;
   if (!tracks.length) return <GatewayEmptyState variant="empty" />;
-  return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><TrackRail ariaLabel="GMS 추천" className="track-rail--gateway">{tracks.map((track) => { const reasons = (track.recommendation?.reasonCodes ?? []).map((code) => recommendationReasonLabels[code]).filter((label): label is string => Boolean(label)); return <article className="gateway-card gateway-card--fixed" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<button className="cover-play-button" aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}><PlayIcon /></button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small>{reasons.length ? <div aria-label="추천 이유">{reasons.map((reason) => <span key={reason}>{reason}</span>)}</div> : null}<div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>; })}</TrackRail></>;
+  return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><TrackRail ariaLabel="GMS 추천" className="track-rail--gateway">{tracks.map((track) => <article className="gateway-card gateway-card--fixed" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<button className="cover-play-button" aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}><PlayIcon /></button></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</TrackRail></>;
 }
 
 function GatewayEmptyState({ variant }: { variant: "error" | "not-ready" | "empty" }) {

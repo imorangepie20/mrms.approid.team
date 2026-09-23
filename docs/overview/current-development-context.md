@@ -52,6 +52,7 @@
 - 2026-09-23 GMS의 프로필 미완료·후보 소진·오류 빈 상태를 음악형 패널과 다음 행동 CTA로 개선했다. 카드 재생·안내 아이콘도 CSS 기반으로 통일했으며 관련 온보딩·GMS 테스트 25개, ESLint, Impeccable detector, diff 검사를 통과했다.
 - 2026-09-23 Home·EMS·GMS 트랙 카드 레일을 공통 `TrackRail`로 통합했다. 브라우저 스크롤바를 숨기고 좌우 `scrollBy` 이동 버튼·키보드 방향키·Home/End·reduced-motion 경로를 추가했으며, 긴 메타데이터가 레일 폭을 흔들지 않도록 카드 폭과 텍스트 클램프를 고정했다. 전체 339개 테스트, build, ESLint, Impeccable detector를 통과했다. 상세 결과는 `docs/changes/2026-09-23-track-rail-motion.md`에 기록했다.
 - 2026-09-23 GMS·Home·EMS의 재생 버튼 아이콘을 공통 `PlayIcon` SVG와 `cover-play-button` 스타일로 통일했다. GMS 전용 Gateway 마크업에도 40px 원형·그림자·hover/focus·모바일 표시 규칙을 직접 연결하고, `grid/place-items:center`로 삼각형을 정중앙 배치했으며, 상세 결과는 `docs/changes/2026-09-23-play-icon-unification.md`에 기록했다.
+- 2026-09-23 GMS 카드에서 추천 이유 라벨을 제거해 제목·아티스트·앨범·결정 버튼 중심으로 단순화했다.
 
 ## 검증 결과
 

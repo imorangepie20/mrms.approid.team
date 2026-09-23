@@ -235,7 +235,7 @@ it("persists GMS decisions separately from the MMS like action", async () => {
   vi.unstubAllGlobals();
 });
 
-it("shows concise recommendation reasons on GMS cards", () => {
+it("keeps recommendation reason metadata out of GMS cards", () => {
   renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
@@ -261,8 +261,8 @@ it("shows concise recommendation reasons on GMS cards", () => {
 
   expect(screen.getByRole("region", { name: "GMS 추천" })).toBeInTheDocument();
   expect(screen.getByRole("article")).toHaveClass("gateway-card--fixed");
-  expect(screen.getByText("취향 일치")).toBeInTheDocument();
-  expect(screen.getByText("최근 발매")).toBeInTheDocument();
+  expect(screen.queryByText("취향 일치")).not.toBeInTheDocument();
+  expect(screen.queryByText("최근 발매")).not.toBeInTheDocument();
 });
 
 it("renders the GMS play action with a visual icon hook", () => {

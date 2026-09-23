@@ -585,21 +585,6 @@
   white-space: nowrap;
 }
 
-.gateway-card--fixed > div[aria-label="추천 이유"] {
-  display: flex;
-  min-height: 22px;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
-  overflow: hidden;
-}
-
-.gateway-card--fixed > div[aria-label="추천 이유"] span {
-  color: var(--brand-soft);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .gateway-cover {
   height: 215px;
   margin-bottom: 5px;
