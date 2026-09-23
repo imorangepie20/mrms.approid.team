@@ -101,6 +101,21 @@ describe("TidalSearch", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("keeps suggestions visible when catalog search fails", async () => {
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname.endsWith("/suggestions")) return json({ suggestions: ["Björk"] });
+      return Promise.resolve(new Response(null, { status: 503 }));
+    }));
+    const user = userEvent.setup();
+    renderSearch();
+
+    await user.type(screen.getByRole("searchbox"), "bj");
+
+    expect(await screen.findByRole("option", { name: "Björk" })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent("검색 결과를 불러오지 못했습니다");
+  });
+
   it("queues the current result set and plays the selected track", async () => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");

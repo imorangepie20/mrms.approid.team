@@ -87,14 +87,6 @@ export function TidalSearch() {
           searchRequest,
           suggestionRequest,
         ]);
-        if (searchOutcome.status === "rejected") {
-          throw searchOutcome.reason;
-        }
-        const searchResponse = searchOutcome.value;
-        if (!searchResponse.ok) {
-          throw new Error("search_failed");
-        }
-        const nextResults = await searchResponse.json() as TidalSearchResult;
         let nextSuggestions: { suggestions: string[] } = { suggestions: [] };
         if (suggestionOutcome.status === "fulfilled" && suggestionOutcome.value?.ok) {
           try {
@@ -104,10 +96,20 @@ export function TidalSearch() {
           }
         }
         if (requestId !== requestIdRef.current) return;
-        setResults(nextResults);
         setSuggestions(nextSuggestions.suggestions);
+        if (searchOutcome.status === "rejected") {
+          throw searchOutcome.reason;
+        }
+        const searchResponse = searchOutcome.value;
+        if (!searchResponse.ok) {
+          throw new Error("search_failed");
+        }
+        const nextResults = await searchResponse.json() as TidalSearchResult;
+        if (requestId !== requestIdRef.current) return;
+        setResults(nextResults);
       } catch (requestError) {
         if (controller.signal.aborted || requestId !== requestIdRef.current) return;
+        setResults(emptyResults);
         setError(
           requestError instanceof Error && requestError.message === "search_failed"
             ? "검색 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
