@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { LikeButton } from "@/components/music/like-button";
+import { trackLikeItem } from "@/lib/likes/adapters";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 import { FullPlayerDialog } from "./full-player-dialog";
@@ -92,6 +94,10 @@ export function PersistentPlayer() {
                   <span>{formatTime(durationSeconds)}</span>
                 </div>
               </div>
+              <LikeButton
+                className="shrink-0 text-slate-300 hover:bg-white/10 hover:text-fuchsia-300"
+                item={trackLikeItem(currentTrack)}
+              />
               <div className="flex shrink-0 items-center gap-1">
                 {needsDeviceAuthorization ? (
                   <TidalDeviceAuthorization

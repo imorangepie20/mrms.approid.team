@@ -1,12 +1,19 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
 import type {
   PlaybackEngine,
   PlaybackEvent,
   PlayableTrack,
 } from "@/lib/tidal/player";
+import { LikesProvider } from "@/providers/likes-provider";
 import {
   MusicSessionProvider,
   useMusicSession,
@@ -74,11 +81,21 @@ function LocalPlaybackStarter() {
   );
 }
 
+function renderPlayer(ui: ReactNode) {
+  return render(
+    <LikesProvider initialLikes={[]} isAuthenticated>
+      {ui}
+    </LikesProvider>,
+  );
+}
+
 describe("PersistentPlayer", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("shows the current track artwork with a gradient fallback", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -97,7 +114,7 @@ describe("PersistentPlayer", () => {
   it("does not report playing until the engine emits playing", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -113,7 +130,7 @@ describe("PersistentPlayer", () => {
   it("seeks in seconds and opens the shared full player", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -143,10 +160,33 @@ describe("PersistentPlayer", () => {
     );
   });
 
+  it("likes the current track from the compact and full player", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({})));
+    renderPlayer(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    const compactLike = screen.getByRole("button", { name: "좋아요 Track A" });
+    expect(compactLike).toHaveAttribute("aria-pressed", "false");
+    await user.click(compactLike);
+    expect(compactLike).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: /now playing track a/i }));
+    const dialog = screen.getByRole("dialog", { name: "전체 화면 플레이어" });
+    const fullLike = within(dialog).getByRole("button", { name: "좋아요 취소 Track A" });
+    expect(fullLike).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("controls shuffle, repeat, and volume from the persistent player", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -175,7 +215,7 @@ describe("PersistentPlayer", () => {
   it("offers device authorization after a streaming-scope error", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -200,7 +240,7 @@ describe("PersistentPlayer", () => {
         verificationUriComplete: null,
       }))
       .mockResolvedValueOnce(Response.json({ status: "connected" })));
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <PlaybackStarter />
         <PersistentPlayer />
@@ -219,7 +259,7 @@ describe("PersistentPlayer", () => {
   it("does not offer TIDAL playback for a track without a TIDAL id", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
-    render(
+    renderPlayer(
       <MusicSessionProvider engine={engine}>
         <LocalPlaybackStarter />
         <PersistentPlayer />

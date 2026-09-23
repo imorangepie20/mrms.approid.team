@@ -57,6 +57,7 @@
 - 2026-09-23 검색 내비게이션을 일반 사이드바 메뉴 리듬으로 통합하고 SVG 아이콘·active 상태를 추가했다. 모바일 상단에도 검색 아이콘을 배치했으며, 상세 결과는 `docs/changes/2026-09-23-search-navigation-layout.md`에 기록했다.
 - 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. `topHits`·`artists.profileArt`를 유지하고 선택적인 `albums.artists`를 제외해 10개로 줄였다. 초기 수정에서 `topHits`를 빼 통합 결과가, 이후 `artists.profileArt`를 빼 아티스트 아트워크가 비는 회귀를 확인·복구했으며, 앨범 아티스트는 트랙 관계 fallback으로 보완하고 카탈로그 실패 시에도 제시어를 표시하도록 했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 - 2026-09-23 검색 결과가 있어도 입력 중 제시어를 유지하도록 UI 조건을 분리했다. 새 검색어 입력 시 이전 제시어를 비우고, 결과 탭 선택 시 제시어를 닫는다. 통합 결과와 제시어 동시 표시 회귀 테스트를 추가했으며 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
+- 2026-09-23 전역 하단·전체 화면 플레이어에 현재 트랙 좋아요 버튼을 추가했다. 기존 `trackLikeItem`·`LikeButton`을 재사용해 컴팩트·전체 화면의 상태와 저장 흐름을 공유하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
 
 ## 검증 결과
 
@@ -103,6 +104,7 @@
 | 2026-09-23 | 내비게이션 focused Vitest·전체 Vitest·lint·build·Impeccable detector | 검색 메뉴 위치·형태와 반응형 진입점 | 통과: focused 5개·전체 84개 파일 341개 테스트, lint 오류 0(기존 경고 3), build, findings 0 |
 | 2026-09-23 | `apps/web`: 검색 제시어·카탈로그 동시 표시 focused/full Vitest·lint·build | 결과가 있어도 제시어 표시, 새 입력·탭 선택 시 제시어 정리 | 통과: focused 7개·전체 84개 파일 344개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 | 2026-09-23 | Zorin Web `5ca1bd9` image build·Compose 교체·공개 HTTP 및 Chrome AX smoke | 제시어·카탈로그 동시 표시 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, `bj` 입력 시 결과와 `검색어 추천` 목록 동시 표시 |
+| 2026-09-23 | `apps/web`: 플레이어 좋아요 focused Vitest | 컴팩트·전체 화면 플레이어의 현재 트랙 좋아요 상태 동기화 | 통과: focused 8개 |
 
 ## 미검증·제약
 
@@ -149,4 +151,5 @@
 - `docs/superpowers/specs/2026-09-22-track-embedding-taste-profile-design.md`
 - `docs/superpowers/plans/2026-09-22-track-embedding-taste-profile.md`
 - `docs/changes/2026-09-22-track-embedding-taste-profile.md`
+- `docs/changes/2026-09-23-player-likes.md`
 - `docs/changes/2026-09-22-ems-editorial-sections.md`

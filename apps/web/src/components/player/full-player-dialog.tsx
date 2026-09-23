@@ -1,5 +1,7 @@
 "use client";
 
+import { LikeButton } from "@/components/music/like-button";
+import { trackLikeItem } from "@/lib/likes/adapters";
 import type { Track } from "@/lib/music/types";
 import type { QueueItem, RepeatMode } from "@/providers/music-session-provider";
 
@@ -85,6 +87,10 @@ export function FullPlayerDialog({
           {currentTrack.title}
         </h1>
         <p className="mt-2 text-lg text-slate-300">{currentTrack.artist}</p>
+        <LikeButton
+          className="mt-4 border border-white/10 bg-white/5 text-slate-300 hover:bg-fuchsia-400/10 hover:text-fuchsia-300"
+          item={trackLikeItem(currentTrack)}
+        />
         <input
           aria-label="재생 위치"
           className="mt-8 w-full accent-fuchsia-400"
