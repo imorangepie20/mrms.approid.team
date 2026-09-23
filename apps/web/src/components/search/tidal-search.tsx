@@ -83,19 +83,26 @@ export function TidalSearch() {
               { signal: controller.signal },
             )
           : Promise.resolve(null);
-        const [searchResponse, suggestionResponse] = await Promise.all([
+        const [searchOutcome, suggestionOutcome] = await Promise.allSettled([
           searchRequest,
           suggestionRequest,
         ]);
-        if (!searchResponse.ok || (suggestionResponse && !suggestionResponse.ok)) {
+        if (searchOutcome.status === "rejected") {
+          throw searchOutcome.reason;
+        }
+        const searchResponse = searchOutcome.value;
+        if (!searchResponse.ok) {
           throw new Error("search_failed");
         }
-        const [nextResults, nextSuggestions] = await Promise.all([
-          searchResponse.json() as Promise<TidalSearchResult>,
-          suggestionResponse
-            ? suggestionResponse.json() as Promise<{ suggestions: string[] }>
-            : Promise.resolve({ suggestions: [] }),
-        ]);
+        const nextResults = await searchResponse.json() as TidalSearchResult;
+        let nextSuggestions: { suggestions: string[] } = { suggestions: [] };
+        if (suggestionOutcome.status === "fulfilled" && suggestionOutcome.value?.ok) {
+          try {
+            nextSuggestions = await suggestionOutcome.value.json() as { suggestions: string[] };
+          } catch {
+            // Suggestions are optional; catalog results remain usable.
+          }
+        }
         if (requestId !== requestIdRef.current) return;
         setResults(nextResults);
         setSuggestions(nextSuggestions.suggestions);

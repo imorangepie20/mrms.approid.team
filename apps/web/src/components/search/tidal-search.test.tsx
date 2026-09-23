@@ -79,6 +79,28 @@ describe("TidalSearch", () => {
     expect(screen.queryByText("Old result")).not.toBeInTheDocument();
   });
 
+  it("keeps catalog results when optional suggestions fail", async () => {
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname.endsWith("/suggestions")) return Promise.resolve(new Response(null, { status: 503 }));
+      return json({
+        albums: [],
+        artists: [],
+        next: null,
+        playlists: [],
+        topHits: [{ ...track, kind: "track" }],
+        tracks: [track],
+      });
+    }));
+    const user = userEvent.setup();
+    renderSearch();
+
+    await user.type(screen.getByRole("searchbox"), "bj");
+
+    expect(await screen.findByText("Human Behaviour")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("queues the current result set and plays the selected track", async () => {
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");

@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-23
 
-최신 기능 기준 커밋: `4b5da7f`
+최신 기능 기준 커밋: `6032acf`
 
-최신 Zorin Web 배포 기준 커밋: `4b5da7f` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `6032acf` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -53,6 +53,7 @@
 - 2026-09-23 Home·EMS·GMS 트랙 카드 레일을 공통 `TrackRail`로 통합했다. 브라우저 스크롤바를 숨기고 좌우 `scrollBy` 이동 버튼·키보드 방향키·Home/End·reduced-motion 경로를 추가했으며, 긴 메타데이터가 레일 폭을 흔들지 않도록 카드 폭과 텍스트 클램프를 고정했다. 전체 339개 테스트, build, ESLint, Impeccable detector를 통과했다. 상세 결과는 `docs/changes/2026-09-23-track-rail-motion.md`에 기록했다.
 - 2026-09-23 GMS·Home·EMS의 재생 버튼 아이콘을 공통 `PlayIcon` SVG와 `cover-play-button` 스타일로 통일했다. GMS 전용 Gateway 마크업에도 40px 원형·그림자·hover/focus·모바일 표시 규칙을 직접 연결하고, `grid/place-items:center`로 삼각형을 정중앙 배치했으며, 상세 결과는 `docs/changes/2026-09-23-play-icon-unification.md`에 기록했다.
 - 2026-09-23 GMS 카드에서 추천 이유 라벨을 제거해 제목·아티스트·앨범·결정 버튼 중심으로 단순화했다.
+- 2026-09-23 검색 본문과 추천어 요청을 분리했다. 추천어 API 실패·잘못된 응답·네트워크 오류가 카탈로그 검색 결과를 차단하지 않으며, 상세 결과는 `docs/changes/2026-09-23-search-suggestions-fallback.md`에 기록했다.
 
 ## 검증 결과
 
@@ -91,6 +92,8 @@
 | 2026-09-22 | `apps/web`: GMS 빈 후보 focused test, `npm test`, `npm run lint`, `npm run build` | 프로필 준비·후보 0곡 상태를 프로필 미완료·API 오류와 구분 | 통과: 전체 83개 파일·332개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 | 2026-09-22 | `apps/web`: GMS 추천 근거 focused test, `npm test`, `npm run lint`, `npm run build` | 추천 카드에 취향·최근성 근거 표시 | 통과: 전체 83개 파일·333개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 | 2026-09-23 | `npm test`, `npm run build`; Zorin Web image build·container health·local/public HTTP smoke | 트랙 카드 레일 모션 변경 배포와 인증 경계 보존 | 통과: 전체 84개 파일·339개 테스트, build, Zorin `music-pie-web-1 healthy`, 공개 `/`·`/ems`·`/gms`·readiness 200, 비로그인 recommendations 401 |
+| 2026-09-23 | `apps/web`: 검색 focused Vitest·전체 Vitest·lint·build | 추천어 API 실패가 카탈로그 검색을 차단하지 않음 | 통과: focused 17개·전체 84개 파일 340개 테스트, lint 오류 0(기존 경고 3), build·TypeScript |
+| 2026-09-23 | Zorin Web `6032acf` image build·Compose 교체·공개 HTTP smoke | 검색 fallback 배포와 Web health | 통과: `music-pie-web-1 healthy`, 공개 `/search`·`/api/health/ready` 200, 비로그인 `/api/tidal/search` 401 |
 
 ## 미검증·제약
 
