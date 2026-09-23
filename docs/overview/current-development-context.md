@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `fb1535f`
 
-최신 Zorin Web 배포 기준 커밋: `fd28c79` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `b5acc4e` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -56,6 +56,7 @@
 - 2026-09-23 검색 본문과 추천어 요청을 분리했다. 추천어 API 실패·잘못된 응답·네트워크 오류가 카탈로그 검색 결과를 차단하지 않으며, 상세 결과는 `docs/changes/2026-09-23-search-suggestions-fallback.md`에 기록했다.
 - 2026-09-23 검색 내비게이션을 일반 사이드바 메뉴 리듬으로 통합하고 SVG 아이콘·active 상태를 추가했다. 모바일 상단에도 검색 아이콘을 배치했으며, 상세 결과는 `docs/changes/2026-09-23-search-navigation-layout.md`에 기록했다.
 - 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. `topHits`·`artists.profileArt`를 유지하고 선택적인 `albums.artists`를 제외해 10개로 줄였다. 초기 수정에서 `topHits`를 빼 통합 결과가, 이후 `artists.profileArt`를 빼 아티스트 아트워크가 비는 회귀를 확인·복구했으며, 앨범 아티스트는 트랙 관계 fallback으로 보완하고 카탈로그 실패 시에도 제시어를 표시하도록 했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
+- 2026-09-23 검색 결과가 있어도 입력 중 제시어를 유지하도록 UI 조건을 분리했다. 새 검색어 입력 시 이전 제시어를 비우고, 결과 탭 선택 시 제시어를 닫는다. 통합 결과와 제시어 동시 표시 회귀 테스트를 추가했으며 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 
 ## 검증 결과
 
@@ -100,6 +101,7 @@
 | 2026-09-23 | `apps/web`: 아티스트 아트워크 회귀 focused/full Vitest·lint·build; 운영 TIDAL `annette askvik` include 비교 | `artists.profileArt` 복구와 플레이리스트·트랙 관계 보존 | 통과: focused 18개·전체 84개 파일 343개 테스트, lint 오류 0(기존 경고 3), build·TIDAL HTTP 200 |
 | 2026-09-23 | `apps/web`: 앨범 아티스트 fallback 회귀 test·full Vitest·lint·build | `albums.artists` 생략 시 트랙 아티스트로 앨범 카드 표기 | 통과: focused 8개·전체 84개 파일 343개 테스트 |
 | 2026-09-23 | 내비게이션 focused Vitest·전체 Vitest·lint·build·Impeccable detector | 검색 메뉴 위치·형태와 반응형 진입점 | 통과: focused 5개·전체 84개 파일 341개 테스트, lint 오류 0(기존 경고 3), build, findings 0 |
+| 2026-09-23 | `apps/web`: 검색 제시어·카탈로그 동시 표시 focused/full Vitest·lint·build | 결과가 있어도 제시어 표시, 새 입력·탭 선택 시 제시어 정리 | 통과: focused 7개·전체 84개 파일 344개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 
 ## 미검증·제약
 
