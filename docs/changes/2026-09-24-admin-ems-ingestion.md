@@ -24,4 +24,12 @@
 
 ## 미검증·다음 작업
 
-- 운영 관리자 로그인과 실제 TIDAL 응답에 따른 장시간 수집, 429, 임베딩 완료는 배포 뒤 확인한다.
+- 운영 관리자 계정의 실제 버튼 조작, 429 발생 시 대기·재개, 장시간 수집 완료와 모든 신규 트랙의 임베딩 완료는 아직 확인하지 않았다.
+
+## Zorin 배포·실행
+
+- 배포 코드: `b860bff` (`codex/ems-admin-ingestion`). 기존 릴리스 `8fc6f1c`와 이전 이미지 태그를 롤백용으로 남겼다.
+- 서버 저장소 밖에 migration 전 DB 백업을 만들고, `011_ems_admin_ingestion.sql` 1건을 적용했다.
+- 새 Web·EMS 파이프라인 이미지를 서버에서 빌드하고 두 컨테이너를 재생성했다. Web·EMS 워커·PostgreSQL·embedding은 healthy다.
+- 내부 readiness와 `/admin/ems/ingestion`은 HTTP 200, 비로그인 `/api/admin/ems/ingest-jobs`는 HTTP 401이다.
+- 운영 수집 작업 `555e84ec-a83c-404b-b7aa-bf741b448b12`를 생성했다. 시작 시 active EMS 2,186곡이며, 워커가 `running / discovering`으로 전환해 TIDAL 요청 수가 증가하는 것을 확인했다.
