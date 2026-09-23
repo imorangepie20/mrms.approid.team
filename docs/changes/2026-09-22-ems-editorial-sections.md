@@ -87,3 +87,10 @@ Home과 EMS의 fixture 중심 구성을 실제 TIDAL 공개 `EDITORIAL` 플레�
 - 로그인된 실제 계정의 taste profile 생성과 GMS 추천 카드 검증은 별도 온보딩 단계로 남아 있다.
 - 에디토리얼 Home/EMS의 desktop/mobile 브라우저 시각 QA와 재생·검색 전환 확인은 다음 단계다.
 - `music-pie-ems-pipeline:editorial-20260923`은 one-off 검증 이미지로 사용했으며 Web release symlink는 전환하지 않았다.
+
+## 2026-09-23 공개 브라우저 QA
+
+- 공개 Home에서 `신곡 퍼레이드`, `시원한 가을 바람과 함께, 재즈`, `도시의 밤을 채우는 R&B` 상위 3개 rail과 각 트랙 album art·재생 버튼을 확인했다.
+- 공개 EMS에서 총 트랙 `2,159`, 검색 입력, `신곡 퍼레이드`·재즈·R&B·기분 좋은 리듬 4개 섹션과 album art를 확인했다.
+- 공개 GMS는 API 오류가 아니라 `취향 분석이 완료되면 개인화 추천이 표시됩니다.` 상태를 표시했다.
+- 현재 브라우저 세션은 앱 로그인 상태지만 TIDAL 연결 전이다. OAuth 연결·플레이리스트 선택·분석 시작은 사용자 계정 권한 승인 단계이므로 자동으로 클릭하지 않고 사용자 handoff로 남겼다.

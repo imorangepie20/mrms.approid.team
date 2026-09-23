@@ -46,6 +46,7 @@
 - 2026-09-22 GMS 개인화 추천 Web release `12e4050`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
 - 2026-09-22 Zorin의 active EMS 2,159곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,159건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다. TIDAL 응답 지연으로 다음 bounded 후보 7개는 pending 상태다.
 - 2026-09-23 에디토리얼 section dry-run의 조회 지연을 bounded request budget/timeout과 playlist page cap으로 제한했다. 검증 이미지 `music-pie-ems-pipeline:editorial-20260923`로 5개 section 중 4개가 6곡 이상 조인되어 실제 membership sync를 수행했고, 이전 `temporary-*` placeholder section 5개는 비활성화했다. 현재 API는 `new-releases`, `seasonal-jazz`, `night-rnb`, `feel-good` 4개를 반환하며 `focus`는 조인 0곡이라 제외한다. DB membership 중복은 0건이고 readiness·Home·EMS HTTP smoke는 200이다.
+- 2026-09-23 공개 브라우저 QA에서 Home 상위 3개 rail, EMS 총 2,159곡·4개 section·album art, GMS profile-not-ready 상태를 확인했다. 실제 TIDAL OAuth 연결과 플레이리스트 분석은 사용자 권한 승인 후 수행해야 한다.
 
 ## 검증 결과
 
@@ -100,7 +101,7 @@
 
 ## 다음 작업
 
-1. 로그인된 실제 계정으로 TIDAL 온보딩 분석을 완료하고 taste profile·GMS 추천 카드를 검증한다.
+1. 사용자가 TIDAL OAuth 연결과 플레이리스트 분석을 승인·완료한 뒤 taste profile·GMS 추천 카드를 검증한다.
 2. Home top 3, EMS section·검색·재생을 desktop/mobile browser에서 확인한다.
 3. paused resolver bounded batch와 embedding completion을 계속 확인한 뒤 false-match 검토·rollback rehearsal을 수행한다.
 4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
