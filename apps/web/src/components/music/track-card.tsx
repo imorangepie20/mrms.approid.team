@@ -51,10 +51,10 @@ export function TrackCard<TTrack extends Track>({
             MUSIC PIE
           </span>
         )}
-        <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/0 opacity-0 transition-[background-color,opacity] duration-200 group-hover/artwork:bg-black/45 group-hover/artwork:opacity-100 group-focus-within/artwork:bg-black/45 group-focus-within/artwork:opacity-100 [@media(hover:none)]:bg-black/20 [@media(hover:none)]:opacity-100">
+        <div className="track-card-play-overlay absolute inset-0 grid place-items-center bg-black/15 opacity-100 transition-[background-color,opacity] duration-200 group-hover/artwork:bg-black/45 group-focus-within/artwork:bg-black/45">
           <button
             aria-label={`재생 ${track.title}`}
-            className="cover-play-button pointer-events-none grid size-10 translate-y-1 scale-95 place-items-center rounded-full bg-[rgba(76,29,149,0.82)] text-white ring-1 ring-[rgba(46,16,101,0.95)] shadow-[0_8px_24px_rgba(0,0,0,0.42)] transition duration-200 group-hover/artwork:pointer-events-auto group-hover/artwork:translate-y-0 group-hover/artwork:scale-100 group-focus-within/artwork:pointer-events-auto group-focus-within/artwork:translate-y-0 group-focus-within/artwork:scale-100 hover:bg-[rgba(109,40,217,0.88)] focus-visible:pointer-events-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transform-none [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:translate-y-0 [@media(hover:none)]:scale-100"
+            className="track-card-play-button cover-play-button pointer-events-auto grid size-10 translate-y-0 scale-100 place-items-center rounded-full bg-[rgba(76,29,149,0.82)] text-white opacity-100 ring-1 ring-[rgba(46,16,101,0.95)] shadow-[0_8px_24px_rgba(0,0,0,0.42)] transition duration-200 group-hover/artwork:bg-[rgba(109,40,217,0.88)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transform-none"
             type="button"
             onClick={() => onPlay ? onPlay(track) : void playTrack(track)}
           >

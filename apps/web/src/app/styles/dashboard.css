@@ -534,6 +534,17 @@
   outline-offset: 3px;
 }
 
+/* Editorial cards keep the play affordance visible so playback is discoverable
+   without relying on hover (which is unavailable on touch and easy to miss). */
+.track-card-play-overlay {
+  pointer-events: auto;
+}
+
+.track-card-play-button.cover-play-button {
+  opacity: 1;
+  transform: none;
+}
+
 @media (hover: none) {
   .cover-play-button {
     opacity: 1;

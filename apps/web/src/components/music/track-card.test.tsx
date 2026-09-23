@@ -46,6 +46,10 @@ describe("TrackCard", () => {
     await user.click(screen.getByRole("button", { name: "재생 Human Behaviour" }));
     const playButton = screen.getByRole("button", { name: "재생 Human Behaviour" });
     expect(playButton).toHaveClass("cover-play-button");
+    expect(playButton).toHaveClass("track-card-play-button");
+    expect(playButton).toHaveClass("pointer-events-auto");
+    expect(playButton).toHaveClass("opacity-100");
+    expect(playButton.parentElement).not.toHaveClass("pointer-events-none");
     expect(playButton.querySelector("svg.play-icon")).toBeInTheDocument();
     expect(playButton.querySelector("svg.play-icon")).not.toHaveClass("ml-0.5");
     expect(onPlay).toHaveBeenCalledWith(track);
