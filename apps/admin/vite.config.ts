@@ -11,9 +11,9 @@ export default defineConfig({
     outDir: "../web/public/admin",
     rollupOptions: {
       output: {
-        assetFileNames: "assets/index[extname]",
-        entryFileNames: "assets/index.js",
-        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+        entryFileNames: "assets/index-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
       },
     },
   },

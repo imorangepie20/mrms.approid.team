@@ -7,12 +7,8 @@ it("renders the admin shell without user navigation", () => {
   render(<AdminPage />);
 
   expect(screen.getByTestId("admin-root")).toHaveAttribute("id", "root");
-  expect(screen.getByTestId("admin-app-script")).toHaveAttribute(
-    "src",
-    "/admin/assets/index.js",
-  );
-  expect(screen.getByTestId("admin-app-style")).toHaveAttribute(
-    "href",
-    "/admin/assets/index.css",
-  );
+  expect(screen.getByTestId("admin-app-script").getAttribute("src"))
+    .toMatch(/^\/admin\/assets\/index-[\w-]+\.js$/);
+  expect(screen.getByTestId("admin-app-style").getAttribute("href"))
+    .toMatch(/^\/admin\/assets\/style-[\w-]+\.css$/);
 });
