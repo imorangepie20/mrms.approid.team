@@ -16,3 +16,8 @@
   - `git diff --check` 성공
 - 미검증·제약:
   - 운영 브라우저에서 hover/focus의 실제 시각 감각은 배포 후 확인이 필요하다.
+
+## 운영 배포
+
+- 커밋 `fa3d121`을 `origin/codex/ems-artwork-2k`에 푸시하고 Zorin release `/home/approid/apps/music-pie/releases/fa3d121`에 배포했다.
+- Web health와 로컬·공개 `/`, `/ems`, `/gms`, `/api/health/ready`가 HTTP 200이며, 비로그인 `/api/recommendations`는 HTTP 401이다.
