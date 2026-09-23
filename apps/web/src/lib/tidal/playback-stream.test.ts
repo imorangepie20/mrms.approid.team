@@ -24,7 +24,7 @@ function manifest(input: Record<string, unknown>) {
 }
 
 describe("TIDAL playback stream resolver", () => {
-  it("requests HI_RES_LOSSLESS by default and decodes a FULL direct stream", async () => {
+  it("requests the highest quality by default and decodes a FULL direct stream", async () => {
     const fetcher = vi.fn().mockResolvedValue(response({
       assetPresentation: "FULL",
       audioQuality: "LOSSLESS",
@@ -50,6 +50,40 @@ describe("TIDAL playback stream resolver", () => {
     );
   });
 
+  it("falls back to the highest playable quality when TIDAL returns DASH", async () => {
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce(response({
+        assetPresentation: "FULL",
+        manifestMimeType: "application/dash+xml",
+        manifest: Buffer.from("<?xml version=\"1.0\"?><MPD />").toString("base64"),
+      }))
+      .mockResolvedValueOnce(response({
+        assetPresentation: "FULL",
+        manifestMimeType: "application/dash+xml",
+        manifest: Buffer.from("<?xml version=\"1.0\"?><MPD />").toString("base64"),
+      }))
+      .mockResolvedValueOnce(response({
+        assetPresentation: "FULL",
+        audioQuality: "HIGH",
+        manifest: manifest({
+          codecs: "aac",
+          encryptionType: "NONE",
+          mimeType: "audio/mp4",
+          urls: ["https://audio.example/42.mp4"],
+        }),
+      }));
+
+    const result = await resolveTidalPlaybackStream("42", token, { fetcher });
+
+    expect(result.streamUrl).toBe("https://audio.example/42.mp4");
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining("audioquality=HI_RES_LOSSLESS"),
+      expect.stringContaining("audioquality=HI_RES"),
+      expect.stringContaining("audioquality=LOSSLESS"),
+    ]);
+  });
+
   it("accepts the legacy session scopes used by the working Android client", async () => {
     const payload = Buffer.from(JSON.stringify({ scope: "r_usr w_usr w_sub", cc: "KR" })).toString("base64url");
     const fetcher = vi.fn().mockResolvedValue(response({
@@ -68,7 +102,7 @@ describe("TIDAL playback stream resolver", () => {
   });
 
   it("rejects PREVIEW responses", async () => {
-    const fetcher = vi.fn().mockResolvedValue(response({
+    const fetcher = vi.fn().mockImplementation(() => response({
       assetPresentation: "PREVIEW",
       manifest: "https://audio.example/preview.flac",
     }));
@@ -80,7 +114,7 @@ describe("TIDAL playback stream resolver", () => {
     [{ encryptionType: "AES", mimeType: "application/vnd.apple.mpegurl", urls: ["https://audio.example/a.m3u8"] }, "DRM"],
     [{ encryptionType: "NONE", mimeType: "application/dash+xml", urls: ["https://audio.example/a.mpd"] }, "DASH"],
   ])("rejects unsupported %s manifests", async (payload) => {
-    const fetcher = vi.fn().mockResolvedValue(response({
+    const fetcher = vi.fn().mockImplementation(() => response({
       assetPresentation: "FULL",
       manifest: manifest({ assetPresentation: "FULL", ...payload }),
     }));

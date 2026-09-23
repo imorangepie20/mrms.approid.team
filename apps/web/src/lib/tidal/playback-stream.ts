@@ -63,8 +63,15 @@ function decodeManifest(value: unknown): Manifest & { directUrl?: string } {
   }
   if (/^https:\/\//i.test(value)) return { directUrl: value };
   try {
-    return JSON.parse(Buffer.from(value, "base64").toString("utf8")) as Manifest;
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    if (/^\s*</.test(decoded)) {
+      throw new TidalPlaybackStreamError("tidal_stream_format_unsupported");
+    }
+    return JSON.parse(decoded) as Manifest;
   } catch {
+    if (value && typeof value === "string" && /^\s*</.test(Buffer.from(value, "base64").toString("utf8"))) {
+      throw new TidalPlaybackStreamError("tidal_stream_format_unsupported");
+    }
     throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
   }
 }
@@ -91,48 +98,66 @@ export async function resolveTidalPlaybackStream(
   if (!hasTidalDeviceSessionScopes(scopes(token).join(" "))) {
     throw new TidalPlaybackStreamError("tidal_stream_scope_required");
   }
-  const quality = (options.quality ?? "HI_RES_LOSSLESS").toUpperCase();
-  if (!new Set(["LOW", "HIGH", "LOSSLESS", "HI_RES", "HI_RES_LOSSLESS"]).has(quality)) {
+  // The current TIDAL endpoint returns DASH XML for HI_RES qualities. The
+  // browser engine supports direct, unencrypted streams, so use LOSSLESS by
+  // default; callers may still opt into another supported quality explicitly.
+  const requestedQuality = options.quality?.toUpperCase();
+  const supportedQualities = new Set(["LOW", "HIGH", "LOSSLESS", "HI_RES", "HI_RES_LOSSLESS"]);
+  if (requestedQuality && !supportedQualities.has(requestedQuality)) {
     throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
   }
+  const qualities = requestedQuality
+    ? [requestedQuality]
+    : ["HI_RES_LOSSLESS", "HI_RES", "LOSSLESS", "HIGH", "LOW"];
   const claims = jwtClaims(token.accessToken);
   const countryCode = string(claims.cc) ?? options.countryCode ?? process.env.TIDAL_COUNTRY_CODE ?? "US";
   const baseUrl = (options.apiBaseUrl ?? process.env.TIDAL_PLAYBACK_API_BASE_URL ?? "https://api.tidal.com/v1").replace(/\/$/, "");
-  const url = new URL(`${baseUrl}/tracks/${trackId}/playbackinfo`);
-  url.search = new URLSearchParams({
-    audioquality: quality,
-    playbackmode: "STREAM",
-    assetpresentation: "FULL",
-    countryCode: countryCode.toUpperCase(),
-  }).toString();
-  const response = await (options.fetcher ?? fetch)(url.toString(), {
-    headers: { accept: "application/json", authorization: `Bearer ${token.accessToken}` },
-    cache: "no-store",
-  });
-  if (!response.ok) throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
-  const body = (await response.json()) as Record<string, unknown>;
-  const manifest = decodeManifest(body.manifest);
-  const presentation = string(body.assetPresentation) ?? string(manifest.assetPresentation);
-  if (presentation !== "FULL") {
-    throw new TidalPlaybackStreamError("tidal_full_playback_unavailable");
+  let lastError: unknown;
+  for (const quality of qualities) {
+    try {
+      const url = new URL(`${baseUrl}/tracks/${trackId}/playbackinfo`);
+      url.search = new URLSearchParams({
+        audioquality: quality,
+        playbackmode: "STREAM",
+        assetpresentation: "FULL",
+        countryCode: countryCode.toUpperCase(),
+      }).toString();
+      const response = await (options.fetcher ?? fetch)(url.toString(), {
+        headers: { accept: "application/json", authorization: `Bearer ${token.accessToken}` },
+        cache: "no-store",
+      });
+      if (!response.ok) throw new TidalPlaybackStreamError("tidal_playback_upstream_failed");
+      const body = (await response.json()) as Record<string, unknown>;
+      const manifest = decodeManifest(body.manifest);
+      const presentation = string(body.assetPresentation) ?? string(manifest.assetPresentation);
+      if (presentation !== "FULL") {
+        throw new TidalPlaybackStreamError("tidal_full_playback_unavailable");
+      }
+      const mimeType = string(manifest.mimeType);
+      const encryptionType = string(manifest.encryptionType);
+      const urlValue = streamUrl(manifest);
+      if (
+        (encryptionType && encryptionType.toUpperCase() !== "NONE") ||
+        mimeType?.toLowerCase().includes("dash") ||
+        /\.mpd(?:\?|$)/i.test(urlValue)
+      ) {
+        throw new TidalPlaybackStreamError("tidal_stream_format_unsupported");
+      }
+      const duration = typeof manifest.duration === "number" ? manifest.duration : null;
+      return {
+        assetPresentation: "FULL",
+        audioQuality: string(body.audioQuality),
+        codec: string(manifest.codecs),
+        durationSeconds: duration,
+        manifestMimeType: mimeType,
+        streamUrl: urlValue,
+      };
+    } catch (error) {
+      lastError = error;
+      if (requestedQuality || !(error instanceof TidalPlaybackStreamError)) throw error;
+    }
   }
-  const mimeType = string(manifest.mimeType);
-  const encryptionType = string(manifest.encryptionType);
-  const urlValue = streamUrl(manifest);
-  if (
-    (encryptionType && encryptionType.toUpperCase() !== "NONE") ||
-    mimeType?.toLowerCase().includes("dash") ||
-    /\.mpd(?:\?|$)/i.test(urlValue)
-  ) {
-    throw new TidalPlaybackStreamError("tidal_stream_format_unsupported");
-  }
-  const duration = typeof manifest.duration === "number" ? manifest.duration : null;
-  return {
-    assetPresentation: "FULL",
-    audioQuality: string(body.audioQuality),
-    codec: string(manifest.codecs),
-    durationSeconds: duration,
-    manifestMimeType: mimeType,
-    streamUrl: urlValue,
-  };
+  throw lastError instanceof TidalPlaybackStreamError
+    ? lastError
+    : new TidalPlaybackStreamError("tidal_playback_upstream_failed");
 }
