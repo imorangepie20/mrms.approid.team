@@ -44,6 +44,34 @@ export type EmsIngestRun = {
   createdAt: string;
 };
 
+export type EmsAdminIngestJob = {
+  id: string;
+  status: string;
+  phase: string;
+  startingActiveCount: number;
+  activeTrackCount: number;
+  requestCount: number;
+  nextPlaylistIndex: number;
+  playlistCount: number;
+  candidateCount: number;
+  matchedCount: number;
+  pendingCount: number;
+  retryableCount: number;
+  errorCode: string | null;
+  nextRetryAt: string | null;
+  heartbeatAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+};
+
+export type EmsAdminIngestion = {
+  activeTrackCount: number;
+  embeddingCompletedCount: number;
+  job: EmsAdminIngestJob | null;
+  samples: Array<{ sampledAt: string; activeTrackCount: number; candidateCount: number; matchedCount: number }>;
+};
+
 export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
 
 export class AdminApiError extends Error {
@@ -102,4 +130,20 @@ export function getEmsTracks(options: { query?: string; page?: number; cursor?: 
 export function getEmsIngestRuns(options: { page?: number; limit?: number } = {}) {
   const params = new URLSearchParams({ page: String(options.page ?? 1), limit: String(options.limit ?? 20) });
   return requestJson<EmsIngestRun[]>(`/api/admin/ems/ingest-runs?${params}`);
+}
+
+export function getEmsAdminIngestion() {
+  return requestJson<EmsAdminIngestion>("/api/admin/ems/ingest-jobs");
+}
+
+export function startEmsAdminIngestion() {
+  return requestJson<{ id: string }>("/api/admin/ems/ingest-jobs", { method: "POST" });
+}
+
+export function changeEmsAdminIngestion(id: string, action: "pause" | "resume") {
+  return requestJson<{ id: string; status: string }>(`/api/admin/ems/ingest-jobs/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
 }

@@ -24,6 +24,8 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [EMS 관리자 수집 계획](plans/2026-09-24-admin-ems-fill.md)
+- [EMS 관리자 수집 변경 기록](changes/2026-09-24-admin-ems-ingestion.md)
 - [EMS 카탈로그 설계](superpowers/specs/2026-09-22-ems-catalog-ingestion-design.md)
 - [EMS 카탈로그 구현 계획](superpowers/plans/2026-09-22-ems-catalog-ingestion.md)
 - [EMS 카탈로그 변경 기록](changes/2026-09-22-ems-catalog-ingestion.md)

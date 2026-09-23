@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
@@ -10,7 +9,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from .select import Candidate, write_candidate_artifacts
-from .tidal import TidalCatalogClient, duration_milliseconds
+from .tidal import TidalCatalogClient, duration_milliseconds, parse_retry_after
 
 
 DEFAULT_QUERIES = ("Top 100", "Hits", "Pop", "K-Pop", "Hip-Hop", "R&B", "Rock", "Dance", "Latin", "Country", "Jazz", "Classical")
@@ -120,24 +119,46 @@ def select_editorial_candidates(tracks: Iterable[EditorialTrack], limit: int) ->
 
 
 def _get_document(client: TidalCatalogClient, token: str, url: str, params: dict[str, str] | None = None) -> dict[str, Any]:
+    if client.request_budget is not None and client.used_requests >= client.request_budget:
+        raise EditorialRequestBudgetExceeded("editorial request budget exhausted")
+    token = client.get_token()
     response: httpx.Response | None = None
-    for attempt in range(5):
-        if client.used_requests >= client.request_budget:
+    attempt = 0
+    refreshed = False
+    while True:
+        if client.request_budget is not None and client.used_requests >= client.request_budget:
             raise EditorialRequestBudgetExceeded("editorial request budget exhausted")
+        client.before_request()
         client.used_requests += 1
-        response = client.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+        try:
+            response = client.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+        except httpx.RequestError:
+            if attempt >= 4:
+                raise
+            client.wait(min(60.0, 2 ** attempt))
+            attempt += 1
+            continue
+        if response.status_code == 401 and not refreshed:
+            token = client.get_token(force_refresh=True)
+            refreshed = True
+            continue
         if response.status_code != 429 and response.status_code < 500:
             response.raise_for_status()
             document = response.json()
             if not isinstance(document, dict):
                 raise ValueError("invalid TIDAL response")
             return document
-        retry_after = response.headers.get("Retry-After")
-        try:
-            delay = float(retry_after) if retry_after else 2**attempt
-        except ValueError:
-            delay = 2**attempt
-        time.sleep(max(0.0, min(8.0, delay)))
+        delay = parse_retry_after(response.headers.get("Retry-After"))
+        if delay is None:
+            delay = 2 ** min(attempt, 6)
+        if response.status_code != 429 and attempt >= 4:
+            response.raise_for_status()
+        if response.status_code == 429 and client.on_rate_limit is not None:
+            client.on_rate_limit(delay)
+        client.wait(max(0.0, delay))
+        if response.status_code == 429 and client.on_rate_limit is not None:
+            client.on_rate_limit(None)
+        attempt += 1
     assert response is not None
     response.raise_for_status()
     raise RuntimeError("unreachable")

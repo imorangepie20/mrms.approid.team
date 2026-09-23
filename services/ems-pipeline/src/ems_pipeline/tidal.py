@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import math
 import re
 import time
 import unicodedata
+from datetime import datetime, timezone
 from dataclasses import dataclass
+from email.utils import parsedate_to_datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -21,6 +24,10 @@ class ResolveStatus(str, Enum):
     UNAVAILABLE = "unavailable"
     RETRYABLE = "retryable"
     BUDGET_EXHAUSTED = "budget_exhausted"
+
+
+class CatalogRequestPaused(RuntimeError):
+    """The admin job was paused before another TIDAL request."""
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,22 @@ def duration_milliseconds(value: Any) -> int | None:
     if not match:
         return None
     return round((int(match.group(1) or 0) * 3600 + int(match.group(2) or 0) * 60 + float(match.group(3) or 0)) * 1000)
+
+
+def parse_retry_after(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            deadline = parsedate_to_datetime(value)
+            if deadline.tzinfo is None:
+                deadline = deadline.replace(tzinfo=timezone.utc)
+            seconds = (deadline - datetime.now(timezone.utc)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return None
+    return max(0, math.ceil(seconds)) if math.isfinite(seconds) else None
 
 
 def _resources(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
@@ -149,24 +172,50 @@ class TidalCatalogClient:
         token_url: str = "https://auth.tidal.com/v1/oauth2/token",
         api_base_url: str = "https://openapi.tidal.com/v2",
         country_code: str = "KR",
-        request_budget: int = 1000,
+        request_budget: int | None = 1000,
         http_client: httpx.Client | None = None,
+        min_request_interval_seconds: float = 0.0,
+        should_continue: Callable[[], bool] | None = None,
+        on_request: Callable[[], None] | None = None,
+        on_rate_limit: Callable[[int | None], None] | None = None,
     ) -> None:
         self.client_id = client_id
         self.client_secret = client_secret
         self.token_url = token_url
         self.api_base_url = api_base_url.rstrip("/")
         self.country_code = country_code
-        self.request_budget = max(0, request_budget)
+        self.request_budget = max(0, request_budget) if request_budget is not None else None
         self.used_requests = 0
         self.http_client = http_client or httpx.Client(timeout=30)
+        self.min_request_interval_seconds = max(0.0, min_request_interval_seconds)
+        self.should_continue = should_continue
+        self.on_request = on_request
+        self.on_rate_limit = on_rate_limit
+        self._last_request_at = 0.0
         self._token: str | None = None
         self._token_expires_at = 0.0
+
+    def wait(self, seconds: float) -> None:
+        until = time.monotonic() + max(0.0, seconds)
+        while True:
+            if self.should_continue is not None and not self.should_continue():
+                raise CatalogRequestPaused("admin job paused")
+            remaining = until - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(1.0, remaining))
+
+    def before_request(self) -> None:
+        self.wait(self.min_request_interval_seconds - (time.monotonic() - self._last_request_at))
+        if self.on_request is not None:
+            self.on_request()
+        self._last_request_at = time.monotonic()
 
     def get_token(self, force_refresh: bool = False) -> str:
         if self._token and not force_refresh and time.time() < self._token_expires_at - 30:
             return self._token
         encoded = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+        self.before_request()
         response = self.http_client.post(
             self.token_url,
             headers={"Authorization": f"Basic {encoded}", "Content-Type": "application/x-www-form-urlencoded"},
@@ -187,8 +236,8 @@ class TidalCatalogClient:
         # Album editions often differ, so discover by artist + title only.
         query = " ".join(value for value in (candidate.artist, candidate.title) if value)
         query_hash = hashlib.sha256(query.encode("utf-8")).hexdigest()
-        if self.used_requests >= self.request_budget:
-            return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
+        if self.request_budget is not None and self.used_requests >= self.request_budget:
+            return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="request_cap")
         try:
             token = self.get_token()
         except (httpx.HTTPError, ValueError):
@@ -196,23 +245,28 @@ class TidalCatalogClient:
 
         def request(url: str, params: dict[str, str]) -> httpx.Response | ResolveResult:
             nonlocal token
-            response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+            self.before_request()
+            try:
+                response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+            except httpx.HTTPError:
+                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="catalog_network")
+            self.used_requests += 1
             if response.status_code == 401:
                 try:
                     token = self.get_token(force_refresh=True)
                 except (httpx.HTTPError, ValueError):
                     return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="token_refresh")
-                response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
-            self.used_requests += 1
+                self.before_request()
+                try:
+                    response = self.http_client.get(url, params=params, headers={"Authorization": f"Bearer {token}", "accept": "application/vnd.api+json"})
+                except httpx.HTTPError:
+                    return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="catalog_network")
+                self.used_requests += 1
             return response
 
         def response_error(response: httpx.Response) -> ResolveResult | None:
             if response.status_code == 429:
-                retry_after = response.headers.get("Retry-After")
-                try:
-                    retry_seconds = max(0, min(3600, int(float(retry_after)))) if retry_after else None
-                except ValueError:
-                    retry_seconds = None
+                retry_seconds = parse_retry_after(response.headers.get("Retry-After"))
                 return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, retry_after_seconds=retry_seconds, error_code="rate_limited")
             if response.status_code >= 500:
                 return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="upstream_5xx")
@@ -238,8 +292,8 @@ class TidalCatalogClient:
                     match = _choose_best_match(candidate, exact_isrc, self.country_code)
                     rule = "isrc_exact_tiebreak" if len(exact_isrc) > 1 else "isrc_exact"
                     return _validated_match(candidate, match, query_hash, rule, 1.0, self.country_code)
-            if self.used_requests >= self.request_budget:
-                return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="daily_budget")
+            if self.request_budget is not None and self.used_requests >= self.request_budget:
+                return ResolveResult(ResolveStatus.BUDGET_EXHAUSTED, query_hash=query_hash, error_code="request_cap")
 
         response = request(
             f"{self.api_base_url}/searchResults",

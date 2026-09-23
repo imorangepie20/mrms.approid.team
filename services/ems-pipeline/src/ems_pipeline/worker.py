@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from .importer import TidalMatch, promote_match
 from .select import Candidate
-from .tidal import ResolveResult, ResolveStatus
+from .tidal import CatalogRequestPaused, ResolveResult, ResolveStatus
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class HealthGate:
 
 def retry_delay(attempt: int, retry_after_seconds: int | None) -> int:
     if retry_after_seconds is not None:
-        return max(0, min(3600, retry_after_seconds))
+        return max(0, retry_after_seconds)
     return min(3600, max(1, int(math.pow(2, max(0, attempt)))))
 
 
@@ -49,7 +49,7 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                 WHERE candidate.id = claimed.id
                 RETURNING candidate.id, candidate.candidate_key, candidate.title,
                           candidate.artist, candidate.album, candidate.isrc,
-                          candidate.recording_mbid, candidate.duration_ms;
+                          candidate.recording_mbid, candidate.duration_ms, candidate.attempt_count;
                 """,
                 (run_id, batch_size, lease_seconds),
             )
@@ -76,7 +76,7 @@ def mark_resolution(connection: Any, candidate_id: str, result: ResolveResult, *
             )
 
 
-def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size: int = 50, max_batches: int | None = None) -> dict[str, int]:
+def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size: int = 50, max_batches: int | None = None, on_result: Callable[[ResolveResult], None] | None = None) -> dict[str, int]:
     counts = {status.value: 0 for status in ResolveStatus}
     batches = 0
     while max_batches is None or batches < max_batches:
@@ -98,7 +98,15 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                 selection_bucket="canonical",
                 selection_score=0.0,
             )
-            result = catalog_client.resolve(candidate)
+            try:
+                result = catalog_client.resolve(candidate)
+            except CatalogRequestPaused:
+                with connection.transaction():
+                    connection.execute(
+                        "UPDATE ems_ingest_candidates SET resolver_status = 'pending', lease_expires_at = NULL WHERE id = %s",
+                        (row["id"],),
+                    )
+                raise
             counts[result.status.value] += 1
             if result.status == ResolveStatus.MATCHED and result.tidal_id:
                 promote_match(
@@ -119,6 +127,8 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                 )
             else:
                 mark_resolution(connection, str(row["id"]), result, attempt_count=int(row.get("attempt_count", 1)))
+            if on_result is not None:
+                on_result(result)
             if result.status == ResolveStatus.BUDGET_EXHAUSTED:
                 return counts
     return counts

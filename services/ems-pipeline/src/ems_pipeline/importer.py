@@ -143,7 +143,7 @@ class ManifestImporter:
             yield from csv.DictReader(handle)
 
 
-def stage_candidates(connection: Any, run_id: str, candidates: Iterable[Candidate]) -> int:
+def stage_candidates(connection: Any, run_id: str, candidates: Iterable[Candidate], *, sequence_start: int = 0) -> int:
     rows = list(candidates)
     if not rows:
         return 0
@@ -164,7 +164,7 @@ def stage_candidates(connection: Any, run_id: str, candidates: Iterable[Candidat
                     (run_id, sequence, candidate.candidate_key, candidate.recording_mbid, candidate.isrc,
                      candidate.title, candidate.artist, candidate.album, candidate.duration_ms,
                      candidate.selection_bucket, candidate.selection_score)
-                    for sequence, candidate in enumerate(rows)
+                    for sequence, candidate in enumerate(rows, start=sequence_start)
                 ],
             )
     return len(rows)

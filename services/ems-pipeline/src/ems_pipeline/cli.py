@@ -51,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--batch-size", type=int, default=16)
     embed.add_argument("--max-batches", type=int, default=None)
     embed.add_argument("--embedding-service-url", default=None)
+    subparsers.add_parser("serve-admin-jobs")
     return parser
 
 
@@ -75,6 +76,11 @@ def execute_run(
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "serve-admin-jobs":
+        from .admin_ingestion import serve_admin_jobs
+
+        serve_admin_jobs()
+        return 0
     work_root_arg = getattr(args, "work_root", None)
     work_root = work_root_arg or (Path(os.environ["MUSICBRAINZ_WORK_ROOT"]) if os.environ.get("MUSICBRAINZ_WORK_ROOT") else None)
     if args.command in {"download", "download-canonical", "select", "select-tidal-editorial"} and work_root is None:

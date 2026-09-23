@@ -6,4 +6,4 @@ COPY src ./src
 RUN pip install --no-cache-dir .
 
 USER nobody
-CMD ["python", "-c", "from ems_pipeline.worker import HealthGate; print(HealthGate())"]
+CMD ["python", "-m", "ems_pipeline.cli", "serve-admin-jobs"]
