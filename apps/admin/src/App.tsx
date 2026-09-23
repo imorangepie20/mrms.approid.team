@@ -43,6 +43,9 @@ export default function App() {
           </div>
           <a className="text-sm text-hud-text-secondary hover:text-hud-accent-primary" href="/">사용자 화면</a>
         </header>
+        <nav className="mb-6 grid grid-cols-2 gap-2 rounded-xl border border-hud-border-secondary bg-hud-bg-secondary/80 p-2 md:hidden" aria-label="모바일 관리자 메뉴">
+          {pages.map((page) => <NavLink key={page.href} to={page.href} end={page.href === "/"} className={({ isActive }) => `rounded-lg px-3 py-2 text-center text-sm ${isActive ? "bg-hud-accent-primary/15 text-hud-accent-primary" : "text-hud-text-secondary"}`}>{page.label}</NavLink>)}
+        </nav>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/sections" element={<Sections />} />

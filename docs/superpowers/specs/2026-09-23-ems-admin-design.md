@@ -38,6 +38,7 @@
   - 검색어와 페이지 크기는 상한을 둔다.
 - `GET /api/admin/ems/ingest-runs`
   - ingest 실행 시각, 상태, 후보·매칭·중복·실패·대기 통계와 오류 요약을 반환한다.
+  - 현재 스키마에 별도 `duplicate` 상태가 없어 모호 매칭(`ambiguous`)을 운영상 중복 검토 수치로 표시한다.
 
 1차에서는 `POST` 재실행과 `DELETE` 대량 삭제 API를 만들지 않는다.
 

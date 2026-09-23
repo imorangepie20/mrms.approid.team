@@ -9,6 +9,12 @@ const cards = [
   { key: "artworkMissingCount", label: "artwork 누락", icon: ImageOff, accent: "text-hud-accent-warning" },
 ] as const;
 
+function statusClass(status: string) {
+  if (["completed", "active"].includes(status)) return "text-hud-accent-success";
+  if (["failed", "rolled_back"].includes(status)) return "text-hud-accent-danger";
+  return "text-hud-accent-warning";
+}
+
 export default function Dashboard() {
   const [summary, setSummary] = useState<EmsSummary | null>(null);
   const [error, setError] = useState("");
@@ -43,7 +49,7 @@ export default function Dashboard() {
             {!summary && <p className="text-sm text-hud-text-muted">불러오는 중…</p>}
           </div>
         </article>
-        <article className="hud-card rounded-2xl p-5"><h2 className="font-semibold">최근 수집</h2>{summary?.latestIngest ? <div className="mt-5 space-y-2 text-sm"><div className="flex justify-between"><span className="text-hud-text-secondary">상태</span><span className="text-hud-accent-success">{summary.latestIngest.status}</span></div><div className="flex justify-between"><span className="text-hud-text-secondary">매칭</span><span>{summary.latestIngest.matchedCount} / {summary.latestIngest.requestedCount}</span></div><div className="flex justify-between"><span className="text-hud-text-secondary">실행 시각</span><span>{new Date(summary.latestIngest.createdAt).toLocaleString("ko-KR")}</span></div></div> : <p className="mt-5 text-sm text-hud-text-muted">기록이 없습니다.</p>}</article>
+        <article className="hud-card rounded-2xl p-5"><h2 className="font-semibold">최근 수집</h2>{summary?.latestIngest ? <div className="mt-5 space-y-2 text-sm"><div className="flex justify-between"><span className="text-hud-text-secondary">상태</span><span className={statusClass(summary.latestIngest.status)}>{summary.latestIngest.status}</span></div><div className="flex justify-between"><span className="text-hud-text-secondary">매칭</span><span>{summary.latestIngest.matchedCount} / {summary.latestIngest.requestedCount}</span></div><div className="flex justify-between"><span className="text-hud-text-secondary">실행 시각</span><span>{new Date(summary.latestIngest.createdAt).toLocaleString("ko-KR")}</span></div></div> : <p className="mt-5 text-sm text-hud-text-muted">기록이 없습니다.</p>}</article>
       </section>
     </div>
   );
