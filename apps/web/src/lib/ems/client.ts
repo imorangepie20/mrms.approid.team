@@ -1,12 +1,14 @@
-import type { EmsSectionsResponse } from "@/lib/ems/sections";
+import type { EmsScreen, EmsSectionsResponse } from "@/lib/ems/sections";
 
 export async function fetchEmsSections(
+  screen: EmsScreen,
   sectionLimit: number,
   signal?: AbortSignal,
 ): Promise<EmsSectionsResponse> {
   const params = new URLSearchParams({
     limit: "12",
     region: "KR",
+    screen,
     sectionLimit: String(sectionLimit),
   });
   const response = await fetch(`/api/ems/sections?${params}`, { signal });

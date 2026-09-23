@@ -17,6 +17,8 @@ export type EmsSection = {
   updatedAt: string;
 };
 
+export type Screen = "home" | "ems";
+
 export type EmsTrack = {
   id: string;
   tidalTrackId: string;
@@ -120,12 +122,12 @@ export function getEmsSummary() {
   return requestJson<EmsSummary>("/api/admin/ems/summary");
 }
 
-export function getEmsSections() {
-  return requestJson<EmsSection[]>("/api/admin/ems/sections");
+export function getScreenSections(screen: Screen) {
+  return requestJson<EmsSection[]>(`/api/admin/screens/${screen}/sections`);
 }
 
-export function updateEmsSection(id: string, patch: Pick<EmsSection, "title" | "description" | "sortOrder" | "active">) {
-  return requestJson<EmsSection>(`/api/admin/ems/sections/${encodeURIComponent(id)}`, {
+export function updateScreenSection(screen: Screen, id: string, patch: Pick<EmsSection, "title" | "description" | "sortOrder" | "active">) {
+  return requestJson<EmsSection>(`/api/admin/screens/${screen}/sections/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(patch),

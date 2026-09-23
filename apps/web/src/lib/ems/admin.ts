@@ -1,3 +1,5 @@
+import type { EmsScreen } from "@/lib/ems/sections";
+
 export type QueryExecutor = {
   query<Row extends Record<string, unknown>>(
     sql: string,
@@ -78,7 +80,7 @@ export async function getEmsAdminSummary(executor: QueryExecutor): Promise<EmsAd
     executor.query<SummaryCountRow>(`/* ems_admin_summary_counts */
       SELECT count(*) FILTER (WHERE e.status = 'active')::int AS active_track_count,
              count(*) FILTER (WHERE e.status = 'active' AND e.artwork_url IS NULL)::int AS artwork_missing_count,
-             (SELECT count(*)::int FROM ems_editorial_sections WHERE active = true) AS active_section_count
+             (SELECT count(*)::int FROM ems_screen_sections WHERE screen = 'ems' AND active = true) AS active_section_count
         FROM ems_tracks AS e`),
     executor.query<EmbeddingCountRow>(`/* ems_admin_embedding_counts */
       SELECT COALESCE(emb.status, 'missing') AS status, count(*)::int AS count
@@ -104,14 +106,16 @@ export async function getEmsAdminSummary(executor: QueryExecutor): Promise<EmsAd
   };
 }
 
-export async function listEmsAdminSections(executor: QueryExecutor): Promise<EmsAdminSection[]> {
+export async function listEmsAdminSections(executor: QueryExecutor, screen: EmsScreen = "ems"): Promise<EmsAdminSection[]> {
   const result = await executor.query<SectionRow>(`/* ems_admin_sections */
-    SELECT s.id, s.slug, s.title, s.description, s.sort_order, s.active, s.updated_at,
+    SELECT s.id, s.slug, cfg.title, cfg.description, cfg.sort_order, cfg.active, cfg.updated_at,
            count(t.id)::int AS track_count
       FROM ems_editorial_sections AS s
+      JOIN ems_screen_sections AS cfg ON cfg.section_id = s.id AND cfg.screen = $1
       LEFT JOIN ems_track_sections AS m ON m.section_id = s.id
       LEFT JOIN ems_tracks AS t ON t.id = m.track_id AND t.status = 'active'
-     GROUP BY s.id ORDER BY s.sort_order, s.id`);
+     GROUP BY s.id, cfg.title, cfg.description, cfg.sort_order, cfg.active, cfg.updated_at
+     ORDER BY cfg.sort_order, s.id`, [screen]);
   return result.rows.map((row) => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, sortOrder: row.sort_order, active: row.active, trackCount: Number(row.track_count), updatedAt: row.updated_at }));
 }
 
@@ -169,11 +173,12 @@ export async function listEmsAdminTracks(options: EmsAdminTrackOptions, executor
       SELECT e.id, e.tidal_id, e.title, e.artist, e.album, e.duration_ms, e.artwork_url,
              COALESCE(availability.playable, false) AS playback_available,
              COALESCE(emb.status, 'missing') AS embedding_status,
-             COALESCE(json_agg(json_build_object('slug', s.slug, 'title', s.title) ORDER BY s.sort_order) FILTER (WHERE s.id IS NOT NULL), '[]') AS sections
+             COALESCE(json_agg(json_build_object('slug', s.slug, 'title', cfg.title) ORDER BY cfg.sort_order) FILTER (WHERE cfg.section_id IS NOT NULL), '[]') AS sections
         FROM ems_tracks AS e
         LEFT JOIN ems_track_embeddings AS emb ON emb.track_id = e.id
         LEFT JOIN ems_track_sections AS m ON m.track_id = e.id
         LEFT JOIN ems_editorial_sections AS s ON s.id = m.section_id
+        LEFT JOIN ems_screen_sections AS cfg ON cfg.section_id = s.id AND cfg.screen = 'ems'
         LEFT JOIN LATERAL (
           SELECT a.playable FROM ems_availability_events AS a
            WHERE a.track_id = e.id AND a.region = $1 AND a.capability = 'STREAM'
@@ -210,7 +215,7 @@ export async function listEmsIngestRuns(options: { page?: number; limit?: number
 
 export type EmsSectionPatch = { title: string; description: string; sortOrder: number; active: boolean };
 
-export async function updateEmsSection(id: string, patch: EmsSectionPatch, executor: QueryExecutor) {
+export async function updateEmsSection(id: string, patch: EmsSectionPatch, executor: QueryExecutor, screen: EmsScreen = "ems") {
   if (!id.trim()) throw new Error("invalid_section_id");
   if (!patch.title.trim() || patch.title.length > 160) throw new Error("invalid_section_title");
   if (patch.description.length > 500) throw new Error("invalid_section_description");
@@ -218,18 +223,19 @@ export async function updateEmsSection(id: string, patch: EmsSectionPatch, execu
   if (typeof patch.active !== "boolean") throw new Error("invalid_section_active");
   const result = await executor.query<SectionRow>(`/* ems_admin_update_section */
     WITH updated AS (
-      UPDATE ems_editorial_sections
+      UPDATE ems_screen_sections
          SET title = $1, description = $2, sort_order = $3, active = $4, updated_at = now()
-       WHERE id = $5
-       RETURNING id, slug, title, description, sort_order, active, updated_at
+       WHERE screen = $5 AND section_id = $6
+       RETURNING section_id, title, description, sort_order, active, updated_at
     )
-    SELECT updated.id, updated.slug, updated.title, updated.description, updated.sort_order,
+    SELECT s.id, s.slug, updated.title, updated.description, updated.sort_order,
            updated.active, updated.updated_at, count(t.id)::int AS track_count
       FROM updated
-      LEFT JOIN ems_track_sections AS m ON m.section_id = updated.id
+      JOIN ems_editorial_sections AS s ON s.id = updated.section_id
+      LEFT JOIN ems_track_sections AS m ON m.section_id = updated.section_id
       LEFT JOIN ems_tracks AS t ON t.id = m.track_id AND t.status = 'active'
-     GROUP BY updated.id, updated.slug, updated.title, updated.description,
-              updated.sort_order, updated.active, updated.updated_at`, [patch.title.trim(), patch.description.trim(), patch.sortOrder, patch.active, id]);
+     GROUP BY s.id, updated.title, updated.description,
+              updated.sort_order, updated.active, updated.updated_at`, [patch.title.trim(), patch.description.trim(), patch.sortOrder, patch.active, screen, id]);
   const row = result.rows[0];
   if (!row) throw new Error("ems_section_not_found");
   return { id: row.id, slug: row.slug, title: row.title, description: row.description, sortOrder: row.sort_order, active: row.active, trackCount: Number(row.track_count), updatedAt: row.updated_at } satisfies EmsAdminSection;

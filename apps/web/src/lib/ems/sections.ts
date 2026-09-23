@@ -19,6 +19,8 @@ export type EmsSectionsResponse = {
   sections: EmsEditorialSection[];
 };
 
+export type EmsScreen = "home" | "ems";
+
 type EmsSectionRow = {
   slug: string;
   section_title: string;
@@ -48,10 +50,11 @@ const COUNT_SQL = `
 
 const SECTION_SQL = `
   WITH active_sections AS (
-    SELECT id, slug, title, description, sort_order
-    FROM ems_editorial_sections
-    WHERE active = true
-    ORDER BY sort_order, id
+    SELECT s.id, s.slug, screen.title, screen.description, screen.sort_order
+    FROM ems_editorial_sections AS s
+    JOIN ems_screen_sections AS screen ON screen.section_id = s.id
+    WHERE screen.screen = $2 AND screen.active = true
+    ORDER BY screen.sort_order, s.id
   ), ranked AS (
     SELECT s.slug, s.title AS section_title,
            s.description AS section_description, s.sort_order,
@@ -73,7 +76,7 @@ const SECTION_SQL = `
     ) AS availability ON availability.playable = true
   )
   SELECT * FROM ranked
-  WHERE row_number <= $2
+  WHERE row_number <= $3
   ORDER BY sort_order, rank, track_id`;
 
 function mapEmsTrack(row: EmsSectionRow): Track {
@@ -91,7 +94,7 @@ function mapEmsTrack(row: EmsSectionRow): Track {
 }
 
 export async function listEmsSections(
-  options: { limit?: number; sectionLimit?: number; region?: string },
+  options: { limit?: number; sectionLimit?: number; region?: string; screen?: EmsScreen },
   executor: QueryExecutor,
 ): Promise<EmsSectionsResponse> {
   const limit = Math.min(12, Math.max(1, Math.trunc(options.limit ?? 12)));
@@ -100,9 +103,11 @@ export async function listEmsSections(
     Math.max(1, Math.trunc(options.sectionLimit ?? 5)),
   );
   const region = (options.region ?? "KR").toUpperCase();
+  const screen = options.screen ?? "ems";
   const count = await executor.query<{ total_count: number }>(COUNT_SQL, [region]);
   const rows = await executor.query<EmsSectionRow>(SECTION_SQL, [
     region,
+    screen,
     limit * sectionLimit,
   ]);
   const seenTrackIds = new Set<string>();

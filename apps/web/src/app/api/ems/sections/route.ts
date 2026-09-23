@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const region = (params.get("region") ?? "KR").trim().toUpperCase();
   const limit = Number(params.get("limit") ?? 12);
   const sectionLimit = Number(params.get("sectionLimit") ?? 5);
+  const screen = params.get("screen");
   if (
     region !== "KR" ||
     !Number.isInteger(limit) ||
@@ -13,7 +14,8 @@ export async function GET(request: Request) {
     limit > 12 ||
     !Number.isInteger(sectionLimit) ||
     sectionLimit < 1 ||
-    sectionLimit > 5
+    sectionLimit > 5 ||
+    (screen !== null && screen !== "home" && screen !== "ems")
   ) {
     return Response.json(
       { code: "invalid_ems_section_filter" },
@@ -23,7 +25,7 @@ export async function GET(request: Request) {
   try {
     return Response.json(
       await listEmsSections(
-        { limit, region, sectionLimit },
+        { limit, region, sectionLimit, ...(screen ? { screen } : {}) },
         getDatabasePool(),
       ),
     );

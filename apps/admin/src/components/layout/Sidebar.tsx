@@ -22,6 +22,7 @@ import {
     DollarSign,
     Image,
     Database,
+    Monitor,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -42,10 +43,17 @@ const menuItems: MenuItem[] = [
         title: 'EMS',
         icon: <Database size={20} />,
         children: [
-            { title: 'Sections', path: '/ems/sections' },
             { title: 'Tracks', path: '/ems/tracks' },
             { title: 'Ingestion', path: '/ems/ingestion' },
             { title: '정기 수집', path: '/ems/routines' },
+        ],
+    },
+    {
+        title: '화면 관리',
+        icon: <Monitor size={20} />,
+        children: [
+            { title: '메인 화면', path: '/screens/home' },
+            { title: 'EMS 화면', path: '/screens/ems' },
         ],
     },
     { title: 'Analytics', icon: <BarChart3 size={20} />, path: '/analytics' },
@@ -126,7 +134,9 @@ const menuItems: MenuItem[] = [
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     const location = useLocation()
-    const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+    const [expandedMenus, setExpandedMenus] = useState<string[]>(() =>
+        menuItems.filter(item => item.children?.some(child => child.path === location.pathname)).map(item => item.title)
+    )
 
     const toggleMenu = (title: string) => {
         setExpandedMenus(prev =>

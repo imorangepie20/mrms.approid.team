@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "./context/ThemeContext";
 import MainLayout from "./layouts/MainLayout";
 
@@ -84,7 +84,9 @@ function TemplateRoutes() {
         <Route path="table/plugins" element={<TablePlugins />} />
         <Route path="chart/chartjs" element={<ChartJs />} />
         <Route path="ems" element={<EmsDashboard />} />
-        <Route path="ems/sections" element={<EmsSections />} />
+        <Route path="ems/sections" element={<Navigate to="/screens/ems" replace />} />
+        <Route path="screens/home" element={<EmsSections key="home" screen="home" />} />
+        <Route path="screens/ems" element={<EmsSections key="ems" screen="ems" />} />
         <Route path="ems/tracks" element={<EmsTracks />} />
         <Route path="ems/ingestion" element={<EmsIngestion />} />
         <Route path="ems/routines" element={<SourceRoutines />} />

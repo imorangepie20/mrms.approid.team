@@ -23,7 +23,7 @@ export function EmsBrowser({ autoFocus = false }: { autoFocus?: boolean }) {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchEmsSections(5, controller.signal)
+    fetchEmsSections("ems", 5, controller.signal)
       .then((response) => {
         setSectionsResponse(response);
         setSectionState("ready");
