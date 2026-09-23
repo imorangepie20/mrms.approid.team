@@ -534,19 +534,51 @@
   outline-offset: 3px;
 }
 
-/* Editorial cards keep the play affordance visible so playback is discoverable
-   without relying on hover (which is unavailable on touch and easy to miss). */
 .track-card-play-overlay {
-  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: transparent;
+  opacity: 0;
+  transition: background-color 180ms ease, opacity 180ms ease;
 }
 
 .track-card-play-button.cover-play-button {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(2px) scale(0.95);
+}
+
+.track-card:hover .track-card-play-overlay,
+.track-card:focus-within .track-card-play-overlay,
+.gateway-card:hover .track-card-play-overlay,
+.gateway-card:focus-within .track-card-play-overlay {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.45);
   opacity: 1;
-  transform: none;
+}
+
+.track-card:hover .track-card-play-button.cover-play-button,
+.track-card:focus-within .track-card-play-button.cover-play-button,
+.gateway-card:hover .track-card-play-button.cover-play-button,
+.gateway-card:focus-within .track-card-play-button.cover-play-button {
+  pointer-events: auto;
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 @media (hover: none) {
-  .cover-play-button {
+  .track-card-play-overlay {
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.2);
+    opacity: 1;
+  }
+
+  .track-card-play-button.cover-play-button {
+    pointer-events: auto;
     opacity: 1;
     transform: none;
   }

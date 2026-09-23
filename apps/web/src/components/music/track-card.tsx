@@ -51,10 +51,10 @@ export function TrackCard<TTrack extends Track>({
             MUSIC PIE
           </span>
         )}
-        <div className="track-card-play-overlay absolute inset-0 grid place-items-center bg-black/15 opacity-100 transition-[background-color,opacity] duration-200 group-hover/artwork:bg-black/45 group-focus-within/artwork:bg-black/45">
+        <div className="track-card-play-overlay absolute inset-0 grid place-items-center">
           <button
             aria-label={`재생 ${track.title}`}
-            className="track-card-play-button cover-play-button pointer-events-auto grid size-10 translate-y-0 scale-100 place-items-center rounded-full bg-[rgba(76,29,149,0.82)] text-white opacity-100 ring-1 ring-[rgba(46,16,101,0.95)] shadow-[0_8px_24px_rgba(0,0,0,0.42)] transition duration-200 group-hover/artwork:bg-[rgba(109,40,217,0.88)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transform-none"
+            className="track-card-play-button cover-play-button grid size-10 place-items-center rounded-full bg-[rgba(76,29,149,0.82)] text-white ring-1 ring-[rgba(46,16,101,0.95)] shadow-[0_8px_24px_rgba(0,0,0,0.42)] transition duration-200 hover:bg-[rgba(109,40,217,0.88)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transform-none"
             type="button"
             onClick={() => onPlay ? onPlay(track) : void playTrack(track)}
           >
