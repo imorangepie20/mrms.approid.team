@@ -69,6 +69,10 @@
 
 ## 최근 주요 변경
 
+- [2026-09-23 트랙 카드 레일 스크롤·모션 개선](changes/2026-09-23-track-rail-motion.md)
+- [2026-09-23 사용자 취향 분석 완료](changes/2026-09-23-taste-profile-completion.md)
+- [2026-09-23 온보딩 화면 시각 개선](changes/2026-09-23-onboarding-visual-refresh.md)
+- [2026-09-23 GMS 빈 상태 시각 개선](changes/2026-09-23-gms-empty-state-visual-refresh.md)
 - [2026-09-22 GMS 개인화 추천 연결](changes/2026-09-22-gms-personalized-recommendations.md)
 - [2026-09-22 트랙 임베딩·취향 프로필](changes/2026-09-22-track-embedding-taste-profile.md)
 - [2026-09-22 EMS 에디토리얼 섹션](changes/2026-09-22-ems-editorial-sections.md)

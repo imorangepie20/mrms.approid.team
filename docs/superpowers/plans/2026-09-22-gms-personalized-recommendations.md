@@ -39,11 +39,11 @@
 - Consumes: `auth0Subject`, completed `user_taste_profiles`/`user_taste_centroids`, `ems_tracks`, `ems_track_embeddings`, availability events, and user library/decision tables.
 - Produces: `{ profileReady, profileVersion, tracks }` with `Track` fields plus score metadata; a subject-scoped decision writer.
 
-- [ ] Write failing repository tests for profile gating, exclusion SQL, deterministic score mapping, and decision ownership.
-- [ ] Run the focused Vitest file and observe failures caused by the missing repository.
-- [ ] Implement the two-query repository: load the latest completed profile, then fetch candidate rows and greedily apply the approved score/diversity weights.
-- [ ] Implement subject-scoped decision insertion with `INSERT ... SELECT` and reject missing users.
-- [ ] Run the focused tests until green.
+- [x] Write failing repository tests for profile gating, exclusion SQL, deterministic score mapping, and decision ownership.
+- [x] Run the focused Vitest file and observe failures caused by the missing repository.
+- [x] Implement the two-query repository: load the latest completed profile, then fetch candidate rows and greedily apply the approved score/diversity weights.
+- [x] Implement subject-scoped decision insertion with `INSERT ... SELECT` and reject missing users.
+- [x] Run the focused tests until green.
 
 ### Task 2: Add protected recommendation and decision APIs
 
@@ -57,10 +57,10 @@
 - Consumes: Auth0 subject and repository functions from Task 1.
 - Produces: authenticated `GET /api/recommendations?limit=12` and authenticated `POST /api/recommendations/decisions`.
 
-- [ ] Add failing tests for anonymous 401, profile-not-ready response, bounded limit, valid decisions, and invalid body rejection.
-- [ ] Run focused route tests and verify expected red failures.
-- [ ] Implement auth, input validation, error mapping, and JSON responses without exposing embeddings or user identifiers.
-- [ ] Run focused route tests until green.
+- [x] Add failing tests for anonymous 401, profile-not-ready response, bounded limit, valid decisions, and invalid body rejection.
+- [x] Run focused route tests and verify expected red failures.
+- [x] Implement auth, input validation, error mapping, and JSON responses without exposing embeddings or user identifiers.
+- [x] Run focused route tests until green.
 
 ### Task 3: Connect GMS to real recommendations
 
@@ -75,10 +75,10 @@
 - Consumes: Task 2 recommendation response and decision endpoint.
 - Produces: GMS cards backed by EMS track IDs/artwork, profile-not-ready state, and persisted accept/reject actions.
 
-- [ ] Add failing UI/provider tests proving GMS no longer renders fixture tracks and decisions call the protected API.
-- [ ] Run the focused UI/provider tests and observe the expected failures.
-- [ ] Load recommendations in the server page, pass them through the dashboard, and make session accept/reject fire-and-forget decision writes while preserving immediate state updates.
-- [ ] Run focused UI/provider tests until green.
+- [x] Add failing UI/provider tests proving GMS no longer renders fixture tracks and decisions call the protected API.
+- [x] Run the focused UI/provider tests and observe the expected failures.
+- [x] Load recommendations in the server page, pass them through the dashboard, and make session accept/reject fire-and-forget decision writes while preserving immediate state updates.
+- [x] Run focused UI/provider tests until green.
 
 ### Task 4: Verify and document
 
@@ -86,7 +86,9 @@
 - Modify: `docs/changes/2026-09-22-gms-personalized-recommendations.md`
 - Modify: `docs/overview/current-development-context.md`
 
-- [ ] Run Web full tests, lint, build, and `git diff --check`.
-- [ ] Record only successful commands, known warnings, and unverified production browser checks.
-- [ ] Review the diff for user isolation, rejection permanence, and fixture leakage.
+- [x] Run Web full tests, lint, build, and `git diff --check`.
+- [x] Record only successful commands, known warnings, and unverified production browser checks.
+- [x] Review the diff for user isolation, rejection permanence, and fixture leakage.
+
+실제 completed taste profile을 가진 로그인 계정의 공개 GMS 카드·결정 저장 브라우저 검증은 아직 남아 있다. 현재 운영 DB의 completed profile은 0건이다.
 

@@ -163,6 +163,24 @@ it("does not fall back to fixture tracks when personalized recommendations are u
   expect(screen.queryByText("Midnight City")).not.toBeInTheDocument();
 });
 
+it("gives the GMS profile-not-ready state a clear next step", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      space="gms"
+    />,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "당신을 위한 추천을 준비하고 있어요" }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("취향 분석이 완료되면 개인화 추천이 표시됩니다.")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "취향 분석 시작하기" })).toHaveAttribute(
+    "href",
+    "/onboarding",
+  );
+});
+
 it("explains when a ready profile has no remaining recommendation candidates", () => {
   renderDashboard(
     <MusicDashboard
@@ -243,4 +261,19 @@ it("shows concise recommendation reasons on GMS cards", () => {
 
   expect(screen.getByText("취향 일치")).toBeInTheDocument();
   expect(screen.getByText("최근 발매")).toBeInTheDocument();
+});
+
+it("renders the GMS play action with a visual icon hook", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  expect(
+    screen.getByRole("button", { name: "Midnight City 재생" }).querySelector(".play-icon"),
+  ).toBeInTheDocument();
 });

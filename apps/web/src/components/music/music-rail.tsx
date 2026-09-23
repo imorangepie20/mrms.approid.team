@@ -1,6 +1,7 @@
 import type { Track } from "@/lib/music/types";
 
 import { TrackCard } from "./track-card";
+import { TrackRail } from "./track-rail";
 
 type MusicRailProps = {
   title: string;
@@ -31,7 +32,7 @@ export function MusicRail({
           모두 보기
         </button>
       </div>
-      <div className="-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <TrackRail ariaLabel={title}>
         {tracks.map((track) => (
           <TrackCard
             key={track.id}
@@ -39,7 +40,7 @@ export function MusicRail({
             onRequestSignIn={onRequestSignIn}
           />
         ))}
-      </div>
+      </TrackRail>
     </section>
   );
 }

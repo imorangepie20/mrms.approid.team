@@ -44,6 +44,32 @@ const MINIMUM_TASTE_TRACKS = 15;
 const RECOMMENDED_TASTE_TRACKS = 30;
 const MULTI_TASTE_TRACKS = 60;
 
+const ONBOARDING_STEPS = [
+  { id: "connect", label: "TIDAL 연결", detail: "음악 계정 연결" },
+  { id: "select", label: "선택 단계", detail: "플레이리스트 고르기" },
+  { id: "analysis", label: "첫 취향 지도", detail: "추천 준비하기" },
+] as const;
+
+type ProgressStep = (typeof ONBOARDING_STEPS)[number]["id"];
+
+function OnboardingProgress({ activeStep }: { activeStep: ProgressStep }) {
+  return (
+    <nav className="onboarding-progress" aria-label="온보딩 진행">
+      <ol>
+        {ONBOARDING_STEPS.map((step, index) => (
+          <li key={step.id} aria-current={activeStep === step.id ? "step" : undefined}>
+            <span className="onboarding-progress-index">{String(index + 1).padStart(2, "0")}</span>
+            <span className="onboarding-progress-copy">
+              <strong>{step.label}</strong>
+              <small>{step.detail}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
 function tasteReadiness(trackCount: number) {
   if (trackCount < MINIMUM_TASTE_TRACKS) {
     return {
@@ -113,6 +139,12 @@ export function TidalOnboarding({
     0,
   );
   const readiness = tasteReadiness(selectedTrackCount);
+  const activeProgressStep: ProgressStep =
+    visibleStep === "connect"
+      ? "connect"
+      : visibleStep === "select"
+        ? "select"
+        : "analysis";
 
   useEffect(() => {
     return () => {
@@ -323,9 +355,7 @@ export function TidalOnboarding({
 
   return (
     <section className="rounded-3xl border border-white/10 bg-slate-900 p-6 text-white sm:p-10">
-      <p className="text-sm font-semibold tracking-[0.18em] text-fuchsia-300">
-        {visibleStep === "connect" ? "STEP 1 OF 3" : "STEP 2 OF 3"}
-      </p>
+      <OnboardingProgress activeStep={activeProgressStep} />
       {visibleStep === "connect" ? (
         <>
           <h1 className="onboarding-title mt-3">
@@ -337,14 +367,14 @@ export function TidalOnboarding({
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
           {connectHref ? (
             <a
-              className="mt-7 inline-flex min-h-11 items-center rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+              className="onboarding-primary-action mt-7 inline-flex min-h-11 items-center rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
               href={connectHref}
             >
               TIDAL 연결하기
             </a>
           ) : (
             <button
-              className="mt-7 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
+              className="onboarding-primary-action mt-7 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
               disabled={isConnecting}
               type="button"
               onClick={connect}
@@ -375,7 +405,8 @@ export function TidalOnboarding({
               playlists.map((playlist) => (
                 <label
                   key={playlist.id}
-                  className="flex min-h-14 cursor-pointer items-center gap-4 rounded-xl border border-white/10 p-4 transition hover:border-fuchsia-300/70"
+                  className="onboarding-playlist-option flex min-h-14 cursor-pointer items-center gap-4 rounded-xl border border-white/10 p-4 transition hover:border-fuchsia-300/70"
+                  data-selected={selectedPlaylistIds.includes(playlist.id) ? "true" : "false"}
                 >
                   <input
                     checked={selectedPlaylistIds.includes(playlist.id)}
@@ -383,15 +414,20 @@ export function TidalOnboarding({
                     type="checkbox"
                     onChange={() => togglePlaylist(playlist.id)}
                   />
-                  <span className="flex-1 font-semibold">{playlist.name}</span>
-                  <span className="text-sm text-slate-400">{playlist.trackCount}곡</span>
+                  <span className="onboarding-playlist-check" aria-hidden="true" />
+                  <span className="onboarding-playlist-name flex-1 font-semibold">{playlist.name}</span>
+                  <span className="onboarding-playlist-count text-sm text-slate-400">{playlist.trackCount}곡</span>
                 </label>
               ))
             )}
           </fieldset>
           {playlists && playlists.length > 0 ? (
-            <div className="mt-5 rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/5 p-4">
-              <p className="font-semibold">선택 예상 트랙 {selectedTrackCount}곡</p>
+            <div className="onboarding-readiness mt-5 rounded-2xl border border-fuchsia-300/20 bg-fuchsia-300/5 p-4">
+              <div className="onboarding-readiness-heading" aria-hidden="true">
+                <p className="font-semibold">선택 예상 트랙</p>
+                <strong>{selectedTrackCount}<small>곡</small></strong>
+              </div>
+              <span className="sr-only">선택 예상 트랙 {selectedTrackCount}곡</span>
               <progress
                 aria-label="첫 추천 권장 트랙 수"
                 className="mt-3 h-2 w-full accent-fuchsia-400"
@@ -413,14 +449,21 @@ export function TidalOnboarding({
             </p>
           ) : null}
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
-          <button
-            className="mt-7 min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
-            disabled={visibleStep === "importing"}
-            type="button"
-            onClick={() => void createMms()}
-          >
-            {visibleStep === "importing" ? "가져오는 중" : "MMS 만들기"}
-          </button>
+          <div className="onboarding-actions">
+            <span className="onboarding-actions-note" aria-live="polite">
+              {selectedPlaylistIds.length > 0
+                ? `플레이리스트 ${selectedPlaylistIds.length}개 선택됨`
+                : "플레이리스트를 선택해 주세요"}
+            </span>
+            <button
+              className="onboarding-primary-action min-h-11 rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118] transition hover:bg-[var(--brand-strong)] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-70"
+              disabled={visibleStep === "importing"}
+              type="button"
+              onClick={() => void createMms()}
+            >
+              {visibleStep === "importing" ? "가져오는 중" : "MMS 만들기"}
+            </button>
+          </div>
         </>
       )}
     </section>

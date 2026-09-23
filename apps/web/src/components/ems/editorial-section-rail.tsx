@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { TrackCard } from "@/components/music/track-card";
+import { TrackRail } from "@/components/music/track-rail";
 import type { EmsEditorialSection } from "@/lib/ems/sections";
 import type { Track } from "@/lib/music/types";
 import { useMusicSession } from "@/providers/music-session-provider";
@@ -58,7 +59,7 @@ export function EditorialSectionRail({
           </Link>
         ) : null}
       </div>
-      <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <TrackRail ariaLabel={section.title}>
         {section.tracks.map((track) => (
           <TrackCard
             key={track.id}
@@ -67,7 +68,7 @@ export function EditorialSectionRail({
             onPlay={playSectionTrack}
           />
         ))}
-      </div>
+      </TrackRail>
     </section>
   );
 }

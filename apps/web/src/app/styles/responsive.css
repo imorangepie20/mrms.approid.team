@@ -151,6 +151,22 @@
     font-size: 20px;
   }
 
+  .gateway-empty-state {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    min-height: auto;
+    padding: 26px 22px;
+  }
+
+  .gateway-empty-orbit {
+    width: 84px;
+    height: 84px;
+  }
+
+  .gateway-empty-copy h2 {
+    font-size: 28px;
+  }
+
   .mms-overview {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -225,6 +241,61 @@
   .onboarding-form > section {
     min-height: auto;
     padding: 28px 24px;
+  }
+
+  .onboarding-intro-art {
+    height: 142px;
+    margin-top: -4px;
+  }
+
+  .onboarding-art-card {
+    width: 104px;
+    height: 104px;
+    padding: 11px;
+    border-radius: 15px;
+    font-size: 11px;
+  }
+
+  .onboarding-art-card--two {
+    left: 78px;
+  }
+
+  .onboarding-vinyl {
+    right: 8px;
+    width: 128px;
+    height: 128px;
+  }
+
+  .onboarding-progress {
+    margin-bottom: 22px;
+  }
+
+  .onboarding-progress ol {
+    gap: 5px;
+  }
+
+  .onboarding-progress li {
+    gap: 5px;
+    padding-bottom: 10px;
+  }
+
+  .onboarding-progress-copy small {
+    display: none;
+  }
+
+  .onboarding-actions {
+    bottom: 0;
+    margin: 22px -24px -28px;
+    padding: 14px 24px 18px;
+  }
+
+  .onboarding-actions-note {
+    font-size: 12px;
+  }
+
+  .onboarding-actions .onboarding-primary-action {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .onboarding-title {

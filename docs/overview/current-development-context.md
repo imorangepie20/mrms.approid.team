@@ -44,9 +44,13 @@
 - GMS 프로필이 준비됐지만 후보가 0곡인 경우에는 `결정 대기 중 0곡` 대신 후보 소진 안내와 EMS 카탈로그 링크를 표시한다. 프로필 미완료·API 오류 상태와 구분하며 회귀 테스트를 추가했다.
 - GMS 추천 카드에는 서버의 `taste_match`·`fresh_release` reason code를 `취향 일치`·`최근 발매` 라벨로 표시해 추천 근거를 확인할 수 있게 했다.
 - 2026-09-22 GMS 개인화 추천 Web release `12e4050`를 Zorin에 배포했다. 공개 `/gms`·health는 200, 비로그인 추천 API는 401로 인증 경계를 확인했다. 로그인된 completed profile의 실제 추천 카드와 결정 저장 브라우저 검증은 아직 남아 있다.
-- 2026-09-22 Zorin의 active EMS 2,159곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,159건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 현재 completed taste profile은 0건이라 로그인 계정의 온보딩 분석 완료 전까지 GMS는 준비 안내를 표시한다. TIDAL 응답 지연으로 다음 bounded 후보 7개는 pending 상태다.
-- 2026-09-23 에디토리얼 section dry-run의 조회 지연을 bounded request budget/timeout과 playlist page cap으로 제한했다. 검증 이미지 `music-pie-ems-pipeline:editorial-20260923`로 5개 section 중 4개가 6곡 이상 조인되어 실제 membership sync를 수행했고, 이전 `temporary-*` placeholder section 5개는 비활성화했다. 현재 API는 `new-releases`, `seasonal-jazz`, `night-rnb`, `feel-good` 4개를 반환하며 `focus`는 조인 0곡이라 제외한다. DB membership 중복은 0건이고 readiness·Home·EMS HTTP smoke는 200이다.
+- 2026-09-22 Zorin의 active EMS 2,159곡에 `paraphrase-multilingual-mpnet-base-v2` 768차원 임베딩을 배치 처리했다. `ems_track_embeddings` completed 2,159건을 확인했으며, 임베딩 원문은 저장하지 않고 model revision·input hash·vector만 기록한다. 이후 운영 계정의 101곡 임베딩과 `taste-v1` 프로필을 완료해 전체 중심 1개·군집 중심 2개를 저장했다.
+- 2026-09-23 에디토리얼 section dry-run의 조회 지연을 bounded request budget/timeout과 playlist page cap으로 제한했다. 검증 이미지 `music-pie-ems-pipeline:editorial-20260923`로 5개 section 중 4개가 6곡 이상 조인되어 실제 membership sync를 수행했고, 이전 `temporary-*` placeholder section 5개는 비활성화했다. 현재 API는 `new-releases`, `seasonal-jazz`, `night-rnb`, `feel-good` 4개를 반환하며 `focus`는 조인 0곡이라 제외한다. DB membership 중복은 0건이고 readiness·Home·EMS HTTP smoke는 200이다. 이후 bounded 수집으로 활성 EMS 2,173곡, 임베딩 완료 2,159곡, 대기 14곡, 아트워크 누락 2곡을 확인했다.
 - 2026-09-23 공개 브라우저 QA에서 Home 상위 3개 rail, EMS 총 2,159곡·4개 section·album art, GMS profile-not-ready 상태를 확인했다. 실제 TIDAL OAuth 연결과 플레이리스트 분석은 사용자 권한 승인 후 수행해야 한다.
+- 2026-09-23 온보딩 화면을 음악 중심 히어로·진행 rail·선택 상태 강조·반응형 레이아웃으로 개선했다. 변경 영향 범위 테스트 15개와 ESLint, Impeccable detector를 통과했다. OAuth 후 운영 DB에서 TIDAL 연결 `connected=1`, 플레이리스트 3개·고유 트랙 101곡을 확인했고 실제 임베딩·취향 프로필 완료까지 처리했다.
+- 2026-09-23 운영 계정 취향 분석을 완료했다. `user_taste_profiles`는 `completed|101`, `user_taste_centroids`는 3개이며, GMS 유사도 조회 대상 후보는 active·KR STREAM 기준 2,159곡이다. 상세 결과는 `docs/changes/2026-09-23-taste-profile-completion.md`에 기록했다.
+- 2026-09-23 GMS의 프로필 미완료·후보 소진·오류 빈 상태를 음악형 패널과 다음 행동 CTA로 개선했다. 카드 재생·안내 아이콘도 CSS 기반으로 통일했으며 관련 온보딩·GMS 테스트 25개, ESLint, Impeccable detector, diff 검사를 통과했다.
+- 2026-09-23 Home·EMS 트랙 카드 레일을 공통 `TrackRail`로 통합했다. 브라우저 스크롤바를 숨기고 좌우 `scrollBy` 이동 버튼·키보드 방향키·Home/End·reduced-motion 경로를 추가했으며 전체 339개 테스트, build, ESLint, Impeccable detector를 통과했다. 상세 결과는 `docs/changes/2026-09-23-track-rail-motion.md`에 기록했다.
 
 ## 검증 결과
 
@@ -93,7 +97,7 @@
 - 실제 모바일 기기의 codec 지원과 백그라운드 오디오 동작은 아직 검증하지 않았다.
 - AI 분석 입력 허용은 테스트 배포까지다. production 배포 범위와 TIDAL 연결 해제 시 데이터 삭제 의무는 아직 확정하지 않았다.
 - MusicBrainz 장르 라이선스 확인, 공용 장르 어휘의 콜드스타트 정책, 캐시 만료·갱신 정책은 아직 확정하지 않았다.
-- 로그인된 실제 계정의 분석 시작 UI는 Chrome 연결 도구가 두 번 timeout되어 확인하지 못했다. 배포 직후 임베딩·취향 프로필 테이블은 0건이며 인증 분석 1회 후 101곡 vector와 프로필 결과를 검증해야 한다.
+- 로그인된 실제 계정의 분석 시작 UI와 GMS 카드 시각 검증은 Chrome 연결 도구가 반복 timeout되어 확인하지 못했다. DB 기준 임베딩·취향 프로필은 완료됐으며 다음에는 브라우저에서 GMS 카드와 추천 결정 저장만 확인한다.
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
@@ -101,7 +105,7 @@
 
 ## 다음 작업
 
-1. 사용자가 TIDAL OAuth 연결과 플레이리스트 분석을 승인·완료한 뒤 taste profile·GMS 추천 카드를 검증한다.
+1. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 2. Home top 3, EMS section·검색·재생을 desktop/mobile browser에서 확인한다.
 3. paused resolver bounded batch와 embedding completion을 계속 확인한 뒤 false-match 검토·rollback rehearsal을 수행한다.
 4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.

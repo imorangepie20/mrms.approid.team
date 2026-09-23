@@ -14,6 +14,38 @@ afterEach(() => {
 });
 
 describe("TidalOnboarding", () => {
+  it("shows the active onboarding step and selected playlist state", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    vi.stubGlobal("fetch", vi.fn(() => json({
+      playlists: [
+        {
+          artworkUrl: null,
+          description: null,
+          id: "p-1",
+          name: "Morning Focus",
+          saved: false,
+          trackCount: 38,
+        },
+      ],
+    })));
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    const progress = screen.getByRole("navigation", { name: "온보딩 진행" });
+    expect(progress).toBeInTheDocument();
+    expect(screen.getByText("선택 단계").closest("li")).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
+
+    const playlist = await screen.findByRole("checkbox", {
+      name: /Morning Focus/i,
+    });
+    await user.click(playlist);
+
+    expect(playlist.closest("label")).toHaveAttribute("data-selected", "true");
+  });
+
   it("loads TIDAL playlists after a connected callback", async () => {
     window.history.replaceState({}, "", "/onboarding?tidal=connected");
     const fetcher = vi.fn(() =>
@@ -88,6 +120,28 @@ describe("TidalOnboarding", () => {
     expect(screen.getByText("선택 예상 트랙 24곡")).toBeInTheDocument();
     expect(screen.getByText("최소 기준 15곡 달성")).toBeInTheDocument();
     expect(screen.getByText("더 정확한 추천까지 6곡 남았어요")).toBeInTheDocument();
+  });
+
+  it("keeps the MMS action in a dedicated footer with selection context", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    vi.stubGlobal("fetch", vi.fn(() => json({
+      playlists: [{
+        artworkUrl: null,
+        description: null,
+        id: "p-1",
+        name: "Morning Focus",
+        saved: false,
+        trackCount: 38,
+      }],
+    })));
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Morning Focus/i }));
+
+    const action = screen.getByRole("button", { name: "MMS 만들기" });
+    expect(action.parentElement).toHaveClass("onboarding-actions");
+    expect(screen.getByText("플레이리스트 1개 선택됨")).toBeInTheDocument();
   });
 
   it.each([

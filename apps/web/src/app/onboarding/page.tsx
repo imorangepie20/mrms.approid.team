@@ -8,7 +8,11 @@ export default function OnboardingPage() {
       <header className="space-title">Start your space<small>ONBOARDING</small></header>
       <div className="onboarding-layout">
         <section className="onboarding-intro">
-          <p>PERSONAL MUSIC SPACE</p>
+          <div className="onboarding-intro-art" aria-hidden="true">
+            <span className="onboarding-art-card onboarding-art-card--one">MMS</span>
+            <span className="onboarding-art-card onboarding-art-card--two">GMS</span>
+            <div className="onboarding-vinyl"><span>MUSIC<br />PIE</span></div>
+          </div>
           <h1 className="onboarding-title">당신의 음악으로 시작하는 공간</h1>
           <span>플레이리스트를 가져오면, 좋아하는 소리를 바탕으로 MMS와 첫 추천을 준비합니다.</span>
           <ol>
