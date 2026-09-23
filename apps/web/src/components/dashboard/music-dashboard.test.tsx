@@ -276,6 +276,7 @@ it("renders the GMS play action with a visual icon hook", () => {
   );
 
   const playButton = screen.getByRole("button", { name: "Midnight City 재생" });
+  expect(playButton).toHaveClass("cover-play-button");
   expect(playButton.querySelector("svg.play-icon")).toBeInTheDocument();
   expect(playButton.querySelector("span.play-icon")).not.toBeInTheDocument();
 });

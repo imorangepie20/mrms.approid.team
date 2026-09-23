@@ -5,8 +5,8 @@
     color: #eeeaf5;
   }
 
-  .album-cover:hover button,
-  .gateway-cover:hover button {
+  .album-cover:hover .cover-play-button,
+  .gateway-cover:hover .cover-play-button {
     opacity: 1;
   }
 }
