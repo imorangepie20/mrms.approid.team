@@ -128,12 +128,12 @@ export function TidalSearch() {
 
   const updateQuery = (value: string) => {
     setQuery(value);
+    setSuggestions([]);
     if (!value.trim()) {
       requestIdRef.current += 1;
       setError(null);
       setIsLoading(false);
       setResults(emptyResults);
-      setSuggestions([]);
     }
   };
 
@@ -185,12 +185,6 @@ export function TidalSearch() {
     }
   };
 
-  const hasResults = results.tracks.length > 0 ||
-    results.albums.length > 0 ||
-    results.artists.length > 0 ||
-    results.playlists.length > 0 ||
-    results.topHits.length > 0;
-
   if (detail) {
     return (
       <CatalogDetailPanel
@@ -229,7 +223,7 @@ export function TidalSearch() {
           onChange={(event) => updateQuery(event.target.value)}
         />
         <span aria-hidden="true" className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-xl text-slate-400">⌕</span>
-        {suggestions.length > 0 && !hasResults ? (
+        {suggestions.length > 0 ? (
           <div aria-label="검색어 추천" className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.34)]" role="listbox">
             {suggestions.map((suggestion) => (
               <button
@@ -258,7 +252,10 @@ export function TidalSearch() {
             key={tab}
             role="tab"
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => {
+              setActiveTab(tab);
+              setSuggestions([]);
+            }}
           >
             {{ topHits: "통합 결과", tracks: "트랙", albums: "앨범", playlists: "플레이리스트", artists: "아티스트" }[tab]}
           </button>
