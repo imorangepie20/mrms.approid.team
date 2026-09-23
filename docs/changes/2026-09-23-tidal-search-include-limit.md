@@ -7,12 +7,12 @@
 ## 변경 내용
 
 - 통합 결과에 필요한 `topHits` 관계를 유지했다.
-- 선택적 아티스트 프로필 아트워크 관계인 `artists.profileArt`를 제외해 요청 수를 줄였다.
+- 아티스트 카드에 필요한 `artists.profileArt` 관계를 유지했다.
 - 검색 `include` 목록에서 트랙 앨범 커버의 중복 중첩 관계를 제거했다.
-- 앨범 자체의 `albums.coverArt` 관계로 트랙 앨범 아트워크를 계속 조인한다.
+- `albums.artists` 관계를 제외하고 `albums.coverArt`·`artists.profileArt`를 유지해 카드 아트워크를 보존한다.
 - 요청 관계 수를 TIDAL 제한인 10개로 고정하는 회귀 검증을 추가했다.
 
-초기 10개 수정에서 `topHits`를 제거해 통합 결과가 비는 회귀가 발생했다. 최종 수정은 `topHits`를 복구하고 `artists.profileArt`만 제외하는 방식으로 제한을 맞췄다.
+초기 10개 수정에서 `topHits`와 `artists.profileArt`를 차례로 제외해 통합 결과와 아티스트 카드 아트워크가 비는 회귀가 발생했다. 최종 수정은 `topHits`·`artists.profileArt`를 복구하고 선택적인 `albums.artists`만 제외하는 방식으로 제한을 맞췄다.
 
 같은 검색 흐름에서 카탈로그 본문이 실패하면 제시어 응답까지 버려지던 문제도 수정했다. 제시어는 독립적으로 반영하고, 본문 실패 시에도 입력창 아래에 표시한다.
 
