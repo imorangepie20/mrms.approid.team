@@ -26,3 +26,4 @@
 - Zorin release `/home/approid/apps/music-pie/releases/d31d5c3`를 생성하고 `music-pie-web:current` 이미지를 빌드했다.
 - Web 컨테이너 health와 로컬·공개 `/`, `/ems`, `/gms`, `/api/health/ready`가 모두 HTTP 200이며, 비로그인 `/api/recommendations`는 HTTP 401이다.
 - GMS 추천 레일 확장 커밋 `5716f48`도 같은 절차로 Zorin release에 배포했고, 현재 release symlink는 `/home/approid/apps/music-pie/releases/5716f48`이다.
+- 카드 폭 고정·텍스트 클램프 커밋 `68e926a`를 같은 절차로 Zorin release에 배포했고, 현재 release symlink는 `/home/approid/apps/music-pie/releases/68e926a`이다. 로컬·공개 Home·EMS·GMS·readiness가 HTTP 200이며 비로그인 추천 API는 HTTP 401이다.
