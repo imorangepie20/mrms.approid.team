@@ -18,7 +18,7 @@
 
 ## 검증 결과
 
-- 실제 운영 토큰·`annette` 요청: TIDAL HTTP 200, `topHits` 관계 포함
+- 실제 운영 토큰·`annette askvik` 후보 비교: TIDAL HTTP 200, `topHits` 관계·아티스트 `profileArt`·플레이리스트 `coverArt` 포함
 - 검색 focused Vitest 18개 통과
 - 전체 Vitest 84개 파일·342개 테스트, lint 오류 0(기존 경고 3), build·TypeScript 통과
 
