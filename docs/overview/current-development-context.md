@@ -2,7 +2,7 @@
 
 최종 갱신: 2026-09-23
 
-최신 기능 기준 커밋: `a5e3cb8`
+최신 기능 기준 커밋: `68e926a`
 
 최신 Zorin Web 배포 기준 커밋: `68e926a` (EMS embedding image: `b91afce`)
 
