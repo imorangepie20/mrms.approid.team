@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `fb1535f`
 
-최신 Zorin Web 배포 기준 커밋: `3f2a67e` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `671bcda` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -95,7 +95,7 @@
 | 2026-09-22 | `apps/web`: GMS 추천 근거 focused test, `npm test`, `npm run lint`, `npm run build` | 추천 카드에 취향·최근성 근거 표시 | 통과: 전체 83개 파일·333개 테스트, lint 오류 0(기존 경고 3), Next.js build·TypeScript |
 | 2026-09-23 | `npm test`, `npm run build`; Zorin Web image build·container health·local/public HTTP smoke | 트랙 카드 레일 모션 변경 배포와 인증 경계 보존 | 통과: 전체 84개 파일·339개 테스트, build, Zorin `music-pie-web-1 healthy`, 공개 `/`·`/ems`·`/gms`·readiness 200, 비로그인 recommendations 401 |
 | 2026-09-23 | `apps/web`: 검색 focused Vitest·전체 Vitest·lint·build | 추천어 API 실패가 카탈로그 검색을 차단하지 않음 | 통과: focused 17개·전체 84개 파일 340개 테스트, lint 오류 0(기존 경고 3), build·TypeScript |
-| 2026-09-23 | Zorin Web `3f2a67e` image build·Compose 교체·공개 HTTP smoke | 검색 fallback 배포와 Web health | 통과: `music-pie-web-1 healthy`, 공개 `/search`·`/api/health/ready` 200, 비로그인 `/api/tidal/search` 401 |
+| 2026-09-23 | Zorin Web `671bcda` image build·Compose 교체·공개 HTTP smoke | 검색 fallback·include 제한 수정 배포와 Web health | 통과: `music-pie-web-1 healthy`, 공개 `/search`·`/api/health/ready` 200, 비로그인 `/api/tidal/search` 401 |
 | 2026-09-23 | 내비게이션 focused Vitest·전체 Vitest·lint·build·Impeccable detector | 검색 메뉴 위치·형태와 반응형 진입점 | 통과: focused 5개·전체 84개 파일 341개 테스트, lint 오류 0(기존 경고 3), build, findings 0 |
 
 ## 미검증·제약
