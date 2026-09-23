@@ -44,11 +44,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                 {/* Search */}
                 <div className="relative hidden md:block">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-hud-text-muted" size={18} />
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-hud-text-muted" size={18} />
                     <input
                         type="text"
                         placeholder="Search..."
-                        className="w-64 pl-10 pr-4 py-2 bg-hud-bg-primary border border-hud-border-secondary rounded-lg text-sm text-hud-text-primary placeholder-hud-text-muted focus:outline-none focus:border-hud-accent-primary transition-hud"
+                        className="w-64 pl-4 pr-10 py-2 bg-hud-bg-primary border border-hud-border-secondary rounded-lg text-sm text-hud-text-primary placeholder-hud-text-muted focus:outline-none focus:border-hud-accent-primary transition-hud"
                     />
                 </div>
             </div>

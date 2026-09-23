@@ -48,7 +48,8 @@ function TemplateRoutes() {
   return (
     <Routes>
       <Route element={<MainLayout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<EmsDashboard />} />
+        <Route path="template-dashboard" element={<Dashboard />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="widgets" element={<Widgets />} />
         <Route path="calendar" element={<Calendar />} />

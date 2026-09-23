@@ -37,12 +37,11 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-    { title: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
+    { title: 'EMS Overview', icon: <LayoutDashboard size={20} />, path: '/' },
     {
         title: 'EMS',
         icon: <Database size={20} />,
         children: [
-            { title: 'Overview', path: '/ems' },
             { title: 'Sections', path: '/ems/sections' },
             { title: 'Tracks', path: '/ems/tracks' },
             { title: 'Ingestion', path: '/ems/ingestion' },
@@ -154,7 +153,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             {/* Logo */}
             <div className="h-16 flex items-center justify-center border-b border-hud-border-secondary">
                 <Link to="/" className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-lg flex items-center justify-center font-bold text-hud-bg-primary">
+                    <div className="w-10 h-10 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-hud-accent-primary/20">
                         H
                     </div>
                     {!collapsed && (
