@@ -152,8 +152,9 @@ describe("TIDAL search adapter", () => {
     expect(requestUrl.pathname).toBe("/v2/searchResults");
     expect(requestUrl.searchParams.get("filter[query]")).toBe("Björk");
     expect(requestUrl.searchParams.get("include")).toBe(
-      "topHits,tracks,albums,artists,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
+      "tracks,albums,artists,playlists,tracks.albums,tracks.artists,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
     );
+    expect((requestUrl.searchParams.get("include") ?? "").split(",")).toHaveLength(10);
   });
 
   it.each([

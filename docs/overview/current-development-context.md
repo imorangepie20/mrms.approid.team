@@ -55,6 +55,7 @@
 - 2026-09-23 GMS 카드에서 추천 이유 라벨을 제거해 제목·아티스트·앨범·결정 버튼 중심으로 단순화했다.
 - 2026-09-23 검색 본문과 추천어 요청을 분리했다. 추천어 API 실패·잘못된 응답·네트워크 오류가 카탈로그 검색 결과를 차단하지 않으며, 상세 결과는 `docs/changes/2026-09-23-search-suggestions-fallback.md`에 기록했다.
 - 2026-09-23 검색 내비게이션을 일반 사이드바 메뉴 리듬으로 통합하고 SVG 아이콘·active 상태를 추가했다. 모바일 상단에도 검색 아이콘을 배치했으며, 상세 결과는 `docs/changes/2026-09-23-search-navigation-layout.md`에 기록했다.
+- 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. 중복 앨범 커버 관계를 제거해 10개로 줄였고 동일 요청이 HTTP 200을 반환함을 확인했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 
 ## 검증 결과
 

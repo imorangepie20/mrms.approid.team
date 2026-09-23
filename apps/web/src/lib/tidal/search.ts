@@ -242,7 +242,7 @@ export async function searchTidalCatalog(
     url.searchParams.set("systemType", "WEB");
     url.searchParams.set(
       "include",
-      "topHits,tracks,albums,artists,playlists,tracks.albums,tracks.artists,tracks.albums.coverArt,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
+      "tracks,albums,artists,playlists,tracks.albums,tracks.artists,albums.artists,albums.coverArt,artists.profileArt,playlists.coverArt",
     );
   }
 
