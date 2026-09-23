@@ -1,3 +1,13 @@
+FROM node:24-bookworm-slim AS admin-build
+
+WORKDIR /workspace/apps/admin
+
+COPY apps/admin/package.json apps/admin/package-lock.json ./
+RUN npm ci
+
+COPY apps/admin ./
+RUN npm run build
+
 FROM node:24-bookworm-slim AS build
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -7,6 +17,7 @@ COPY apps/web/package.json apps/web/package-lock.json ./
 RUN npm ci
 
 COPY apps/web ./
+COPY --from=admin-build /workspace/apps/web/public/admin ./public/admin
 RUN npm run build
 
 FROM node:24-bookworm-slim AS runtime

@@ -61,6 +61,7 @@
 - 2026-09-23 전체 화면 플레이어의 커버 영역에 현재 트랙 앨범 이미지를 표시하도록 확장했다. 이미지 로드 실패 시 기존 그라데이션 fallback을 유지하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
 - 2026-09-23 Home·EMS·GMS 트랙 카드의 재생 오버레이 표시 규칙을 통일했다. 기본 상태에서는 숨기고 artwork hover/focus에서만 표시하며, 터치에서는 표시한다. 전역 hover CSS와 충돌하던 `opacity`·`pointer-events` 조건을 전용 규칙으로 정리하고 345개 테스트·lint·build를 통과한 뒤 Zorin `650cbe9`으로 배포했다. 상세 결과는 `docs/changes/2026-09-23-main-play-overlay.md`에 기록했다.
 - 2026-09-23 TIDAL 최고 음질 재생을 우선 시도하고 DASH/DRM처럼 현재 엔진이 재생하지 못하는 응답에만 `HI_RES → LOSSLESS → HIGH → LOW`로 자동 fallback하도록 수정했다. 운영 품질별 응답에서 원인을 확인했고 346개 테스트·lint·build를 통과한 뒤 Zorin `2b81b13`으로 배포했다. 상세 결과는 `docs/changes/2026-09-23-tidal-playback-quality-fallback.md`에 기록했다.
+- 2026-09-23 EMS 관리자 페이지 1차를 추가했다. `https://mrms.approid.team/admin`에서 템플릿 기반 Vite UI를 같은 origin으로 제공하고, `ADMIN_AUTH0_SUBJECTS` allowlist를 서버 API에 적용했다. Dashboard·Sections·Tracks·Ingestion 조회와 섹션 메타데이터 PATCH를 제공하며, 수집 재실행·대량 삭제는 제외했다. 상세 결과는 `docs/changes/2026-09-23-ems-admin.md`에 기록했다.
 
 ## 검증 결과
 
@@ -112,6 +113,7 @@
 | 2026-09-23 | Zorin Web `7aff82d` image build·Compose 교체·공개 HTTP smoke | 플레이어 좋아요 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
 | 2026-09-23 | `apps/web`: 전체 화면 플레이어 앨범 이미지 focused Vitest | 현재 트랙 artwork 표시와 이미지 실패 fallback | 통과: focused 8개 |
 | 2026-09-23 | Zorin Web `b253636` image build·Compose 교체·공개 HTTP smoke | 전체 화면 플레이어 앨범 이미지 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
+| 2026-09-23 | `apps/web`·`apps/admin`: Vitest, ESLint, Next/Vite build, `git diff --check`; Docker `music-pie-web:ems-admin` build와 image asset 검사 | same-origin `/admin`, EMS 관리자 API 인증·조회·섹션 수정, 기존 사용자 회귀 | 통과: Web 93개 파일·367개 테스트, admin 2개 테스트, web lint 오류 0(기존 경고 3), admin lint 오류 0(템플릿 경고 39), 두 build 통과, Docker image에 `/app/public/admin/assets/index.js|css` 존재. Auth0 미설정 로컬에서 API HTTP 500은 운영 자격 증명 부재로 미검증 |
 
 ## 미검증·제약
 
