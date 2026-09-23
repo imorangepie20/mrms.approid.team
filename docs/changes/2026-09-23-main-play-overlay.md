@@ -10,6 +10,7 @@ Home의 EMS 카드가 `.cover-play-button`의 전역 hover 스타일과 TrackCar
 - 재생 버튼에 전용 `track-card-play-button` 클래스를 부여하고 항상 `pointer-events-auto`로 유지했다.
 - 전역 GMS/Gateway hover 규칙과 충돌하지 않도록 TrackCard 전용 CSS override를 추가했다.
 - GMS Gateway 카드에도 같은 표시·상호작용 클래스를 적용해 Home·EMS·GMS의 동작을 통일했다.
+- 기본 상태에서는 오버레이를 숨기고 artwork hover/focus에서만 표시하도록 조정했다. 터치 입력에서는 hover가 없으므로 계속 표시한다.
 - 오버레이 표시·상호작용 클래스 회귀 테스트를 추가했다.
 
 ## 확인 결과
@@ -18,6 +19,7 @@ Home의 EMS 카드가 `.cover-play-button`의 전역 hover 스타일과 TrackCar
 - `apps/web`: `npm run test -- --run` — 84개 파일, 345개 테스트 통과.
 - `apps/web`: `npm run lint` — 오류 0개, 기존 미사용 변수 경고 3개.
 - `apps/web`: `npm run build` — TypeScript·production build 통과.
+- 최종 운영 release: `650cbe9`, `/`·`/api/health/ready` HTTP 200, 컨테이너 `healthy`.
 - `git diff --check` — 통과.
 
 ## 미확인 항목
