@@ -36,11 +36,15 @@ export type EmsIngestRun = {
   status: string;
   requestedCount: number;
   matchedCount: number;
+  candidateCount: number;
+  pendingCount: number;
+  ambiguousCount: number;
+  failedCount: number;
   errorCode: string | null;
   createdAt: string;
 };
 
-export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; tracks: EmsTrack[] };
+export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
 
 export class AdminApiError extends Error {
   constructor(readonly status: number, readonly code: string) {
@@ -83,10 +87,11 @@ export function updateEmsSection(id: string, patch: Pick<EmsSection, "title" | "
   });
 }
 
-export function getEmsTracks(options: { query?: string; page?: number; limit?: number; status?: string; embeddingStatus?: string } = {}) {
+export function getEmsTracks(options: { query?: string; page?: number; cursor?: string; limit?: number; status?: string; embeddingStatus?: string } = {}) {
   const params = new URLSearchParams();
   if (options.query) params.set("q", options.query);
   if (options.page) params.set("page", String(options.page));
+  if (options.cursor) params.set("cursor", options.cursor);
   if (options.limit) params.set("limit", String(options.limit));
   if (options.status) params.set("status", options.status);
   if (options.embeddingStatus) params.set("embeddingStatus", options.embeddingStatus);

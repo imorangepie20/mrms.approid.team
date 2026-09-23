@@ -11,7 +11,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireAdmin.mockResolvedValue("auth0|admin");
   getPool.mockReturnValue({ query: vi.fn() });
-  listTracks.mockResolvedValue({ totalCount: 1, page: 1, limit: 24, nextPage: null, tracks: [] });
+  listTracks.mockResolvedValue({ totalCount: 1, page: 1, limit: 24, nextPage: null, nextCursor: null, tracks: [] });
 });
 
 describe("GET /api/admin/ems/tracks", () => {
@@ -25,6 +25,18 @@ describe("GET /api/admin/ems/tracks", () => {
     const response = await GET(new Request("https://mrms.approid.team/api/admin/ems/tracks?limit=101"));
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ code: "invalid_admin_track_filter" });
+    expect(listTracks).not.toHaveBeenCalled();
+  });
+
+  it("passes a cursor without mixing it with page pagination", async () => {
+    const response = await GET(new Request("https://mrms.approid.team/api/admin/ems/tracks?cursor=eyJwYWdlIjoyfQ&limit=24"));
+    expect(response.status).toBe(200);
+    expect(listTracks).toHaveBeenCalledWith(expect.objectContaining({ cursor: "eyJwYWdlIjoyfQ", page: undefined }), expect.anything());
+  });
+
+  it("rejects a cursor combined with page", async () => {
+    const response = await GET(new Request("https://mrms.approid.team/api/admin/ems/tracks?cursor=abc&page=2"));
+    expect(response.status).toBe(400);
     expect(listTracks).not.toHaveBeenCalled();
   });
 });

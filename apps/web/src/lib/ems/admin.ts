@@ -43,13 +43,17 @@ export type EmsIngestRun = {
   status: string;
   requestedCount: number;
   matchedCount: number;
+  candidateCount: number;
+  pendingCount: number;
+  ambiguousCount: number;
+  failedCount: number;
   errorCode: string | null;
   createdAt: string;
 };
 
 type SummaryCountRow = { active_track_count: number; active_section_count: number; artwork_missing_count: number };
 type EmbeddingCountRow = { status: string; count: number };
-type IngestRow = { id: string; run_type: string; status: string; requested_count: number; matched_count: number; error_code: string | null; created_at: string };
+type IngestRow = { id: string; run_type: string; status: string; requested_count: number; matched_count: number; candidate_count: number; pending_count: number; ambiguous_count: number; failed_count: number; error_code: string | null; created_at: string };
 type SectionRow = { id: string; slug: string; title: string; description: string; sort_order: number; active: boolean; track_count: number; updated_at: string };
 type TrackRow = { id: string; tidal_id: string; title: string; artist: string; album: string | null; duration_ms: number; artwork_url: string | null; playback_available: boolean; embedding_status: string; sections: Array<{ slug: string; title: string }> | null };
 
@@ -60,6 +64,10 @@ function mapIngestRun(row: IngestRow): EmsIngestRun {
     status: row.status,
     requestedCount: Number(row.requested_count),
     matchedCount: Number(row.matched_count),
+    candidateCount: Number(row.candidate_count),
+    pendingCount: Number(row.pending_count),
+    ambiguousCount: Number(row.ambiguous_count),
+    failedCount: Number(row.failed_count),
     errorCode: row.error_code,
     createdAt: row.created_at,
   };
@@ -79,8 +87,12 @@ export async function getEmsAdminSummary(executor: QueryExecutor): Promise<EmsAd
        WHERE e.status = 'active'
        GROUP BY COALESCE(emb.status, 'missing')`),
     executor.query<IngestRow>(`/* ems_admin_latest_ingest */
-      SELECT id, run_type, status, requested_count, matched_count, error_code, created_at
-        FROM ems_ingest_runs ORDER BY created_at DESC LIMIT 1`),
+      SELECT r.id, r.run_type, r.status, r.requested_count, r.matched_count, r.error_code, r.created_at,
+             (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id) AS candidate_count,
+             (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status IN ('pending', 'resolving')) AS pending_count,
+             (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status = 'ambiguous') AS ambiguous_count,
+             (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status IN ('not_found', 'unavailable', 'retryable', 'budget_exhausted')) AS failed_count
+        FROM ems_ingest_runs r ORDER BY r.created_at DESC LIMIT 1`),
   ]);
   const count = counts.rows[0];
   return {
@@ -95,18 +107,33 @@ export async function getEmsAdminSummary(executor: QueryExecutor): Promise<EmsAd
 export async function listEmsAdminSections(executor: QueryExecutor): Promise<EmsAdminSection[]> {
   const result = await executor.query<SectionRow>(`/* ems_admin_sections */
     SELECT s.id, s.slug, s.title, s.description, s.sort_order, s.active, s.updated_at,
-           count(m.track_id)::int AS track_count
+           count(t.id)::int AS track_count
       FROM ems_editorial_sections AS s
       LEFT JOIN ems_track_sections AS m ON m.section_id = s.id
+      LEFT JOIN ems_tracks AS t ON t.id = m.track_id AND t.status = 'active'
      GROUP BY s.id ORDER BY s.sort_order, s.id`);
   return result.rows.map((row) => ({ id: row.id, slug: row.slug, title: row.title, description: row.description, sortOrder: row.sort_order, active: row.active, trackCount: Number(row.track_count), updatedAt: row.updated_at }));
 }
 
-export type EmsAdminTrackOptions = { query?: string; page?: number; limit?: number; status?: string; embeddingStatus?: string; region?: string };
+export type EmsAdminTrackOptions = { query?: string; page?: number; cursor?: string; limit?: number; status?: string; embeddingStatus?: string; region?: string };
+
+function encodeTrackCursor(page: number) {
+  return Buffer.from(JSON.stringify({ page }), "utf8").toString("base64url");
+}
+
+function decodeTrackCursor(cursor: string) {
+  try {
+    const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as { page?: unknown };
+    if (!Number.isInteger(value.page) || Number(value.page) < 1 || Number(value.page) > 100_000) throw new Error();
+    return Number(value.page);
+  } catch {
+    throw new Error("invalid_track_cursor");
+  }
+}
 
 export async function listEmsAdminTracks(options: EmsAdminTrackOptions, executor: QueryExecutor) {
   const query = options.query?.trim() ?? "";
-  const page = Math.max(1, Math.trunc(options.page ?? 1));
+  const page = options.cursor ? decodeTrackCursor(options.cursor) : Math.max(1, Math.trunc(options.page ?? 1));
   const limit = Math.min(100, Math.max(1, Math.trunc(options.limit ?? 24)));
   const region = (options.region ?? "KR").toUpperCase();
   const offset = (page - 1) * limit;
@@ -162,6 +189,7 @@ export async function listEmsAdminTracks(options: EmsAdminTrackOptions, executor
     page,
     limit,
     nextPage: offset + rows.rows.length < totalCount ? page + 1 : null,
+    nextCursor: offset + rows.rows.length < totalCount ? encodeTrackCursor(page + 1) : null,
     tracks: rows.rows.map((row) => ({ id: row.id, tidalTrackId: row.tidal_id, title: row.title, artist: row.artist, album: row.album ?? "Unknown Album", durationSeconds: Math.round(row.duration_ms / 1000), artworkUrl: row.artwork_url ?? "", playbackAvailable: Boolean(row.playback_available), embeddingStatus: row.embedding_status, sections: row.sections ?? [] })),
   };
 }
@@ -171,8 +199,12 @@ export async function listEmsIngestRuns(options: { page?: number; limit?: number
   const limit = Math.min(100, Math.max(1, Math.trunc(options.limit ?? 20)));
   const offset = (page - 1) * limit;
   const result = await executor.query<IngestRow>(`/* ems_admin_ingest_runs */
-    SELECT id, run_type, status, requested_count, matched_count, error_code, created_at
-      FROM ems_ingest_runs ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]);
+    SELECT r.id, r.run_type, r.status, r.requested_count, r.matched_count, r.error_code, r.created_at,
+           (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id) AS candidate_count,
+           (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status IN ('pending', 'resolving')) AS pending_count,
+           (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status = 'ambiguous') AS ambiguous_count,
+           (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = r.id AND c.resolver_status IN ('not_found', 'unavailable', 'retryable', 'budget_exhausted')) AS failed_count
+      FROM ems_ingest_runs r ORDER BY r.created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]);
   return result.rows.map(mapIngestRun);
 }
 
@@ -192,9 +224,10 @@ export async function updateEmsSection(id: string, patch: EmsSectionPatch, execu
        RETURNING id, slug, title, description, sort_order, active, updated_at
     )
     SELECT updated.id, updated.slug, updated.title, updated.description, updated.sort_order,
-           updated.active, updated.updated_at, count(m.track_id)::int AS track_count
+           updated.active, updated.updated_at, count(t.id)::int AS track_count
       FROM updated
       LEFT JOIN ems_track_sections AS m ON m.section_id = updated.id
+      LEFT JOIN ems_tracks AS t ON t.id = m.track_id AND t.status = 'active'
      GROUP BY updated.id, updated.slug, updated.title, updated.description,
               updated.sort_order, updated.active, updated.updated_at`, [patch.title.trim(), patch.description.trim(), patch.sortOrder, patch.active, id]);
   const row = result.rows[0];
