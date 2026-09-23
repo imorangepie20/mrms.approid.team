@@ -32,20 +32,38 @@
 
 .app-search {
   display: flex;
-  min-height: 44px;
+  min-height: 46px;
   align-items: center;
-  padding: 0 14px;
-  border: 1px solid var(--border);
+  gap: 10px;
+  margin: 0 2px;
+  padding: 0 12px;
+  border: 1px solid transparent;
   border-radius: 12px;
-  background: var(--surface-raised);
-  color: #a49eaf;
+  background: transparent;
+  color: #b9b2c7;
   font-size: var(--font-ui);
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
 }
 
+.app-search svg {
+  flex: 0 0 auto;
+}
+
+.app-search[aria-current="page"] {
+  border-color: rgba(155, 92, 255, 0.38);
+  background: rgba(155, 92, 255, 0.18);
+  color: var(--brand-soft);
+}
+
+.app-search:focus-visible,
+.mobile-search:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .app-nav-label {
-  margin: 30px 10px 10px;
+  margin: 22px 10px 10px;
   color: #777289;
   font-size: var(--font-meta);
   font-weight: 600;
@@ -93,6 +111,10 @@
 }
 
 .mobile-quick-nav {
+  display: none;
+}
+
+.mobile-search {
   display: none;
 }
 

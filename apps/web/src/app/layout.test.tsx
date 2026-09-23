@@ -41,7 +41,7 @@ it("renders the five global navigation destinations and anonymous Auth0 actions"
   expect(screen.getByRole("link", { name: "External Music SpaceEMS" })).toHaveAttribute("href", "/ems");
   expect(screen.getByRole("link", { name: "Gateway Music SpaceGMS" })).toHaveAttribute("href", "/gms");
   expect(screen.getByRole("link", { name: "My Music SpaceMMS" })).toHaveAttribute("href", "/mms");
-  expect(screen.getByRole("link", { name: "⌕ 검색" })).toHaveAttribute("href", "/search");
+  expect(screen.getByRole("link", { name: "검색" })).toHaveAttribute("href", "/search");
   expect(screen.getByRole("link", { name: "External Music SpaceEMS" })).toHaveAttribute("aria-current", "page");
   expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/api/auth/login");
   expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute("href", "/api/auth/signup");

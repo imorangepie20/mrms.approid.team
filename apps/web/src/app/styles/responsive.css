@@ -82,6 +82,27 @@
     color: var(--brand-soft);
   }
 
+  .mobile-search {
+    position: fixed;
+    top: 8px;
+    right: 150px;
+    z-index: 36;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-raised);
+    color: var(--muted);
+  }
+
+  .mobile-search[aria-current="page"] {
+    border-color: rgba(155, 92, 255, 0.48);
+    background: rgba(155, 92, 255, 0.2);
+    color: var(--brand-soft);
+  }
+
   .page-shell {
     margin-left: 0;
     padding-bottom: calc(var(--player-height) + var(--mobile-navigation-height) + 1rem);

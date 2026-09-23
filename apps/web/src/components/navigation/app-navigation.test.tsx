@@ -21,4 +21,14 @@ describe("AppNavigation", () => {
     expect(internalLinks.length).toBeGreaterThan(0);
     expect(internalLinks.every((link) => link.dataset.nextLink === "true")).toBe(true);
   });
+
+  it("marks the search destination as active and exposes a real icon", () => {
+    render(<AppNavigation />);
+
+    const searchLink = screen.getByRole("link", { name: "검색" });
+    expect(searchLink).toHaveAttribute("href", "/search");
+    expect(searchLink).toHaveAttribute("aria-current", "page");
+    expect(searchLink.querySelector("svg")).toBeInTheDocument();
+    expect(searchLink).not.toHaveTextContent("⌕");
+  });
 });
