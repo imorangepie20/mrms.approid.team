@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-24
 
-최신 기능 기준 커밋: `b860bff`
+최신 기능 기준 커밋: `b86eda6`
 
-최신 Zorin Web 배포 기준 커밋: `b860bff` (EMS 관리자 수집·모니터링, image `music-pie-web:current`)
+최신 Zorin Web 배포 기준 커밋: `b86eda6` (독립 화면 관리, image `music-pie-web:current`)
 
 ## 이번 목표
 
@@ -65,6 +65,7 @@
 - 2026-09-23 EMS 관리자 페이지 `9df62ca`를 Zorin에 배포했다. `/admin` 공개 HTTP 200, 비로그인 관리자 API 401, Web·PostgreSQL·embedding·tunnel 상태를 확인했다. 운영 `web.env`의 `ADMIN_AUTH0_SUBJECTS`는 아직 비어 있어 Auth0 `sub` 주입과 허용 계정 PATCH 검증이 다음 작업이다.
 - 2026-09-24 `b860bff`에서 EMS 수집 시작·일시정지·재개와 활성 트랙·후보 처리 그래프를 관리자 페이지에 추가하고 Zorin에 배포했다. `011_ems_admin_ingestion.sql`을 적용했고 Web·워커는 healthy다. 관리자 허용 목록은 설정돼 있으며 비로그인 작업 API 401을 확인했다. 시작 시 active 2,186곡에서 상한 없는 작업 `555e84ec-a83c-404b-b7aa-bf741b448b12`를 실행했다. 상세는 `docs/changes/2026-09-24-admin-ems-ingestion.md`에 기록했다.
 - 2026-09-24 `6a320d5`에서 정기 원천 갱신을 추가했다. TIDAL 에디토리얼은 작업 완료 하루 뒤 재탐색하고 MusicBrainz core·canonical은 각각 12·24시간마다 버전을 확인한다. 관리자 `/admin/ems/routines`에 원천별 상태·버전·다음 확인·조작 메뉴가 있다. `012_ems_source_routines.sql` 적용과 Web·워커·별도 원천 서비스 시작을 완료했다. canonical 첫 확인은 끝났고 새 core 다운로드가 진행 중이다. `25a81f8`에서 관리자 자산 캐시 문제를 수정해 실제 브라우저 메뉴 노출을 확인했다. 상세는 `docs/changes/2026-09-24-recurring-ems-sources.md`에 기록했다.
+- 2026-09-24 `3a222b6`에서 관리자 `화면 관리`를 메인과 EMS로 분리했다. 두 화면의 섹션 제목·설명·순서·노출을 독립 설정으로 저장하고 `013_ems_screen_sections.sql`을 적용했다. `b86eda6`은 이전 섹션 주소에서 새 메뉴가 펼쳐지도록 수정했다. 공개 메인·EMS 응답과 브라우저 메뉴, Web 상태를 확인했다. 상세는 `docs/changes/2026-09-24-independent-screen-management.md`에 기록했다.
 
 ## 검증 결과
 

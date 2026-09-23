@@ -21,4 +21,12 @@
 
 ## 미검증·다음 작업
 
-- 운영 migration과 관리자 로그인 상태의 두 화면 편집, 공개 메인·EMS 노출을 확인한다.
+- 관리자 로그인 상태에서 실제 제목·설명·순서·노출 수정은 확인하지 못했다. 현재 브라우저는 비로그인 상태다.
+
+## 운영 적용
+
+- DB 백업을 저장소 밖 `/home/approid/apps/music-pie/shared/backups/pre-screen-management-3a222b6.dump`에 만들고 PostgreSQL 컨테이너의 `pg_restore -l`로 읽기를 확인했다.
+- `013_ems_screen_sections.sql` 1건을 적용했다. 화면별 10개 설정이 생성됐고 메인 3개·EMS 5개가 활성이다. 기존 제목·설명·순서와의 차이는 0건이다.
+- 첫 Web 릴리스 `3a222b6` 뒤, 이전 섹션 주소로 열었을 때 하위 메뉴가 접히는 문제를 고쳐 `b86eda6`을 배포했다. 이전 Web 이미지는 롤백용으로 유지했다.
+- Web readiness 200, 공개 메인·EMS와 두 관리자 경로 200, 비로그인 화면 관리 API 401을 확인했다. 실제 브라우저에서 `화면 관리 → 메인 화면/EMS 화면`과 이전 주소의 새 EMS 화면 이동을 확인했다.
+- 공개 섹션 API는 메인에서 `new-releases, seasonal-jazz, night-rnb`, EMS에서 `new-releases, seasonal-jazz, night-rnb, feel-good`을 반환했다. 기존 수집 서비스와 Web은 실행 상태를 유지했다.
