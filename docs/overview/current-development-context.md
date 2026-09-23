@@ -64,6 +64,7 @@
 - 2026-09-23 EMS 관리자 페이지 1차를 추가했다. `https://mrms.approid.team/admin`에서 템플릿 기반 Vite UI를 같은 origin으로 제공하고, `ADMIN_AUTH0_SUBJECTS` allowlist를 서버 API에 적용했다. Dashboard·Sections·Tracks·Ingestion 조회와 섹션 메타데이터 PATCH를 제공하며, 수집 재실행·대량 삭제는 제외했다. 상세 결과는 `docs/changes/2026-09-23-ems-admin.md`에 기록했다.
 - 2026-09-23 EMS 관리자 페이지 `9df62ca`를 Zorin에 배포했다. `/admin` 공개 HTTP 200, 비로그인 관리자 API 401, Web·PostgreSQL·embedding·tunnel 상태를 확인했다. 운영 `web.env`의 `ADMIN_AUTH0_SUBJECTS`는 아직 비어 있어 Auth0 `sub` 주입과 허용 계정 PATCH 검증이 다음 작업이다.
 - 2026-09-24 `b860bff`에서 EMS 수집 시작·일시정지·재개와 활성 트랙·후보 처리 그래프를 관리자 페이지에 추가하고 Zorin에 배포했다. `011_ems_admin_ingestion.sql`을 적용했고 Web·워커는 healthy다. 관리자 허용 목록은 설정돼 있으며 비로그인 작업 API 401을 확인했다. 시작 시 active 2,186곡에서 상한 없는 작업 `555e84ec-a83c-404b-b7aa-bf741b448b12`를 실행했다. 상세는 `docs/changes/2026-09-24-admin-ems-ingestion.md`에 기록했다.
+- 2026-09-24 `6a320d5`에서 정기 원천 갱신을 추가했다. TIDAL 에디토리얼은 작업 완료 하루 뒤 재탐색하고 MusicBrainz core·canonical은 각각 12·24시간마다 버전을 확인한다. 관리자 `/admin/ems/routines`에 원천별 상태·버전·다음 확인·조작 메뉴가 있다. `012_ems_source_routines.sql` 적용과 Web·워커·별도 원천 서비스 시작을 완료했다. canonical 첫 확인은 끝났고 새 core 다운로드가 진행 중이다. `25a81f8`에서 관리자 자산 캐시 문제를 수정해 실제 브라우저 메뉴 노출을 확인했다. 상세는 `docs/changes/2026-09-24-recurring-ems-sources.md`에 기록했다.
 
 ## 검증 결과
 
