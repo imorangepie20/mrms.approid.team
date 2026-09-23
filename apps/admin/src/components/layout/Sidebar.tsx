@@ -134,8 +134,9 @@ const menuItems: MenuItem[] = [
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
     const location = useLocation()
+    const initialPath = location.pathname === '/ems/sections' ? '/screens/ems' : location.pathname
     const [expandedMenus, setExpandedMenus] = useState<string[]>(() =>
-        menuItems.filter(item => item.children?.some(child => child.path === location.pathname)).map(item => item.title)
+        menuItems.filter(item => item.children?.some(child => child.path === initialPath)).map(item => item.title)
     )
 
     const toggleMenu = (title: string) => {
