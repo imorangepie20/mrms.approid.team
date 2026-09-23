@@ -44,7 +44,9 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
 
                 {/* Search */}
                 <div className="relative hidden md:block">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-hud-text-muted" size={18} />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                        <Search className="text-hud-text-muted" size={18} />
+                    </span>
                     <input
                         type="text"
                         placeholder="Search..."
