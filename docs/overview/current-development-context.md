@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `fb1535f`
 
-최신 Zorin Web 배포 기준 커밋: `7aff82d` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `b253636` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
@@ -108,6 +108,7 @@
 | 2026-09-23 | `apps/web`: 플레이어 좋아요 focused Vitest | 컴팩트·전체 화면 플레이어의 현재 트랙 좋아요 상태 동기화 | 통과: focused 8개 |
 | 2026-09-23 | Zorin Web `7aff82d` image build·Compose 교체·공개 HTTP smoke | 플레이어 좋아요 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
 | 2026-09-23 | `apps/web`: 전체 화면 플레이어 앨범 이미지 focused Vitest | 현재 트랙 artwork 표시와 이미지 실패 fallback | 통과: focused 8개 |
+| 2026-09-23 | Zorin Web `b253636` image build·Compose 교체·공개 HTTP smoke | 전체 화면 플레이어 앨범 이미지 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
 
 ## 미검증·제약
 
