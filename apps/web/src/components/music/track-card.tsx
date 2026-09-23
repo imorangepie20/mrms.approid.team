@@ -58,7 +58,7 @@ export function TrackCard<TTrack extends Track>({
             type="button"
             onClick={() => onPlay ? onPlay(track) : void playTrack(track)}
           >
-            <PlayIcon className="ml-0.5 size-4" />
+            <PlayIcon className="size-4" />
           </button>
         </div>
       </div>

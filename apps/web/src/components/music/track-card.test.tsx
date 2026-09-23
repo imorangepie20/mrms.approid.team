@@ -47,6 +47,7 @@ describe("TrackCard", () => {
     const playButton = screen.getByRole("button", { name: "재생 Human Behaviour" });
     expect(playButton).toHaveClass("cover-play-button");
     expect(playButton.querySelector("svg.play-icon")).toBeInTheDocument();
+    expect(playButton.querySelector("svg.play-icon")).not.toHaveClass("ml-0.5");
     expect(onPlay).toHaveBeenCalledWith(track);
     expect(playTrack).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /내 취향으로 담기/ })).not.toBeInTheDocument();
