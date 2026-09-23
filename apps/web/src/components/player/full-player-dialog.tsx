@@ -1,5 +1,8 @@
 "use client";
 
+import Image from "next/image";
+import { useState } from "react";
+
 import { LikeButton } from "@/components/music/like-button";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import type { Track } from "@/lib/music/types";
@@ -55,6 +58,9 @@ export function FullPlayerDialog({
   onVolumeChange,
   onPlaybackPositionChange,
 }: FullPlayerDialogProps) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+  const hasArtwork = Boolean(currentTrack.artworkUrl) && failedArtworkUrl !== currentTrack.artworkUrl;
+
   return (
     <div
       aria-label="전체 화면 플레이어"
@@ -74,10 +80,20 @@ export function FullPlayerDialog({
           </button>
         </div>
         <div
-          className={`mt-4 aspect-square rounded-3xl bg-gradient-to-br ${currentTrack.artworkClass} p-6 shadow-2xl`}
+          className={`relative mt-4 aspect-square overflow-hidden rounded-3xl bg-gradient-to-br ${currentTrack.artworkClass} p-6 shadow-2xl`}
         >
-          <div className="flex h-full items-end rounded-2xl border border-white/25 bg-slate-950/10 p-6">
-            <p className="font-black tracking-[0.25em]">MUSIC PIE</p>
+          {hasArtwork ? (
+            <Image
+              alt={`${currentTrack.title} 앨범 아트`}
+              className="object-cover"
+              fill
+              sizes="(min-width: 640px) 576px, calc(100vw - 32px)"
+              src={currentTrack.artworkUrl}
+              onError={() => setFailedArtworkUrl(currentTrack.artworkUrl)}
+            />
+          ) : null}
+          <div className="relative flex h-full items-end rounded-2xl border border-white/25 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent p-6">
+            {!hasArtwork ? <p className="font-black tracking-[0.25em]">MUSIC PIE</p> : null}
           </div>
         </div>
         <p className="mt-8 text-sm font-semibold tracking-[0.18em] text-fuchsia-300">

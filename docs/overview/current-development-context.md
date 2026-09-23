@@ -58,6 +58,7 @@
 - 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. `topHits`·`artists.profileArt`를 유지하고 선택적인 `albums.artists`를 제외해 10개로 줄였다. 초기 수정에서 `topHits`를 빼 통합 결과가, 이후 `artists.profileArt`를 빼 아티스트 아트워크가 비는 회귀를 확인·복구했으며, 앨범 아티스트는 트랙 관계 fallback으로 보완하고 카탈로그 실패 시에도 제시어를 표시하도록 했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 - 2026-09-23 검색 결과가 있어도 입력 중 제시어를 유지하도록 UI 조건을 분리했다. 새 검색어 입력 시 이전 제시어를 비우고, 결과 탭 선택 시 제시어를 닫는다. 통합 결과와 제시어 동시 표시 회귀 테스트를 추가했으며 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 - 2026-09-23 전역 하단·전체 화면 플레이어에 현재 트랙 좋아요 버튼을 추가했다. 기존 `trackLikeItem`·`LikeButton`을 재사용해 컴팩트·전체 화면의 상태와 저장 흐름을 공유하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
+- 2026-09-23 전체 화면 플레이어의 커버 영역에 현재 트랙 앨범 이미지를 표시하도록 확장했다. 이미지 로드 실패 시 기존 그라데이션 fallback을 유지하며 상세 결과는 `docs/changes/2026-09-23-player-likes.md`에 기록했다.
 
 ## 검증 결과
 
@@ -106,6 +107,7 @@
 | 2026-09-23 | Zorin Web `5ca1bd9` image build·Compose 교체·공개 HTTP 및 Chrome AX smoke | 제시어·카탈로그 동시 표시 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, `bj` 입력 시 결과와 `검색어 추천` 목록 동시 표시 |
 | 2026-09-23 | `apps/web`: 플레이어 좋아요 focused Vitest | 컴팩트·전체 화면 플레이어의 현재 트랙 좋아요 상태 동기화 | 통과: focused 8개 |
 | 2026-09-23 | Zorin Web `7aff82d` image build·Compose 교체·공개 HTTP smoke | 플레이어 좋아요 배포와 Web health | 통과: `/search`·`/api/health/ready` 200, `music-pie-web-1 healthy`, current release symlink 확인 |
+| 2026-09-23 | `apps/web`: 전체 화면 플레이어 앨범 이미지 focused Vitest | 현재 트랙 artwork 표시와 이미지 실패 fallback | 통과: focused 8개 |
 
 ## 미검증·제약
 

@@ -152,6 +152,15 @@ describe("PersistentPlayer", () => {
     expect(
       screen.getByRole("dialog", { name: "전체 화면 플레이어" }),
     ).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "전체 화면 플레이어" });
+    const fullArtwork = within(dialog).getByRole("img", { name: "Track A 앨범 아트" });
+    expect(fullArtwork).toHaveAttribute(
+      "src",
+      expect.stringContaining("track-a.jpg"),
+    );
+    fireEvent.error(fullArtwork);
+    expect(within(dialog).queryByRole("img", { name: "Track A 앨범 아트" })).not.toBeInTheDocument();
+    expect(within(dialog).getByText("MUSIC PIE")).toBeInTheDocument();
     expect(screen.getAllByText("0:42").length).toBeGreaterThan(0);
     expect(screen.getAllByText("3:05").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Track A 재생 중" })).toHaveAttribute(
