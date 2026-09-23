@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `a5e3cb8`
 
-최신 Zorin Web 배포 기준 커밋: `d31d5c3` (EMS embedding image: `b91afce`)
+최신 Zorin Web 배포 기준 커밋: `5716f48` (EMS embedding image: `b91afce`)
 
 ## 이번 목표
 
