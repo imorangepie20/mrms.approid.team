@@ -34,7 +34,8 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                   SELECT id
                   FROM ems_ingest_candidates
                   WHERE run_id = %s
-                    AND resolver_status IN ('pending', 'retryable')
+                    AND (resolver_status IN ('pending', 'retryable')
+                         OR (resolver_status = 'resolving' AND lease_expires_at < now()))
                     AND (lease_expires_at IS NULL OR lease_expires_at < now())
                     AND (next_attempt_at IS NULL OR next_attempt_at <= now())
                   ORDER BY sequence_no

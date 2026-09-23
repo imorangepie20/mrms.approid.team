@@ -156,6 +156,19 @@ def _stage_playlist(connection: Any, job_id: str, client: TidalCatalogClient) ->
         return False
     _set_phase(connection, job_id, "discovering")
     playlist = EditorialPlaylist(**playlists[index])
+    if playlist.updated_at:
+        previous = connection.execute(
+            "SELECT source_updated_at FROM ems_editorial_source_playlists WHERE playlist_id = %s",
+            (playlist.playlist_id,),
+        ).fetchone()
+        if previous and previous["source_updated_at"] == playlist.updated_at:
+            connection.execute(
+                """UPDATE ems_admin_ingest_jobs SET next_playlist_index = %s,
+                          updated_at = now(), heartbeat_at = now()
+                    WHERE id = %s AND status = 'running' AND next_playlist_index = %s""",
+                (index + 1, job_id, index),
+            )
+            return True
     tracks = fetch_playlist_tracks(client, client.get_token(), playlist)
     candidates = select_editorial_candidates(tracks, len(tracks)) if tracks else []
     if candidates:
@@ -185,6 +198,16 @@ def _stage_playlist(connection: Any, job_id: str, client: TidalCatalogClient) ->
                 WHERE id = %s AND status = 'running' AND next_playlist_index = %s""",
             (index + 1, job_id, index),
         )
+        if playlist.updated_at:
+            connection.execute(
+                """INSERT INTO ems_editorial_source_playlists
+                      (playlist_id, source_updated_at, last_fetched_at, last_candidate_count)
+                    VALUES (%s, %s, now(), %s)
+                    ON CONFLICT (playlist_id) DO UPDATE SET
+                      source_updated_at = EXCLUDED.source_updated_at,
+                      last_fetched_at = now(), last_candidate_count = EXCLUDED.last_candidate_count""",
+                (playlist.playlist_id, playlist.updated_at, len(candidates)),
+            )
     _record_progress(connection, job_id)
     return True
 
@@ -225,6 +248,16 @@ def _finish(connection: Any, job_id: str, status: str, error_code: str | None = 
             (status, error_code, job_id),
         )
     _record_progress(connection, job_id)
+    connection.execute(
+        """UPDATE ems_source_routines
+              SET status = CASE WHEN %s = 'completed' THEN 'idle' ELSE 'failed' END,
+                  last_checked_at = now(),
+                  last_success_at = CASE WHEN %s = 'completed' THEN now() ELSE last_success_at END,
+                  next_check_at = now() + make_interval(secs => CASE WHEN %s = 'completed' THEN check_interval_seconds ELSE 21600 END),
+                  error_code = %s, updated_at = now()
+            WHERE source_key = 'tidal_editorial'""",
+        (status, status, status, error_code),
+    )
 
 
 def _embed_one_batch(connection: Any, job_id: str, client: TidalCatalogClient) -> bool:
@@ -306,6 +339,123 @@ def process_job(connection: Any, job_id: str) -> None:
             return
 
 
+def _schedule_tidal_refresh(connection: Any) -> bool:
+    routine = connection.execute(
+        """SELECT enabled, next_check_at <= now() AS due FROM ems_source_routines
+            WHERE source_key = 'tidal_editorial'"""
+    ).fetchone()
+    if not routine or not routine["enabled"] or not routine["due"]:
+        return False
+    with connection.transaction():
+        result = connection.execute(
+            """WITH baseline AS (SELECT count(*)::int AS active_count FROM ems_tracks WHERE status = 'active'),
+                 available AS (SELECT 1 WHERE NOT EXISTS (
+                   SELECT 1 FROM ems_admin_ingest_jobs WHERE status IN ('pending', 'running', 'paused'))),
+                 run AS (
+                   INSERT INTO ems_ingest_runs (run_type, snapshot_id, status, request_budget, requested_count)
+                   SELECT 'tidal_resolve', 'scheduled-editorial-' || gen_random_uuid()::text, 'pending', 0, 0
+                     FROM available RETURNING id
+                 ), job AS (
+                   INSERT INTO ems_admin_ingest_jobs (id, status, starting_active_count, active_track_count)
+                   SELECT run.id, 'pending', baseline.active_count, baseline.active_count
+                     FROM run CROSS JOIN baseline RETURNING id, active_track_count
+                 ), sample AS (
+                   INSERT INTO ems_admin_ingest_samples (job_id, active_track_count, candidate_count, matched_count)
+                   SELECT id, active_track_count, 0, 0 FROM job
+                 ) SELECT id FROM job"""
+        ).fetchone()
+        if result is None:
+            return False
+        connection.execute(
+            """UPDATE ems_source_routines SET status = 'resolving',
+                      last_checked_at = now(), current_run_id = %s, error_code = NULL,
+                      updated_at = now()
+                WHERE source_key = 'tidal_editorial'""",
+            (result["id"],),
+        )
+    return True
+
+
+def _process_snapshot_run(connection: Any, run_id: str) -> None:
+    interval = max(0.5, float(os.environ.get("TIDAL_MIN_REQUEST_INTERVAL_SECONDS", "1.5")))
+    connection.execute(
+        """UPDATE ems_ingest_runs SET status = 'running',
+                  started_at = COALESCE(started_at, now()), heartbeat_at = now()
+            WHERE id = %s AND status IN ('pending', 'running')""",
+        (run_id,),
+    )
+    connection.execute(
+        """UPDATE ems_source_routines SET status = 'resolving', updated_at = now()
+            WHERE current_run_id = %s""",
+        (run_id,),
+    )
+
+    def can_continue() -> bool:
+        row = connection.execute(
+            """SELECT r.status, bool_and(s.enabled) AS enabled
+                 FROM ems_ingest_runs r JOIN ems_source_routines s ON s.current_run_id = r.id
+                WHERE r.id = %s GROUP BY r.status""",
+            (run_id,),
+        ).fetchone()
+        return bool(row and row["status"] == "running" and row["enabled"])
+
+    with httpx.Client(timeout=30) as http_client:
+        client = TidalCatalogClient(
+            os.environ["TIDAL_CLIENT_ID"].strip(),
+            os.environ["TIDAL_CLIENT_SECRET"].strip(),
+            request_budget=None,
+            http_client=http_client,
+            min_request_interval_seconds=interval,
+            should_continue=can_continue,
+        )
+        matched_since_embed = 0
+        while can_continue():
+            disk = shutil.disk_usage("/")
+            if not HealthGate().can_run(disk_used_percent=100 * disk.used / disk.total, database_ready=True, embedding_ready=True):
+                client.wait(30)
+                continue
+            recent_result: ResolveResult | None = None
+
+            def remember(result: ResolveResult) -> None:
+                nonlocal recent_result
+                recent_result = result
+
+            counts = run_worker(connection, run_id, client, batch_size=1, max_batches=1, on_result=remember)
+            if sum(counts.values()):
+                matched_since_embed += counts.get("matched", 0)
+                connection.execute(
+                    """UPDATE ems_ingest_runs SET matched_count = matched_count + %s,
+                              heartbeat_at = now() WHERE id = %s""",
+                    (counts.get("matched", 0), run_id),
+                )
+                if matched_since_embed >= 16:
+                    embed_ems_batch(connection, lambda texts: embed_remote(texts, os.environ.get("EMBEDDING_SERVICE_URL", "http://embedding:8000")), limit=16)
+                    matched_since_embed = 0
+                if recent_result and recent_result.error_code == "rate_limited":
+                    client.wait(max(1, recent_result.retry_after_seconds or 60))
+                elif recent_result and recent_result.status.value == "retryable":
+                    client.wait(3)
+                continue
+            if _unfinished_candidates(connection, run_id):
+                client.wait(3)
+                continue
+            while embed_ems_batch(connection, lambda texts: embed_remote(texts, os.environ.get("EMBEDDING_SERVICE_URL", "http://embedding:8000")), limit=16)["embedded"]:
+                pass
+            with connection.transaction():
+                connection.execute(
+                    """UPDATE ems_ingest_runs SET status = 'completed', finished_at = now(), heartbeat_at = now()
+                        WHERE id = %s AND status = 'running'""",
+                    (run_id,),
+                )
+                connection.execute(
+                    """UPDATE ems_source_routines SET status = 'idle', last_success_at = now(),
+                              error_code = NULL, updated_at = now()
+                        WHERE current_run_id = %s""",
+                    (run_id,),
+                )
+            return
+
+
 def serve_admin_jobs() -> None:
     database_url = os.environ["DATABASE_URL"].strip()
     while True:
@@ -318,12 +468,49 @@ def serve_admin_jobs() -> None:
                     time.sleep(5)
                     continue
                 while True:
+                    connection.execute(
+                        """UPDATE ems_ingest_runs r SET status = 'pending'
+                              FROM ems_source_routines s
+                             WHERE r.id = s.current_run_id AND r.status = 'paused' AND s.enabled"""
+                    )
                     job = connection.execute(
                         """SELECT id FROM ems_admin_ingest_jobs
                             WHERE status IN ('pending', 'running')
                             ORDER BY created_at LIMIT 1"""
                     ).fetchone()
                     if job is None:
+                        snapshot = connection.execute(
+                            """SELECT r.id FROM ems_ingest_runs r
+                                JOIN ems_source_routines s ON s.current_run_id = r.id
+                               WHERE r.run_type = 'musicbrainz_snapshot'
+                                 AND r.status IN ('pending', 'running') AND s.enabled
+                               ORDER BY r.created_at LIMIT 1"""
+                        ).fetchone()
+                        if snapshot is not None:
+                            run_id = str(snapshot["id"])
+                            try:
+                                _process_snapshot_run(connection, run_id)
+                            except CatalogRequestPaused:
+                                connection.execute(
+                                    "UPDATE ems_ingest_runs SET status = 'paused' WHERE id = %s AND status = 'running'",
+                                    (run_id,),
+                                )
+                            except psycopg.Error:
+                                raise
+                            except Exception as error:
+                                code = type(error).__name__.lower()
+                                connection.execute(
+                                    "UPDATE ems_ingest_runs SET status = 'failed', error_code = %s, finished_at = now() WHERE id = %s",
+                                    (code, run_id),
+                                )
+                                connection.execute(
+                                    "UPDATE ems_source_routines SET status = 'failed', error_code = %s WHERE current_run_id = %s",
+                                    (code, run_id),
+                                )
+                                print(json.dumps({"run_id": run_id, "status": "failed", "error_code": code}), flush=True)
+                            continue
+                        if _schedule_tidal_refresh(connection):
+                            continue
                         time.sleep(3)
                         continue
                     job_id = str(job["id"])

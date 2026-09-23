@@ -197,13 +197,14 @@ class MusicBrainzSnapshotClient:
         self._download_atomic(urljoin(self.base_url, f"{latest}/SHA256SUMS.asc"), signature_path)
         ensure_musicbrainz_signing_key()
         verify_detached_signature(checksum_path, signature_path)
-        self._download_atomic(urljoin(self.base_url, f"{latest}/mbdump.tar.bz2"), archive_path)
         expected = next(
             (line.split()[0] for line in checksum_path.read_text(encoding="utf-8").splitlines() if "mbdump.tar.bz2" in line),
             None,
         )
         if expected is None:
             raise DownloadError("mbdump checksum missing")
+        if not archive_path.exists():
+            self._download_atomic(urljoin(self.base_url, f"{latest}/mbdump.tar.bz2"), archive_path)
         verify_sha256(archive_path, expected)
         return latest
 
@@ -219,9 +220,10 @@ class MusicBrainzSnapshotClient:
         archive_path = snapshot_dir / name
         checksum_path = snapshot_dir / f"{name}.sha256"
         base = f"https://data.metabrainz.org/pub/musicbrainz/canonical_data/musicbrainz-canonical-dump-{snapshot_id}/"
-        self._download_atomic(base + name, archive_path)
         self._download_atomic(base + f"{name}.sha256", checksum_path)
         expected = checksum_path.read_text(encoding="utf-8").split()[0]
+        if not archive_path.exists():
+            self._download_atomic(base + name, archive_path)
         verify_sha256(archive_path, expected)
         return snapshot_id
 

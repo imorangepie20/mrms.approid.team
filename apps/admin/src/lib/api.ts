@@ -72,6 +72,23 @@ export type EmsAdminIngestion = {
   samples: Array<{ sampledAt: string; activeTrackCount: number; candidateCount: number; matchedCount: number }>;
 };
 
+export type EmsSourceRoutine = {
+  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical";
+  enabled: boolean;
+  intervalSeconds: number;
+  status: string;
+  nextCheckAt: string;
+  lastCheckedAt: string | null;
+  lastVersion: string | null;
+  lastSuccessAt: string | null;
+  lastCandidateCount: number;
+  currentRunId: string | null;
+  currentRunStatus: string | null;
+  currentRunMatchedCount: number;
+  currentRunPendingCount: number;
+  errorCode: string | null;
+};
+
 export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
 
 export class AdminApiError extends Error {
@@ -134,6 +151,18 @@ export function getEmsIngestRuns(options: { page?: number; limit?: number } = {}
 
 export function getEmsAdminIngestion() {
   return requestJson<EmsAdminIngestion>("/api/admin/ems/ingest-jobs");
+}
+
+export function getEmsSourceRoutines() {
+  return requestJson<EmsSourceRoutine[]>("/api/admin/ems/source-routines");
+}
+
+export function changeEmsSourceRoutine(key: EmsSourceRoutine["key"], action: "enable" | "disable" | "check_now") {
+  return requestJson<EmsSourceRoutine>(`/api/admin/ems/source-routines/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
 }
 
 export function startEmsAdminIngestion() {

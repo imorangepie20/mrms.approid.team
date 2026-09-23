@@ -86,6 +86,18 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                 """,
                 [track_id, match.tidal_id],
             )
+            if match.recording_mbid:
+                cursor.execute(
+                    """INSERT INTO ems_track_sources
+                         (track_id, source_type, source_id, source_version, source_license, last_seen_at)
+                       SELECT %s, 'musicbrainz', %s, r.snapshot_id, 'CC0', now()
+                         FROM ems_ingest_candidates c JOIN ems_ingest_runs r ON r.id = c.run_id
+                        WHERE c.id = %s
+                       ON CONFLICT (source_type, source_id) DO UPDATE
+                         SET track_id = EXCLUDED.track_id, source_version = EXCLUDED.source_version,
+                             last_seen_at = now()""",
+                    [track_id, match.recording_mbid, candidate_id],
+                )
             cursor.execute(
                 """
                 INSERT INTO ems_availability_events (track_id, region, capability, playable)

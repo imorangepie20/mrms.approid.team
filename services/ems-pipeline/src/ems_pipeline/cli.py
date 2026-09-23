@@ -52,6 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--max-batches", type=int, default=None)
     embed.add_argument("--embedding-service-url", default=None)
     subparsers.add_parser("serve-admin-jobs")
+    subparsers.add_parser("serve-source-routines")
     return parser
 
 
@@ -80,6 +81,11 @@ def main(argv: list[str] | None = None) -> int:
         from .admin_ingestion import serve_admin_jobs
 
         serve_admin_jobs()
+        return 0
+    if args.command == "serve-source-routines":
+        from .source_routines import serve_source_routines
+
+        serve_source_routines()
         return 0
     work_root_arg = getattr(args, "work_root", None)
     work_root = work_root_arg or (Path(os.environ["MUSICBRAINZ_WORK_ROOT"]) if os.environ.get("MUSICBRAINZ_WORK_ROOT") else None)

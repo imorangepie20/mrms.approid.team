@@ -45,6 +45,7 @@ const menuItems: MenuItem[] = [
             { title: 'Sections', path: '/ems/sections' },
             { title: 'Tracks', path: '/ems/tracks' },
             { title: 'Ingestion', path: '/ems/ingestion' },
+            { title: '정기 수집', path: '/ems/routines' },
         ],
     },
     { title: 'Analytics', icon: <BarChart3 size={20} />, path: '/analytics' },

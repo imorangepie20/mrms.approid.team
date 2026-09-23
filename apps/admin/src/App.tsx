@@ -43,6 +43,7 @@ import EmsDashboard from "./pages/Dashboard";
 import EmsSections from "./pages/Sections";
 import EmsTracks from "./pages/Tracks";
 import EmsIngestion from "./pages/Ingestion";
+import SourceRoutines from "./pages/SourceRoutines";
 
 function TemplateRoutes() {
   return (
@@ -86,6 +87,7 @@ function TemplateRoutes() {
         <Route path="ems/sections" element={<EmsSections />} />
         <Route path="ems/tracks" element={<EmsTracks />} />
         <Route path="ems/ingestion" element={<EmsIngestion />} />
+        <Route path="ems/routines" element={<SourceRoutines />} />
         <Route path="*" element={<Error404 />} />
       </Route>
       <Route path="login" element={<Login />} />
