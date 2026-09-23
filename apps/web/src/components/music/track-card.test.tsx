@@ -44,6 +44,7 @@ describe("TrackCard", () => {
     expect(screen.queryByRole("img", { name: "Human Behaviour 앨범 아트" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "재생 Human Behaviour" }));
+    expect(screen.getByRole("button", { name: "재생 Human Behaviour" }).querySelector("svg.play-icon")).toBeInTheDocument();
     expect(onPlay).toHaveBeenCalledWith(track);
     expect(playTrack).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /내 취향으로 담기/ })).not.toBeInTheDocument();

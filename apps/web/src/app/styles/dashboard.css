@@ -514,12 +514,9 @@
 
 .play-icon {
   display: block;
-  width: 0;
-  height: 0;
-  margin-left: 3px;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  border-left: 10px solid currentColor;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
 }
 
 .album-card b,

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { LikeButton } from "@/components/music/like-button";
+import { PlayIcon } from "@/components/music/play-icon";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { useMusicSession } from "@/providers/music-session-provider";
 import type { Track } from "@/lib/music/types";
@@ -57,9 +58,7 @@ export function TrackCard<TTrack extends Track>({
             type="button"
             onClick={() => onPlay ? onPlay(track) : void playTrack(track)}
           >
-            <svg aria-hidden="true" className="ml-0.5 size-4" viewBox="0 0 16 16">
-              <path d="M4.75 3.25v9.5L12 8 4.75 3.25Z" fill="currentColor" />
-            </svg>
+            <PlayIcon className="ml-0.5 size-4" />
           </button>
         </div>
       </div>
