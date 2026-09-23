@@ -133,11 +133,24 @@ function parseSearchDocument(document: Document): TidalSearchResult {
       .filter((name): name is string => Boolean(name))
       .join(", ") || "Unknown Artist";
 
+  const albumArtistFallback = new Map<string, string>();
+  for (const reference of relationshipReferences(document, "tracks")) {
+    const track = byKey.get(key(reference));
+    const artist = artistName(track);
+    if (artist === "Unknown Artist") continue;
+    for (const albumReference of related(track, "albums")) {
+      albumArtistFallback.set(key(albumReference), artist);
+    }
+  }
+
   const albums = resultReferences(document, "albums").flatMap((reference) => {
     const album = byKey.get(key(reference));
     if (!album) return [];
+    const artist = artistName(album);
     return [{
-      artist: artistName(album),
+      artist: artist === "Unknown Artist"
+        ? albumArtistFallback.get(key(reference)) ?? artist
+        : artist,
       artworkUrl: artwork(album, byKey),
       id: String(reference.id),
       title: text(album, "title") ?? "Untitled album",

@@ -10,6 +10,7 @@
 - 아티스트 카드에 필요한 `artists.profileArt` 관계를 유지했다.
 - 검색 `include` 목록에서 트랙 앨범 커버의 중복 중첩 관계를 제거했다.
 - `albums.artists` 관계를 제외하고 `albums.coverArt`·`artists.profileArt`를 유지해 카드 아트워크를 보존한다.
+- 앨범 아티스트 관계가 생략된 응답에서는 트랙의 아티스트 관계를 앨범 카드에 fallback으로 사용한다.
 - 요청 관계 수를 TIDAL 제한인 10개로 고정하는 회귀 검증을 추가했다.
 
 초기 10개 수정에서 `topHits`와 `artists.profileArt`를 차례로 제외해 통합 결과와 아티스트 카드 아트워크가 비는 회귀가 발생했다. 최종 수정은 `topHits`·`artists.profileArt`를 복구하고 선택적인 `albums.artists`만 제외하는 방식으로 제한을 맞췄다.
@@ -20,7 +21,7 @@
 
 - 실제 운영 토큰·`annette askvik` 후보 비교: TIDAL HTTP 200, `topHits` 관계·아티스트 `profileArt`·플레이리스트 `coverArt` 포함
 - 검색 focused Vitest 18개 통과
-- 전체 Vitest 84개 파일·342개 테스트, lint 오류 0(기존 경고 3), build·TypeScript 통과
+- 전체 Vitest 84개 파일·343개 테스트, lint 오류 0(기존 경고 3), build·TypeScript 통과
 
 ## 미검증 항목
 

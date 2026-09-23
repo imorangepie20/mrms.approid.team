@@ -173,6 +173,18 @@ describe("TIDAL search adapter", () => {
     expect(result.tracks[0]).toMatchObject({ playbackAvailable });
   });
 
+  it("uses track artists as the album artist fallback", async () => {
+    const document = structuredClone(searchDocument);
+    const album = document.included.find((item) => item.type === "albums");
+    if (!album) throw new Error("album fixture is missing");
+    delete (album.relationships as Record<string, unknown>).artists;
+    const fetcher = vi.fn().mockResolvedValue(Response.json(document));
+
+    const result = await searchTidalCatalog("Björk", credentials, fetcher);
+
+    expect(result.albums[0]?.artist).toBe("Björk");
+  });
+
   it("rejects a cursor outside the configured API origin", async () => {
     const fetcher = vi.fn();
 

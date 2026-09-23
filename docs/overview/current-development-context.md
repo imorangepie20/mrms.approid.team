@@ -55,7 +55,7 @@
 - 2026-09-23 GMS 카드에서 추천 이유 라벨을 제거해 제목·아티스트·앨범·결정 버튼 중심으로 단순화했다.
 - 2026-09-23 검색 본문과 추천어 요청을 분리했다. 추천어 API 실패·잘못된 응답·네트워크 오류가 카탈로그 검색 결과를 차단하지 않으며, 상세 결과는 `docs/changes/2026-09-23-search-suggestions-fallback.md`에 기록했다.
 - 2026-09-23 검색 내비게이션을 일반 사이드바 메뉴 리듬으로 통합하고 SVG 아이콘·active 상태를 추가했다. 모바일 상단에도 검색 아이콘을 배치했으며, 상세 결과는 `docs/changes/2026-09-23-search-navigation-layout.md`에 기록했다.
-- 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. `topHits`·`artists.profileArt`를 유지하고 선택적인 `albums.artists`를 제외해 10개로 줄였다. 초기 수정에서 `topHits`를 빼 통합 결과가, 이후 `artists.profileArt`를 빼 아티스트 아트워크가 비는 회귀를 확인·복구했으며, 카탈로그 실패 시에도 제시어를 표시하도록 보완했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
+- 2026-09-23 실제 운영 `annette` 검색에서 TIDAL v2의 `Include count 12 exceeds limit 10` 오류를 재현했다. `topHits`·`artists.profileArt`를 유지하고 선택적인 `albums.artists`를 제외해 10개로 줄였다. 초기 수정에서 `topHits`를 빼 통합 결과가, 이후 `artists.profileArt`를 빼 아티스트 아트워크가 비는 회귀를 확인·복구했으며, 앨범 아티스트는 트랙 관계 fallback으로 보완하고 카탈로그 실패 시에도 제시어를 표시하도록 했다. 상세 결과는 `docs/changes/2026-09-23-tidal-search-include-limit.md`에 기록했다.
 
 ## 검증 결과
 
@@ -97,7 +97,8 @@
 | 2026-09-23 | `apps/web`: 검색 focused Vitest·전체 Vitest·lint·build | 추천어 API 실패가 카탈로그 검색을 차단하지 않음 | 통과: focused 17개·전체 84개 파일 340개 테스트, lint 오류 0(기존 경고 3), build·TypeScript |
 | 2026-09-23 | Zorin Web `671bcda` image build·Compose 교체·공개 HTTP smoke | 검색 fallback·include 제한 수정 배포와 Web health | 통과: `music-pie-web-1 healthy`, 공개 `/search`·`/api/health/ready` 200, 비로그인 `/api/tidal/search` 401 |
 | 2026-09-23 | `apps/web`: 통합 결과·제시어 회귀 focused/full Vitest·lint·build; 운영 TIDAL `annette` smoke | `topHits` 복구, 검색 실패 시 제시어 보존, include 10개 제한 | 통과: focused 18개·전체 84개 파일 342개 테스트, lint 오류 0(기존 경고 3), build·TIDAL HTTP 200 (`topHits` 100개) |
-| 2026-09-23 | `apps/web`: 아티스트 아트워크 회귀 focused/full Vitest·lint·build; 운영 TIDAL `annette askvik` include 비교 | `artists.profileArt` 복구와 플레이리스트·트랙 관계 보존 | 통과: focused 18개·전체 84개 파일 342개 테스트, lint 오류 0(기존 경고 3), build·TIDAL HTTP 200 |
+| 2026-09-23 | `apps/web`: 아티스트 아트워크 회귀 focused/full Vitest·lint·build; 운영 TIDAL `annette askvik` include 비교 | `artists.profileArt` 복구와 플레이리스트·트랙 관계 보존 | 통과: focused 18개·전체 84개 파일 343개 테스트, lint 오류 0(기존 경고 3), build·TIDAL HTTP 200 |
+| 2026-09-23 | `apps/web`: 앨범 아티스트 fallback 회귀 test·full Vitest·lint·build | `albums.artists` 생략 시 트랙 아티스트로 앨범 카드 표기 | 통과: focused 8개·전체 84개 파일 343개 테스트 |
 | 2026-09-23 | 내비게이션 focused Vitest·전체 Vitest·lint·build·Impeccable detector | 검색 메뉴 위치·형태와 반응형 진입점 | 통과: focused 5개·전체 84개 파일 341개 테스트, lint 오류 0(기존 경고 3), build, findings 0 |
 
 ## 미검증·제약
