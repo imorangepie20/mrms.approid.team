@@ -86,6 +86,8 @@ docker run --rm --network container:music-pie-web-1 \
 - MusicBrainz 태그는 CC0 core가 아닌 `mbdump-derived.tar.bz2`에 있다. 공식 서명으로 검증한 `SHA256SUMS`의 derived 항목과 다운로드 파일의 SHA-256을 대조한다. `backfill-musicbrainz-tags --core <선택한 core/mbdump> --derived-archive <검증한 파일> --snapshot-id <버전>`은 ISRC·제목·길이로 녹음을 대조한 뒤 녹음 ID·원문 태그·투표 수·snapshot 버전을 저장한다. 중복 에디션 때문에 태그 대조용 녹음 ID는 기존 유일키의 `recording_mbid`와 별도 필드다.
 - core 전체 아카이브와 derived 원본은 저장소 밖에 보존한다. derived 태그의 라이선스는 CC BY-NC-SA 3.0이다. 상업적 사용 권한은 별도 확인이 필요하다.
 
+`016_ems_musicbrainz_metadata_routine.sql` 적용 후 `ems-source-routines`가 6시간마다 신규 활성곡과 새 core 버전을 확인한다. 같은 버전의 곡은 `mb_metadata_snapshot_id`로 중복 대조하지 않는다. derived 아카이브는 해당 core 버전의 서명된 체크섬으로 검증한다. 녹음 최초 발매일은 core dump에 없으므로 [MusicBrainz 녹음 검색 API](https://musicbrainz.org/doc/MusicBrainz_API/Search)의 `first-release-date`를 MBID 묶음으로 조회한다. [요청 제한](https://musicbrainz.org/doc/MusicBrainz_API/Rate_Limiting)에 맞춰 요청 간격을 2초 이상 두고 429·503은 재시도한다. 연·월·일이 모두 있는 날짜만 `mb_first_release_date`에 저장한다. 관리자 `정기 수집`의 `MusicBrainz 메타데이터` 카드에서 버전·처리 수·오류를 확인하고 `지금 확인`을 요청할 수 있다.
+
 운영 전에는 migration을 먼저 적용하고, Web과 EMS 워커를 새 이미지로 재생성한다. Web 요청은 TIDAL에 직접 연결하지 않으며, 비밀값은 기존 서버 secret에서만 읽는다.
 
 ## Pause·rollback
