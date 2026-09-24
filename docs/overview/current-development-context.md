@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-24
 
-최신 기능 기준 커밋: `838bf74`
+최신 기능 기준 커밋: `7dc93dd`
 
-최신 Zorin Web 배포 기준 커밋: `838bf74` (MusicBrainz 메타데이터 정기 갱신, image `music-pie-web:current`)
+최신 Zorin Web 배포 기준 커밋: `7dc93dd` (EMS 수집 모니터링 정합성 수정, image `music-pie-web:current`)
 
 ## 이번 목표
 
@@ -12,6 +12,7 @@
 
 ## 현재 구현
 
+- 2026-09-24 `7dc93dd`에서 관리자 EMS 수집 화면의 전체 활성곡과 현재 실행 중 작업, 대기 중 수동 작업을 분리했다. 최근 12시간 활성곡 유입과 현재 작업의 후보·처리·매칭 그래프를 DB 시각으로 복원한다. 운영에서 MusicBrainz 작업 진행 중·수동 TIDAL 작업 대기, 그래프와 DB 수치, Web healthy를 확인했다. 상세는 `docs/changes/2026-09-24-ems-ingestion-monitor-fix.md`에 있다.
 - 2026-09-24 `838bf74`에서 MusicBrainz 메타데이터 자동 갱신을 추가하고 Zorin에 배포했다. `016_ems_musicbrainz_metadata_routine.sql`을 적용했고 `ems-source-routines`가 6시간마다 새 활성곡과 core 버전을 확인한다. 첫 실행은 14,427곡, 신규곡 확인을 위한 두 번째 실행은 323곡만 처리했다. 운영 확인 시점 태그 보유곡은 2,684→3,710곡, MusicBrainz 최초 발매일 보유곡은 0→8,287곡으로 늘었고 다음 자동 확인은 2026-09-24 18:44 KST다. 상세는 `docs/changes/2026-09-24-musicbrainz-metadata-refresh.md`에 기록한다.
 - 2026-09-24 관리자 `/admin/ems/statistics`에 MusicBrainz 태그·TIDAL 앨범 발매 연대·EMS 유입일의 보유율과 그래프를 추가했다. TIDAL 원천 상세 메타데이터와 태그 원문·투표 수·스냅샷을 저장한다. 운영 확인 시점 활성 8,525곡 중 발매일 8,524곡, 태그 2,684곡이며 수집은 계속 진행 중이다. 운영 적용·권리·미검증 사항은 `docs/changes/2026-09-24-ems-metadata-statistics.md`에 있다.
 - `apps/web`에 Next.js 기반 사용자 화면, Auth0 인증, TIDAL 검색·플레이리스트·재생 API가 구현되어 있다.
