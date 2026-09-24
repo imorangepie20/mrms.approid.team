@@ -19,5 +19,7 @@
 
 ## 운영 적용·미검증
 
-- 운영 배포와 로그인된 연결 화면 확인 결과는 배포 후 기록한다.
-- Auth0 신규 로그인 콜백의 실제 끝단 이동은 기존 로그인 세션을 종료하지 않는 범위에서 확인한다.
+- `24bf96f`를 Zorin Web 이미지로 빌드하고 Web 컨테이너만 교체했다. 이전 이미지는 `music-pie-web:pre-member-login-20260925`로 보존했다. Web은 healthy, 공개 readiness는 HTTP 200이다.
+- 비로그인 `/tidal-connection?returnTo=%2Fmms`는 Auth0 로그인으로 HTTP 307 이동한다. `/admin`의 비로그인 로그인 이동과 관리자 API HTTP 401도 유지된다.
+- 로그인된 계정에서 Auth0 `/api/auth/login?returnTo=%2Fsearch`를 열어 실제 콜백 후 `/tidal-connection?returnTo=%2Fsearch`에 도착하고 `TIDAL 연결됨`·`음악 화면으로 계속` 링크가 표시됨을 확인했다. 관리자 `/api/auth/login?returnTo=%2Fadmin`은 `/admin`으로 복귀했다.
+- 미연결 계정과 재연결 필요 계정의 실제 브라우저 화면은 별도 계정이 없어 직접 확인하지 못했다.
