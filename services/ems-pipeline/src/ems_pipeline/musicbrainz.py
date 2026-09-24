@@ -208,6 +208,34 @@ class MusicBrainzSnapshotClient:
         verify_sha256(archive_path, expected)
         return latest
 
+    def download_derived(self, work_root: Path, version: str) -> Path:
+        if not re.fullmatch(r"\d{8}-\d{6}", version):
+            raise DownloadError("invalid core version")
+        snapshot_dir = work_root / version
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        checksum_path = snapshot_dir / "SHA256SUMS"
+        signature_path = snapshot_dir / "SHA256SUMS.asc"
+        base = urljoin(self.base_url, f"{version}/")
+        if not checksum_path.is_file():
+            self._download_atomic(base + "SHA256SUMS", checksum_path)
+        if not signature_path.is_file():
+            self._download_atomic(base + "SHA256SUMS.asc", signature_path)
+        ensure_musicbrainz_signing_key()
+        verify_detached_signature(checksum_path, signature_path)
+        expected = None
+        for line in checksum_path.read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[-1].lstrip("*") == "mbdump-derived.tar.bz2":
+                expected = parts[0]
+                break
+        if expected is None:
+            raise DownloadError("derived checksum missing")
+        archive_path = snapshot_dir / "mbdump-derived.tar.bz2"
+        if not archive_path.exists():
+            self._download_atomic(base + archive_path.name, archive_path)
+        verify_sha256(archive_path, expected)
+        return archive_path
+
     def download_latest_canonical(self, work_root: Path) -> str:
         index = self._read("https://data.metabrainz.org/pub/musicbrainz/canonical_data/").decode("utf-8")
         snapshots = sorted(set(re.findall(r"musicbrainz-canonical-dump-(\d{8}-\d{6})/", index)))

@@ -88,7 +88,7 @@ export type EmsAdminIngestion = {
 };
 
 export type EmsSourceRoutine = {
-  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical";
+  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical" | "musicbrainz_metadata";
   enabled: boolean;
   intervalSeconds: number;
   status: string;

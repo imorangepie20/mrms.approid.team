@@ -16,7 +16,7 @@ export async function PATCH(request: Request, context: Context) {
       return Response.json({ code: "invalid_ems_source_action" }, { status: 400 });
     }
     const { key } = await context.params;
-    if (!["tidal_editorial", "musicbrainz_core", "musicbrainz_canonical"].includes(key)) {
+    if (!["tidal_editorial", "musicbrainz_core", "musicbrainz_canonical", "musicbrainz_metadata"].includes(key)) {
       return Response.json({ code: "invalid_ems_source_key" }, { status: 400 });
     }
     return Response.json(await updateEmsSourceRoutine(key, body.action, getDatabasePool()));

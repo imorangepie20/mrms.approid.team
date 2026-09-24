@@ -31,8 +31,8 @@ def _version_time(version: str | None) -> str:
     return datetime.strptime(version, "%Y%m%d-%H%M%S").replace(tzinfo=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _available_disk(reserve_gib: int) -> bool:
-    disk = shutil.disk_usage("/")
+def _available_disk(reserve_gib: int, path: Path | str = "/") -> bool:
+    disk = shutil.disk_usage(path)
     return (disk.used + reserve_gib * 1024**3) / disk.total < 0.7
 
 
@@ -283,6 +283,36 @@ def _check_core(connection: Any, work_root: Path, client: MusicBrainzSnapshotCli
     _prune_old_snapshots(work_root, canonical=False)
 
 
+def _check_metadata(connection: Any, work_root: Path, client: MusicBrainzSnapshotClient) -> None:
+    from .musicbrainz_tags import backfill_musicbrainz_tags
+
+    key = "musicbrainz_metadata"
+    core_row = connection.execute(
+        "SELECT last_version FROM ems_source_routines WHERE source_key = 'musicbrainz_core'"
+    ).fetchone()
+    version = core_row["last_version"] if core_row else None
+    if not version or not VERSION_PATTERN.fullmatch(version):
+        raise DownloadError("core snapshot unavailable")
+    pending = connection.execute(
+        """SELECT count(*)::int AS count FROM ems_tracks
+            WHERE status = 'active' AND (isrc IS NOT NULL OR recording_mbid IS NOT NULL)
+              AND mb_metadata_snapshot_id IS DISTINCT FROM %s""",
+        (version,),
+    ).fetchone()["count"]
+    if not pending:
+        _mark_check(connection, key, version=version, count=0)
+        return
+    if not _available_disk(2, work_root):
+        raise DownloadError("disk_gate")
+    connection.execute("UPDATE ems_source_routines SET status = 'downloading' WHERE source_key = %s", (key,))
+    derived = client.download_derived(work_root, version)
+    core = _core_files(work_root, version)
+    connection.execute("UPDATE ems_source_routines SET status = 'staging' WHERE source_key = %s", (key,))
+    result = backfill_musicbrainz_tags(core, derived, version)
+    _mark_check(connection, key, version=version, count=result["scanned"])
+    print(json.dumps({"source": key, "version": version, **result}), flush=True)
+
+
 def serve_source_routines() -> None:
     database_url = os.environ["DATABASE_URL"].strip()
     work_root = Path(os.environ.get("MUSICBRAINZ_WORK_ROOT", "/data/musicbrainz")).resolve()
@@ -304,12 +334,12 @@ def serve_source_routines() -> None:
                 while True:
                     row = connection.execute(
                         """SELECT source_key, last_version FROM ems_source_routines s
-                            WHERE enabled AND source_key IN ('musicbrainz_canonical', 'musicbrainz_core')
+                            WHERE enabled AND source_key IN ('musicbrainz_canonical', 'musicbrainz_core', 'musicbrainz_metadata')
                               AND next_check_at <= now()
                               AND NOT EXISTS (
                                 SELECT 1 FROM ems_ingest_runs r WHERE r.id = s.current_run_id
                                   AND r.status IN ('pending', 'running', 'paused'))
-                            ORDER BY CASE source_key WHEN 'musicbrainz_canonical' THEN 0 ELSE 1 END LIMIT 1"""
+                            ORDER BY CASE source_key WHEN 'musicbrainz_canonical' THEN 0 WHEN 'musicbrainz_core' THEN 1 ELSE 2 END LIMIT 1"""
                     ).fetchone()
                     if row is None:
                         time.sleep(30)
@@ -322,8 +352,10 @@ def serve_source_routines() -> None:
                     try:
                         if key == "musicbrainz_canonical":
                             _check_canonical(connection, work_root, client, row)
-                        else:
+                        elif key == "musicbrainz_core":
                             _check_core(connection, work_root, client, row)
+                        else:
+                            _check_metadata(connection, work_root, client)
                     except Exception as error:
                         code = str(error) if isinstance(error, DownloadError) and str(error) == "disk_gate" else type(error).__name__.lower()
                         connection.execute(

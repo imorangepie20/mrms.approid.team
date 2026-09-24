@@ -24,6 +24,8 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [MusicBrainz 메타데이터 자동 갱신 계획](plans/2026-09-24-musicbrainz-metadata-refresh.md)
+- [MusicBrainz 메타데이터 자동 갱신 변경 기록](changes/2026-09-24-musicbrainz-metadata-refresh.md)
 - [EMS 관리자 수집 계획](plans/2026-09-24-admin-ems-fill.md)
 - [EMS 관리자 수집 변경 기록](changes/2026-09-24-admin-ems-ingestion.md)
 - [메인·EMS 화면 독립 관리 계획](plans/2026-09-24-independent-screen-management.md)
