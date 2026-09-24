@@ -1,0 +1,271 @@
+.full-player-dialog {
+  background:
+    radial-gradient(ellipse 70% 55% at 20% 15%, rgba(97, 38, 145, 0.22), transparent 70%),
+    #08070e;
+}
+
+.full-player-shell {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 20px clamp(16px, 3vw, 40px) 48px;
+}
+
+.full-player-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  margin-bottom: 20px;
+  background: #0b0912;
+}
+
+.full-player-wordmark {
+  color: var(--brand-soft);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+}
+
+.full-player-header p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.full-player-close {
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  transition: background 160ms ease;
+}
+
+.full-player-close:hover { background: var(--surface-hover); }
+
+.full-player-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 20px;
+  align-items: stretch;
+}
+
+.full-player-artwork-card,
+.full-player-now,
+.full-player-queue {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+}
+
+.full-player-artwork-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: clamp(16px, 2vw, 26px);
+  background: linear-gradient(145deg, #21172f, #111118 62%);
+}
+
+.full-player-artwork {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 14px;
+}
+
+.full-player-artwork-fallback {
+  color: #fff;
+  font-size: clamp(24px, 4vw, 45px);
+  font-weight: 850;
+  letter-spacing: 0.12em;
+}
+
+.full-player-artwork-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.full-player-artwork-caption strong {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.full-player-now {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(22px, 3vw, 36px);
+}
+
+.full-player-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--brand-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.full-player-status span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+
+.full-player-track-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.full-player-track-heading > div { min-width: 0; }
+
+.full-player-track-heading h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(31px, 3.7vw, 52px);
+  font-weight: 760;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.full-player-track-heading p {
+  margin: 13px 0 0;
+  color: #d8d0e4;
+  font-size: clamp(17px, 1.6vw, 21px);
+}
+
+.full-player-track-heading small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.full-player-like { flex: none; }
+
+.full-player-controls {
+  margin-top: auto;
+  padding-top: 32px;
+}
+
+.full-player-range { cursor: pointer; }
+
+.full-player-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.full-player-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1.2vw, 16px);
+  margin-top: 24px;
+}
+
+.full-player-volume {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.full-player-queue {
+  margin-top: 20px;
+  padding: 22px clamp(16px, 2.5vw, 28px);
+}
+
+.full-player-queue-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.full-player-queue-heading h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 720;
+}
+
+.full-player-queue-heading span { color: var(--muted); font-size: 13px; }
+
+.full-player-queue ul {
+  max-height: 340px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  scrollbar-color: var(--surface-hover) transparent;
+}
+
+.full-player-queue li + li { margin-top: 4px; }
+
+.full-player-queue-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+
+.full-player-queue-item:hover { background: var(--surface-hover); }
+.full-player-queue-item[aria-current="true"] { background: rgba(155, 92, 255, 0.16); }
+
+.full-player-queue-number {
+  color: var(--subtle);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.full-player-queue-track { display: grid; min-width: 0; }
+.full-player-queue-track strong { overflow: hidden; font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.full-player-queue-track small { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.full-player-queue-current { color: var(--brand-soft); font-size: 12px; font-weight: 700; }
+
+@media (max-width: 760px) {
+  .full-player-shell { padding: 12px 16px 36px; }
+  .full-player-header { min-height: 52px; margin-bottom: 14px; }
+  .full-player-stage { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .full-player-artwork-card { align-items: center; padding: 14px; }
+  .full-player-artwork { width: min(100%, 38vh, 310px); }
+  .full-player-artwork-caption { width: 100%; margin-top: 12px; }
+  .full-player-now { padding: 22px; }
+  .full-player-track-heading { margin-top: 14px; }
+  .full-player-track-heading h1 { font-size: clamp(27px, 7vw, 36px); }
+  .full-player-controls { padding-top: 22px; }
+  .full-player-queue { margin-top: 14px; }
+}
+
+@media (max-width: 390px) {
+  .full-player-buttons { gap: 1px; }
+  .full-player-queue-item { gap: 8px; padding-inline: 8px; }
+  .full-player-queue-current { font-size: 11px; }
+}
