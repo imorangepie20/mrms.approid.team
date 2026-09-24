@@ -41,6 +41,8 @@
 
 ### TIDAL 연결·라이브러리·재생
 
+- [회원 로그인 뒤 TIDAL 연결 확인 계획](plans/2026-09-25-member-login-tidal-checkpoint.md)
+- [회원 로그인 뒤 TIDAL 연결 확인 변경 기록](changes/2026-09-25-member-login-tidal-checkpoint.md)
 - [Auth0·TIDAL 인증 설계](superpowers/specs/2026-09-20-auth0-tidal-authentication-design.md)
 - [TIDAL 플레이리스트 저장 설계](superpowers/specs/2026-09-20-tidal-playlist-persistence-design.md)
 - [TIDAL 전체 재생 구현](deployment/tidal-full-playback-implementation.md)
