@@ -17,8 +17,11 @@ def backfill_tidal_metadata(*, interval_seconds: float = 3.0, batch_size: int = 
         raise ValueError("batch_size must be 1..20")
     with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as connection:
         rows = connection.execute(
-            """SELECT id, tidal_id FROM ems_tracks WHERE status = 'active'
-                 ORDER BY tidal_id"""
+            """SELECT e.id, e.tidal_id FROM ems_tracks e
+                 LEFT JOIN ems_track_sources s ON s.source_type = 'tidal' AND s.source_id = e.tidal_id
+                WHERE e.status = 'active'
+                  AND (e.tidal_album_release_date IS NULL OR s.id IS NULL OR s.metadata = '{}'::jsonb)
+                ORDER BY e.tidal_id"""
         ).fetchall()
         connection.commit()
         updated = 0
