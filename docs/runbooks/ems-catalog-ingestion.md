@@ -77,6 +77,15 @@ docker run --rm --network container:music-pie-web-1 \
 
 새 버전이 없으면 `last_checked_at`과 `next_check_at`만 갱신하고 후보나 새 작업을 만들지 않는다. 비밀값과 원본 dump를 저장소에 복사하지 않는다.
 
+## EMS 메타데이터·통계
+
+`014_ems_track_metadata.sql` 적용 뒤 `/admin/ems/statistics`에서 활성 트랙의 태그, 발매 시기, 유입 시기와 누락 수를 확인한다. `first_seen_at`은 EMS 유입일이며 발매일이 아니다. 발매 시기는 MusicBrainz 최초 발매일이 있으면 우선하고, 그렇지 않으면 TIDAL 앨범 발매일을 사용한다. 원천 날짜가 없거나 유효하지 않으면 미상으로 둔다.
+
+- 신규 매칭은 TIDAL track·album 속성과 아티스트 ID를 `ems_track_sources.metadata`에 보존한다. 앨범 `releaseDate`가 정상 날짜이면 `tidal_album_release_date`에 저장한다.
+- 기존 곡은 `python -m ems_pipeline.cli backfill-tidal-metadata --interval-seconds 3`으로 20곡씩 조회한다. 429는 `Retry-After`에 따라 쉰다. Web 요청에서는 TIDAL을 조회하지 않는다.
+- MusicBrainz 태그는 CC0 core가 아닌 `mbdump-derived.tar.bz2`에 있다. 공식 서명으로 검증한 `SHA256SUMS`의 derived 항목과 다운로드 파일의 SHA-256을 대조한다. `backfill-musicbrainz-tags --core <선택한 core/mbdump> --derived-archive <검증한 파일> --snapshot-id <버전>`은 ISRC·제목·길이로 녹음을 대조한 뒤 원문 태그·투표 수·snapshot 버전을 저장한다.
+- core 전체 아카이브와 derived 원본은 저장소 밖에 보존한다. derived 태그의 라이선스는 CC BY-NC-SA 3.0이다. 상업적 사용 권한은 별도 확인이 필요하다.
+
 운영 전에는 migration을 먼저 적용하고, Web과 EMS 워커를 새 이미지로 재생성한다. Web 요청은 TIDAL에 직접 연결하지 않으며, 비밀값은 기존 서버 secret에서만 읽는다.
 
 ## Pause·rollback

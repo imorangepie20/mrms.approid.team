@@ -102,7 +102,10 @@ def date_only(value: Any) -> str | None:
     if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         return None
     try:
-        return date.fromisoformat(value).isoformat()
+        parsed = date.fromisoformat(value)
+        if not 1850 <= parsed.year <= date.today().year + 1:
+            return None
+        return parsed.isoformat()
     except ValueError:
         return None
 

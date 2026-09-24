@@ -52,6 +52,8 @@ def backfill_musicbrainz_tags(core: Path, derived_archive: Path, snapshot_id: st
                 if recording is None:
                     continue
                 mbid, title, duration = recording
+                if track["recording_mbid"] and str(track["recording_mbid"]) != mbid:
+                    continue
                 title_match = _title_key(title) == _title_key(str(track["title"]))
                 duration_gap = abs(duration - int(track["duration_ms"])) if duration is not None else 10**9
                 mbid_match = bool(track["recording_mbid"] and str(track["recording_mbid"]) == mbid)
@@ -83,7 +85,10 @@ def backfill_musicbrainz_tags(core: Path, derived_archive: Path, snapshot_id: st
                             if count > 0:
                                 votes[recording_id].append((int(columns[1]), count))
                     elif name == "tag" and len(columns) >= 2:
-                        tag_names[int(columns[0])] = columns[1]
+                        if columns[1].strip():
+                            tag_names[int(columns[0])] = columns[1]
+                if found_members == {"recording_tag", "tag"}:
+                    break
         if found_members != {"recording_tag", "tag"}:
             raise ValueError("derived archive missing recording_tag or tag")
 
