@@ -8,6 +8,7 @@
 
 - `ems_tracks.first_seen_at`: EMS 유입일. 발매일과 구분한다.
 - MusicBrainz 녹음 태그와 최초 발매일: 공식 스냅샷에서 ISRC와 녹음 정보를 대조한 뒤 저장한다.
+- 같은 ISRC의 여러 TIDAL 에디션이 하나의 MusicBrainz 녹음에 대응할 수 있으므로 태그 대조용 MBID는 `mb_tag_recording_mbid`에 별도 저장한다.
 - TIDAL 앨범 발매일과 사용한 원천 메타데이터: 카탈로그 응답에서 수집해 별도 저장한다.
 - MusicBrainz 전체 스냅샷 원본은 서버의 검증된 아카이브에 유지한다. 사용자별 라이브러리 데이터는 공용 EMS 통계에 사용하지 않는다.
 - MusicBrainz 태그는 `mbdump-derived.tar.bz2`에 포함되며 CC BY-NC-SA 3.0이다. 화면에 출처와 라이선스를 표시하고 상업적 이용 여부는 별도로 확인한다.

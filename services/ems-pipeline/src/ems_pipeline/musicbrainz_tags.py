@@ -101,7 +101,7 @@ def backfill_musicbrainz_tags(core: Path, derived_archive: Path, snapshot_id: st
                 ]
                 named_votes.sort(key=lambda item: (-item["count"], item["name"]))
                 connection.execute(
-                    """UPDATE ems_tracks SET recording_mbid = COALESCE(recording_mbid, %s),
+                    """UPDATE ems_tracks SET mb_tag_recording_mbid = %s,
                          mb_tags = %s, mb_tag_votes = %s::jsonb, mb_tag_snapshot_id = %s
                        WHERE id = %s""",
                     (mbid, [item["name"] for item in named_votes], json.dumps(named_votes), snapshot_id, track_id),
