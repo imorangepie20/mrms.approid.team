@@ -18,6 +18,10 @@ export function parseAdminAuth0Subjects(value = process.env.ADMIN_AUTH0_SUBJECTS
   return [...new Set(value.split(/[\s,]+/).map((subject) => subject.trim()).filter(Boolean))];
 }
 
+export function isAdminAuth0Subject(subject: string | null | undefined) {
+  return Boolean(subject && parseAdminAuth0Subjects().includes(subject));
+}
+
 type SessionReader = Parameters<typeof requireAuth0Subject>[0];
 
 export async function requireAdminAuth0Subject(readSession?: SessionReader) {
@@ -31,7 +35,7 @@ export async function requireAdminAuth0Subject(readSession?: SessionReader) {
     throw error;
   }
 
-  if (!parseAdminAuth0Subjects().includes(subject)) {
+  if (!isAdminAuth0Subject(subject)) {
     throw new AdminAuthError(403, "admin_forbidden");
   }
 

@@ -49,6 +49,8 @@
 
 ### 배포·운영
 
+- [관리자·일반 회원 접근 분리 계획](plans/2026-09-25-admin-member-separation.md)
+- [관리자·일반 회원 접근 분리 변경 기록](changes/2026-09-25-admin-member-separation.md)
 - [Zorin 운영 배포 설계](superpowers/specs/2026-09-22-zorin-production-deployment-design.md)
 - [Zorin 운영 배포 계획](superpowers/plans/2026-09-22-zorin-production-deployment.md)
 - [Zorin 운영 배포 변경 기록](changes/2026-09-22-zorin-production-deployment.md)

@@ -17,7 +17,7 @@ const items = [
   { href: "/ems", label: "External Music Space", sub: "EMS" },
 ];
 
-export function AppNavigation({ user = null }: { user?: NavigationUser | null }) {
+export function AppNavigation({ user = null, isAdmin = false }: { user?: NavigationUser | null; isAdmin?: boolean }) {
   const pathname = usePathname();
   const isCurrent = (href: string) => pathname === href;
 
@@ -44,7 +44,7 @@ export function AppNavigation({ user = null }: { user?: NavigationUser | null })
       <Link aria-current={isCurrent("/search") ? "page" : undefined} aria-label="모바일 검색" className="mobile-search" href="/search">
         <SearchIcon />
       </Link>
-      <AuthControls user={user} />
+      <AuthControls user={user} isAdmin={isAdmin} />
     </>
   );
 }

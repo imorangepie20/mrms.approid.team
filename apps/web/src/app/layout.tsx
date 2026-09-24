@@ -6,6 +6,7 @@ import { MusicSessionProvider } from "@/providers/music-session-provider";
 import { PersistentPlayer } from "@/components/player/persistent-player";
 import { AppNavigation } from "@/components/navigation/app-navigation";
 import { auth0 } from "@/lib/auth/auth0";
+import { isAdminAuth0Subject } from "@/lib/auth/admin";
 import { getUserLikes } from "@/lib/db/user-likes";
 import { LikesProvider } from "@/providers/likes-provider";
 
@@ -40,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-full flex flex-col">
         <LikesProvider initialLikes={likes} isAuthenticated={Boolean(session)}>
           <MusicSessionProvider>
-            <AppNavigation user={user} />
+            <AppNavigation user={user} isAdmin={isAdminAuth0Subject(session?.user.sub)} />
             <main className="page-shell flex-1">{children}</main>
             <PersistentPlayer />
           </MusicSessionProvider>

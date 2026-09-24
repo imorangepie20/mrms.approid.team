@@ -155,47 +155,26 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                     {showProfile && (
                         <div className="absolute right-0 mt-2 w-48 bg-hud-bg-secondary border border-hud-border-secondary rounded-lg shadow-hud-glow animate-fade-in overflow-hidden">
                             <div className="px-4 py-3 border-b border-hud-border-secondary">
-                                <p className="font-semibold text-hud-text-primary">Admin User</p>
-                                <p className="text-xs text-hud-text-muted">admin@hudadmin.com</p>
+                                <p className="font-semibold text-hud-text-primary">관리자</p>
+                                <p className="text-xs text-hud-text-muted">Music Pie 운영 화면</p>
                             </div>
                             <div className="py-1">
-                                <Link
-                                    to="/profile"
+                                <a
+                                    href="/"
                                     className="flex items-center gap-3 px-4 py-2 text-sm text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary transition-hud"
                                 >
                                     <User size={16} />
-                                    Profile
-                                </Link>
-                                <Link
-                                    to="/email/inbox"
-                                    className="flex items-center gap-3 px-4 py-2 text-sm text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary transition-hud"
-                                >
-                                    <Mail size={16} />
-                                    Inbox
-                                </Link>
-                                <Link
-                                    to="/calendar"
-                                    className="flex items-center gap-3 px-4 py-2 text-sm text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary transition-hud"
-                                >
-                                    <Calendar size={16} />
-                                    Calendar
-                                </Link>
-                                <Link
-                                    to="/settings"
-                                    className="flex items-center gap-3 px-4 py-2 text-sm text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary transition-hud"
-                                >
-                                    <Settings size={16} />
-                                    Settings
-                                </Link>
+                                    회원 화면
+                                </a>
                             </div>
                             <div className="border-t border-hud-border-secondary py-1">
-                                <Link
-                                    to="/login"
+                                <a
+                                    href="/api/auth/logout"
                                     className="flex items-center gap-3 px-4 py-2 text-sm text-hud-accent-danger hover:bg-hud-bg-hover transition-hud"
                                 >
                                     <LogOut size={16} />
-                                    Logout
-                                </Link>
+                                    로그아웃
+                                </a>
                             </div>
                         </div>
                     )}

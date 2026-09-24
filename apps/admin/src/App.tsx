@@ -13,8 +13,6 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import ScrumBoard from "./pages/ScrumBoard";
 import Error404 from "./pages/Error404";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
 import AiChat from "./pages/ai/AiChat";
 import AiImageGenerator from "./pages/ai/AiImageGenerator";
 import EmailCompose from "./pages/email/EmailCompose";
@@ -94,8 +92,8 @@ function TemplateRoutes() {
         <Route path="ems/routines" element={<SourceRoutines />} />
         <Route path="*" element={<Error404 />} />
       </Route>
-      <Route path="login" element={<Login />} />
-      <Route path="register" element={<Register />} />
+      <Route path="login" element={<Navigate to="/" replace />} />
+      <Route path="register" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Error404 />} />
     </Routes>
   );

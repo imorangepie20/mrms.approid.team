@@ -7,12 +7,14 @@ type AuthenticatedUser = {
 
 type AuthControlsProps = {
   user: AuthenticatedUser | null;
+  isAdmin?: boolean;
 };
 
-export function AuthControls({ user }: AuthControlsProps) {
+export function AuthControls({ user, isAdmin = false }: AuthControlsProps) {
   if (user) {
     return (
       <div className="auth-controls">
+        {isAdmin && <Link href="/admin">관리자</Link>}
         <Link href="/account">{user.name ?? user.email ?? "계정"}</Link>
         <a href="/api/auth/logout">로그아웃</a>
       </div>
