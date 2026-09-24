@@ -24,6 +24,8 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [EMS 수집 모니터링 정합성 수정 계획](plans/2026-09-24-ems-ingestion-monitor-fix.md)
+- [EMS 수집 모니터링 정합성 수정 변경 기록](changes/2026-09-24-ems-ingestion-monitor-fix.md)
 - [MusicBrainz 메타데이터 자동 갱신 계획](plans/2026-09-24-musicbrainz-metadata-refresh.md)
 - [MusicBrainz 메타데이터 자동 갱신 변경 기록](changes/2026-09-24-musicbrainz-metadata-refresh.md)
 - [EMS 관리자 수집 계획](plans/2026-09-24-admin-ems-fill.md)

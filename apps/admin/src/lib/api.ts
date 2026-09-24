@@ -84,6 +84,22 @@ export type EmsAdminIngestion = {
   activeTrackCount: number;
   embeddingCompletedCount: number;
   job: EmsAdminIngestJob | null;
+  currentRun: {
+    id: string;
+    runType: string;
+    status: string;
+    candidateCount: number;
+    processedCount: number;
+    matchedCount: number;
+    pendingCount: number;
+    retryableCount: number;
+    errorCode: string | null;
+    heartbeatAt: string | null;
+    startedAt: string | null;
+    createdAt: string;
+  } | null;
+  catalogSamples: Array<{ sampledAt: string; activeTrackCount: number }>;
+  runSamples: Array<{ sampledAt: string; candidateCount: number; processedCount: number; matchedCount: number }>;
   samples: Array<{ sampledAt: string; activeTrackCount: number; candidateCount: number; matchedCount: number }>;
 };
 

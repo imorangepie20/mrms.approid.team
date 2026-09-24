@@ -21,6 +21,43 @@ type JobRow = {
   finished_at: string | null;
 };
 
+type RunRow = {
+  id: string;
+  run_type: string;
+  status: string;
+  candidate_count: number;
+  processed_count: number;
+  matched_count: number;
+  retryable_count: number;
+  error_code: string | null;
+  heartbeat_at: string | null;
+  started_at: string | null;
+  created_at: string;
+};
+
+type BucketRow = { bucket: string; count: number };
+type RunBucketRow = BucketRow & { kind: "candidate" | "processed" | "matched" };
+
+const BUCKET_MS = 5 * 60 * 1000;
+const LOOKBACK_BUCKETS = 12 * 60 / 5;
+
+function cumulativeBuckets(total: number, rows: BucketRow[], firstBucket: number, lastBucket: number) {
+  const counts = new Map(rows.map((row) => [Number(row.bucket), Number(row.count)]));
+  let value = Math.max(0, total - rows.reduce((sum, row) => sum + Number(row.count), 0));
+  const values = [value];
+  for (let bucket = firstBucket; bucket <= lastBucket; bucket++) {
+    value += counts.get(bucket) ?? 0;
+    values.push(value);
+  }
+  return values;
+}
+
+function sampleTimes(firstBucket: number, lastBucket: number, now: number) {
+  return [new Date(firstBucket * BUCKET_MS).toISOString(),
+    ...Array.from({ length: lastBucket - firstBucket + 1 }, (_, index) =>
+      new Date(Math.min(now, (firstBucket + index + 1) * BUCKET_MS)).toISOString())];
+}
+
 function mapJob(row: JobRow) {
   return {
     id: row.id,
@@ -58,24 +95,95 @@ const JOB_SELECT = `
     FROM ems_admin_ingest_jobs j`;
 
 export async function getEmsAdminIngestion(executor: QueryExecutor) {
-  const [jobResult, activeResult] = await Promise.all([
+  const now = Date.now();
+  const lastBucket = Math.floor(now / BUCKET_MS);
+  const firstBucket = lastBucket - LOOKBACK_BUCKETS + 1;
+  const since = new Date(firstBucket * BUCKET_MS).toISOString();
+  const [jobResult, activeResult, currentRunResult, catalogBuckets] = await Promise.all([
     executor.query<JobRow>(`${JOB_SELECT} ORDER BY j.created_at DESC LIMIT 1`),
     executor.query<{ count: number; embedded_count: number }>(`
       SELECT count(*)::int AS count,
              count(*) FILTER (WHERE emb.status = 'completed')::int AS embedded_count
         FROM ems_tracks e LEFT JOIN ems_track_embeddings emb ON emb.track_id = e.id
        WHERE e.status = 'active'`),
+    executor.query<RunRow>(`
+      SELECT r.id, r.run_type, r.status, r.error_code, r.heartbeat_at, r.started_at, r.created_at,
+             counts.candidate_count, counts.processed_count, counts.matched_count,
+             counts.retryable_count
+        FROM (
+          SELECT id, run_type, status, error_code, heartbeat_at, started_at, created_at
+            FROM ems_ingest_runs
+           WHERE run_type IN ('musicbrainz_snapshot', 'tidal_resolve')
+           ORDER BY (status = 'running') DESC, (status = 'pending') DESC, created_at DESC
+           LIMIT 1
+        ) r
+        CROSS JOIN LATERAL (
+          SELECT count(*)::int AS candidate_count,
+                 count(*) FILTER (WHERE resolver_status IN ('matched', 'ambiguous', 'not_found', 'unavailable', 'budget_exhausted'))::int AS processed_count,
+                 count(*) FILTER (WHERE resolver_status = 'matched')::int AS matched_count,
+                 count(*) FILTER (WHERE resolver_status = 'retryable')::int AS retryable_count
+            FROM ems_ingest_candidates WHERE run_id = r.id
+        ) counts
+      `),
+    executor.query<BucketRow>(`
+      SELECT floor(extract(epoch FROM first_seen_at) / 300)::bigint AS bucket, count(*)::int AS count
+        FROM ems_tracks
+       WHERE status = 'active' AND first_seen_at >= $1::timestamptz
+       GROUP BY 1 ORDER BY 1`, [since]),
   ]);
   const job = jobResult.rows[0];
+  const run = currentRunResult.rows[0];
   const samples = job ? await executor.query<{ sampled_at: string; active_track_count: number; candidate_count: number; matched_count: number }>(`
     SELECT sampled_at, active_track_count, candidate_count, matched_count
       FROM (SELECT id, sampled_at, active_track_count, candidate_count, matched_count
               FROM ems_admin_ingest_samples WHERE job_id = $1 ORDER BY id DESC LIMIT 500) recent
      ORDER BY id`, [job.id]) : { rows: [] };
+  const runBuckets = run ? await executor.query<RunBucketRow>(`
+    SELECT 'candidate' AS kind, floor(extract(epoch FROM created_at) / 300)::bigint AS bucket, count(*)::int AS count
+      FROM ems_ingest_candidates WHERE run_id = $1 AND created_at >= $2::timestamptz GROUP BY 2
+    UNION ALL
+    SELECT 'processed' AS kind, floor(extract(epoch FROM resolved_at) / 300)::bigint AS bucket, count(*)::int AS count
+      FROM ems_ingest_candidates WHERE run_id = $1 AND resolver_status IN ('matched', 'ambiguous', 'not_found', 'unavailable', 'budget_exhausted')
+        AND resolved_at >= $2::timestamptz GROUP BY 2
+    UNION ALL
+    SELECT 'matched' AS kind, floor(extract(epoch FROM resolved_at) / 300)::bigint AS bucket, count(*)::int AS count
+      FROM ems_ingest_candidates WHERE run_id = $1 AND resolver_status = 'matched'
+        AND resolved_at >= $2::timestamptz GROUP BY 2`, [run.id, since]) : { rows: [] };
+  const times = sampleTimes(firstBucket, lastBucket, now);
+  const activeTrackCount = Number(activeResult.rows[0]?.count ?? 0);
+  const catalogValues = cumulativeBuckets(activeTrackCount, catalogBuckets.rows, firstBucket, lastBucket);
+  const byKind = (kind: RunBucketRow["kind"]) => runBuckets.rows.filter((row) => row.kind === kind);
+  const candidateValues = cumulativeBuckets(Number(run?.candidate_count ?? 0), byKind("candidate"), firstBucket, lastBucket);
+  const processedValues = cumulativeBuckets(Number(run?.processed_count ?? 0), byKind("processed"), firstBucket, lastBucket);
+  const matchedValues = cumulativeBuckets(Number(run?.matched_count ?? 0), byKind("matched"), firstBucket, lastBucket);
+  const candidateCount = candidateValues[candidateValues.length - 1];
+  const processedCount = processedValues[processedValues.length - 1];
+  const matchedCount = matchedValues[matchedValues.length - 1];
   return {
-    activeTrackCount: Number(activeResult.rows[0]?.count ?? 0),
+    activeTrackCount,
     embeddingCompletedCount: Number(activeResult.rows[0]?.embedded_count ?? 0),
     job: job ? mapJob(job) : null,
+    currentRun: run ? {
+      id: run.id,
+      runType: run.run_type,
+      status: run.status,
+      candidateCount,
+      processedCount,
+      matchedCount,
+      pendingCount: Math.max(0, candidateCount - processedCount),
+      retryableCount: Number(run.retryable_count),
+      errorCode: run.error_code,
+      heartbeatAt: run.heartbeat_at,
+      startedAt: run.started_at,
+      createdAt: run.created_at,
+    } : null,
+    catalogSamples: times.map((sampledAt, index) => ({ sampledAt, activeTrackCount: catalogValues[index] })),
+    runSamples: run ? times.map((sampledAt, index) => ({
+      sampledAt,
+      candidateCount: candidateValues[index],
+      processedCount: processedValues[index],
+      matchedCount: matchedValues[index],
+    })) : [],
     samples: samples.rows.map((row) => ({
       sampledAt: row.sampled_at,
       activeTrackCount: Number(row.active_track_count),
