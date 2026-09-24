@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlsplit
 import httpx
 
 from .select import Candidate, write_candidate_artifacts
-from .tidal import TidalCatalogClient, duration_milliseconds, parse_retry_after
+from .tidal import TidalCatalogClient, date_only, duration_milliseconds, parse_retry_after
 
 
 DEFAULT_QUERIES = ("Top 100", "Hits", "Pop", "K-Pop", "Hip-Hop", "R&B", "Rock", "Dance", "Latin", "Country", "Jazz", "Classical")
@@ -38,6 +38,7 @@ class EditorialTrack:
     popularity: float
     playlist_followers: int
     playlist_position: int = 0
+    release_date: str | None = None
 
 
 def rank_editorial_playlists(documents: Iterable[dict[str, Any]]) -> list[EditorialPlaylist]:
@@ -106,7 +107,7 @@ def select_editorial_candidates(tracks: Iterable[EditorialTrack], limit: int) ->
             artist=track.artist,
             album=track.album or None,
             duration_ms=track.duration_ms,
-            release_date=None,
+            release_date=track.release_date,
             artist_region=None,
             selection_bucket="canonical",
             selection_score=score,
@@ -244,6 +245,7 @@ def _parse_editorial_tracks(
             popularity=max(0.0, min(1.0, float(attributes.get("popularity") or 0.0))),
             playlist_followers=playlist_followers,
             playlist_position=position_offset + position,
+            release_date=date_only((album_resource.get("attributes") or {}).get("releaseDate")),
         ))
     return tracks
 

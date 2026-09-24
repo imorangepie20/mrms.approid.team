@@ -51,6 +51,8 @@ class TidalMatch:
     match_confidence: float
     match_rule: str = "validated"
     region: str = "KR"
+    release_date: str | None = None
+    source_metadata: dict[str, Any] | None = None
 
 
 def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
@@ -60,19 +62,21 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                 """
                 INSERT INTO ems_tracks
                   (recording_mbid, isrc, tidal_id, title, artist, album, artwork_url, duration_ms,
-                   status, match_confidence, catalog_priority, last_verified_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
+                   release_date, tidal_album_release_date, status, match_confidence, catalog_priority, last_verified_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
                 ON CONFLICT (tidal_id) DO UPDATE SET
                   recording_mbid = COALESCE(ems_tracks.recording_mbid, EXCLUDED.recording_mbid),
                   isrc = COALESCE(ems_tracks.isrc, EXCLUDED.isrc),
                   title = EXCLUDED.title, artist = EXCLUDED.artist, album = EXCLUDED.album,
                   artwork_url = COALESCE(EXCLUDED.artwork_url, ems_tracks.artwork_url),
                   duration_ms = EXCLUDED.duration_ms, status = 'active',
+                  release_date = COALESCE(ems_tracks.release_date, EXCLUDED.release_date),
+                  tidal_album_release_date = COALESCE(EXCLUDED.tidal_album_release_date, ems_tracks.tidal_album_release_date),
                   match_confidence = GREATEST(ems_tracks.match_confidence, EXCLUDED.match_confidence),
                   last_verified_at = now(), updated_at = now()
                 RETURNING id
                 """,
-                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.artwork_url, match.duration_ms, match.match_confidence],
+                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.artwork_url, match.duration_ms, match.release_date, match.release_date, match.match_confidence],
             )
             track_row = cursor.fetchone()
             track_id = track_row["id"] if track_row else None
@@ -80,11 +84,13 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                 raise RuntimeError("ems_track_promotion_missing")
             cursor.execute(
                 """
-                INSERT INTO ems_track_sources (track_id, source_type, source_id, source_license, last_seen_at)
-                VALUES (%s, 'tidal', %s, 'tidal-authorized-use', now())
-                ON CONFLICT (source_type, source_id) DO UPDATE SET track_id = EXCLUDED.track_id, last_seen_at = now()
+                INSERT INTO ems_track_sources (track_id, source_type, source_id, source_license, metadata, last_seen_at)
+                VALUES (%s, 'tidal', %s, 'tidal-authorized-use', %s::jsonb, now())
+                ON CONFLICT (source_type, source_id) DO UPDATE SET track_id = EXCLUDED.track_id,
+                  metadata = CASE WHEN EXCLUDED.metadata = '{}'::jsonb THEN ems_track_sources.metadata ELSE EXCLUDED.metadata END,
+                  last_seen_at = now()
                 """,
-                [track_id, match.tidal_id],
+                [track_id, match.tidal_id, json.dumps(match.source_metadata or {})],
             )
             if match.recording_mbid:
                 cursor.execute(
@@ -165,8 +171,8 @@ def stage_candidates(connection: Any, run_id: str, candidates: Iterable[Candidat
                 """
                 INSERT INTO ems_ingest_candidates
                   (run_id, sequence_no, candidate_key, recording_mbid, isrc, title, artist, album,
-                   duration_ms, selection_bucket, selection_score)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   duration_ms, release_date, selection_bucket, selection_score)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (run_id, candidate_key) DO UPDATE
                   SET title = EXCLUDED.title, artist = EXCLUDED.artist,
                       selection_bucket = EXCLUDED.selection_bucket,
@@ -174,7 +180,7 @@ def stage_candidates(connection: Any, run_id: str, candidates: Iterable[Candidat
                 """,
                 [
                     (run_id, sequence, candidate.candidate_key, candidate.recording_mbid, candidate.isrc,
-                     candidate.title, candidate.artist, candidate.album, candidate.duration_ms,
+                     candidate.title, candidate.artist, candidate.album, candidate.duration_ms, candidate.release_date,
                      candidate.selection_bucket, candidate.selection_score)
                     for sequence, candidate in enumerate(rows, start=sequence_start)
                 ],

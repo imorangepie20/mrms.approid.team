@@ -50,7 +50,7 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                 WHERE candidate.id = claimed.id
                 RETURNING candidate.id, candidate.candidate_key, candidate.title,
                           candidate.artist, candidate.album, candidate.isrc,
-                          candidate.recording_mbid, candidate.duration_ms, candidate.attempt_count;
+                          candidate.recording_mbid, candidate.duration_ms, candidate.release_date, candidate.attempt_count;
                 """,
                 (run_id, batch_size, lease_seconds),
             )
@@ -94,7 +94,7 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                 artist=str(row.get("artist", "")),
                 album=row.get("album"),
                 duration_ms=row.get("duration_ms"),
-                release_date=None,
+                release_date=row.get("release_date"),
                 artist_region=None,
                 selection_bucket="canonical",
                 selection_score=0.0,
@@ -124,6 +124,8 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                         isrc=candidate.isrc,
                         match_confidence=result.match_confidence,
                         match_rule=result.match_rule or "validated",
+                        release_date=result.release_date or candidate.release_date,
+                        source_metadata=result.source_metadata,
                     ),
                 )
             else:

@@ -6,7 +6,7 @@ import math
 import re
 import time
 import unicodedata
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from enum import Enum
@@ -44,6 +44,8 @@ class ResolveResult:
     album: str | None = None
     duration_ms: int | None = None
     artwork_url: str | None = None
+    release_date: str | None = None
+    source_metadata: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,8 @@ class _Track:
     duration_ms: int | None
     availability: list[Any]
     artwork_url: str | None
+    release_date: str | None = None
+    source_metadata: dict[str, Any] | None = None
 
 
 def normalize(value: str | None) -> str:
@@ -92,6 +96,15 @@ def parse_retry_after(value: str | None) -> int | None:
         except (TypeError, ValueError, OverflowError):
             return None
     return max(0, math.ceil(seconds)) if math.isfinite(seconds) else None
+
+
+def date_only(value: Any) -> str | None:
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        return None
 
 
 def _resources(document: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
@@ -159,6 +172,13 @@ def parse_tracks(document: dict[str, Any]) -> list[_Track]:
             duration_ms=duration_milliseconds(attributes.get("duration")),
             availability=[item for item in availability if isinstance(item, (dict, str))],
             artwork_url=_artwork_url(album_resource, resources),
+            release_date=date_only(album_attributes.get("releaseDate")),
+            source_metadata={
+                "track": attributes,
+                "album": album_attributes,
+                "albumId": str(album_identifier.get("id") or ""),
+                "artists": [str(item.get("id")) for item in artist_ref if isinstance(item, dict)] if isinstance(artist_ref, list) else [],
+            },
         ))
     return tracks
 
@@ -357,6 +377,8 @@ def _validated_match(candidate: Candidate, match: _Track, query_hash: str, rule:
         "album": match.album,
         "duration_ms": match.duration_ms,
         "artwork_url": match.artwork_url,
+        "release_date": match.release_date,
+        "source_metadata": match.source_metadata,
     }
     if not _has_stream_availability(match.availability, country_code):
         return ResolveResult(ResolveStatus.UNAVAILABLE, error_code="kr_stream_missing", **resolved)

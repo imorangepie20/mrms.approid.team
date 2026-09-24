@@ -44,6 +44,7 @@ const menuItems: MenuItem[] = [
         icon: <Database size={20} />,
         children: [
             { title: 'Tracks', path: '/ems/tracks' },
+            { title: '태그·시기 통계', path: '/ems/statistics' },
             { title: 'Ingestion', path: '/ems/ingestion' },
             { title: '정기 수집', path: '/ems/routines' },
         ],

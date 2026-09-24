@@ -53,6 +53,12 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--embedding-service-url", default=None)
     subparsers.add_parser("serve-admin-jobs")
     subparsers.add_parser("serve-source-routines")
+    tidal_metadata = subparsers.add_parser("backfill-tidal-metadata")
+    tidal_metadata.add_argument("--interval-seconds", type=float, default=3.0)
+    musicbrainz_tags = subparsers.add_parser("backfill-musicbrainz-tags")
+    musicbrainz_tags.add_argument("--core", type=Path, required=True)
+    musicbrainz_tags.add_argument("--derived-archive", type=Path, required=True)
+    musicbrainz_tags.add_argument("--snapshot-id", required=True)
     return parser
 
 
@@ -226,6 +232,18 @@ def main(argv: list[str] | None = None) -> int:
                 if result["embedded"] == 0:
                     break
         print(json.dumps({"embedded": total, "batches": batch_count}, sort_keys=True))
+        return 0
+    if args.command == "backfill-tidal-metadata":
+        from .metadata_backfill import backfill_tidal_metadata
+
+        result = backfill_tidal_metadata(interval_seconds=args.interval_seconds)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    if args.command == "backfill-musicbrainz-tags":
+        from .musicbrainz_tags import backfill_musicbrainz_tags
+
+        result = backfill_musicbrainz_tags(args.core, args.derived_archive, args.snapshot_id)
+        print(json.dumps(result, sort_keys=True))
         return 0
     raise SystemExit(f"unsupported command: {args.command}")
 

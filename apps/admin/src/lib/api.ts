@@ -6,6 +6,19 @@ export type EmsSummary = {
   latestIngest: EmsIngestRun | null;
 };
 
+export type EmsStatistics = {
+  activeCount: number;
+  taggedCount: number;
+  releaseDatedCount: number;
+  musicbrainzDateCount: number;
+  tidalDateCount: number;
+  firstIngestedAt: string | null;
+  latestIngestedAt: string | null;
+  tags: Array<{ label: string; count: number }>;
+  releaseDecades: Array<{ label: string; count: number }>;
+  arrivalsByDay: Array<{ label: string; count: number }>;
+};
+
 export type EmsSection = {
   id: string;
   slug: string;
@@ -120,6 +133,10 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
 
 export function getEmsSummary() {
   return requestJson<EmsSummary>("/api/admin/ems/summary");
+}
+
+export function getEmsStatistics() {
+  return requestJson<EmsStatistics>("/api/admin/ems/statistics");
 }
 
 export function getScreenSections(screen: Screen) {
