@@ -19,5 +19,7 @@
 
 ## 운영 적용·미검증
 
-- 운영 배포와 공개 주소의 인증 경계 확인 결과는 배포 후 기록한다.
+- `81af208`을 Zorin Web 이미지로 빌드해 Web 컨테이너만 교체했다. 이전 이미지는 `music-pie-web:pre-admin-member-20260925`로 보존했다. Web은 healthy, 공개 readiness는 HTTP 200이다.
+- 공개 비로그인 `/admin`과 `/admin/ems/ingestion`은 각각 원래 경로를 `returnTo`로 전달하는 Auth0 로그인 주소로 HTTP 307 이동한다. 비로그인 `/api/admin/ems/summary`는 HTTP 401이다.
+- 로그인된 관리자 브라우저에서 `/admin/ems/ingestion`의 실제 수집 현황이 보였고, 회원 홈에서도 `관리자` 링크와 회원 음악 화면이 함께 표시됐다.
 - 허용 목록에 없는 실제 로그인 계정으로 404 화면을 직접 확인하는 작업은 별도 일반 회원 세션이 필요하다.
