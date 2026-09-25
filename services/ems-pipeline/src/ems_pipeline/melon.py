@@ -21,6 +21,8 @@ BASE_URL = "https://www.melon.com"
 GENRE_RE = re.compile(r"^/genre/song_list\.htm\?gnrCode=(GN0[1-8]00)$")
 SONG_ID_RE = re.compile(r"^[0-9]+$")
 PAGE_SIZE = 50
+BATCH_SIZE = 100
+BATCH_INTERVAL_SECONDS = 60
 _tidal_token_cache: tuple[str, float] | None = None
 
 
@@ -169,6 +171,8 @@ def _progress(connection: Any, job_id: str) -> None:
 
 def _stage_page(connection: Any, job_id: str, genre: dict[str, str], start_index: int,
                 songs: list[MelonSong]) -> None:
+    if len(songs) > PAGE_SIZE:
+        raise ValueError("melon_page_size_changed")
     previous = connection.execute(
         "SELECT last_page_first_song_id FROM ems_melon_jobs WHERE id = %s", (job_id,),
     ).fetchone()
@@ -226,17 +230,20 @@ def _stage_page(connection: Any, job_id: str, genre: dict[str, str], start_index
         if len(songs) < PAGE_SIZE:
             connection.execute(
                 """UPDATE ems_melon_jobs SET genre_index = genre_index + 1, next_start_index = 1,
-                          last_page_first_song_id = NULL, discovered_count = discovered_count + %s,
+                          last_page_first_song_id = NULL, next_batch_at = NULL,
+                          batch_discovered_count = batch_discovered_count + %s,
+                          discovered_count = discovered_count + %s,
                           staged_count = staged_count + %s, heartbeat_at = now(), updated_at = now()
-                    WHERE id = %s AND status = 'running'""", (len(songs), len(candidates), job_id),
+                    WHERE id = %s AND status = 'running'""", (len(songs), len(songs), len(candidates), job_id),
             )
         else:
             connection.execute(
                 """UPDATE ems_melon_jobs SET next_start_index = %s, last_page_first_song_id = %s,
+                          next_batch_at = NULL, batch_discovered_count = batch_discovered_count + %s,
                           discovered_count = discovered_count + %s, staged_count = staged_count + %s,
                           heartbeat_at = now(), updated_at = now()
                     WHERE id = %s AND status = 'running'""",
-                (start_index + PAGE_SIZE, songs[0].song_id, len(songs), len(candidates), job_id),
+                (start_index + PAGE_SIZE, songs[0].song_id, len(songs), len(songs), len(candidates), job_id),
             )
     _progress(connection, job_id)
 
@@ -310,18 +317,19 @@ def process_job(connection: Any, job_id: str) -> None:
                 (Jsonb(genres), job_id),
             )
         job = connection.execute(
-            """SELECT genre_codes, genre_index, next_start_index,
+            """SELECT genre_codes, genre_index, next_start_index, batch_discovered_count,
+                      next_batch_at > now() AS batch_waiting,
                       next_tidal_retry_at > now() AS tidal_rate_limited
                  FROM ems_melon_jobs WHERE id = %s""", (job_id,),
         ).fetchone()
         genres = job["genre_codes"]
         index = int(job["genre_index"])
-        pending = connection.execute(
-            """SELECT count(*)::int AS count FROM ems_ingest_candidates
-                WHERE run_id = %s AND resolver_status IN ('pending', 'resolving', 'retryable')""",
-            (job_id,),
-        ).fetchone()["count"]
-        if index < len(genres) and pending < 100:
+        if job["batch_waiting"]:
+            _phase(connection, job_id, "batch_wait")
+            return
+        batch_count = int(job["batch_discovered_count"])
+        batch_closed = batch_count >= BATCH_SIZE or (batch_count > 0 and int(job["next_start_index"]) == 1)
+        if index < len(genres) and not batch_closed:
             genre = genres[index]
             start_index = int(job["next_start_index"])
             _phase(connection, job_id, "discovering")
@@ -371,14 +379,15 @@ def process_job(connection: Any, job_id: str) -> None:
                         _phase(connection, job_id, "embedding_retry")
                         return
         refreshed = connection.execute(
-            "SELECT genre_codes, genre_index FROM ems_melon_jobs WHERE id = %s", (job_id,),
+            """SELECT genre_codes, genre_index, next_start_index, batch_discovered_count
+                 FROM ems_melon_jobs WHERE id = %s""", (job_id,),
         ).fetchone()
+        remaining = connection.execute(
+            """SELECT count(*)::int AS count FROM ems_ingest_candidates
+                WHERE run_id = %s AND resolver_status IN ('pending', 'resolving', 'retryable')""",
+            (job_id,),
+        ).fetchone()["count"]
         if int(refreshed["genre_index"]) >= len(refreshed["genre_codes"]):
-            remaining = connection.execute(
-                """SELECT count(*)::int AS count FROM ems_ingest_candidates
-                    WHERE run_id = %s AND resolver_status IN ('pending', 'resolving', 'retryable')""",
-                (job_id,),
-            ).fetchone()["count"]
             if remaining:
                 if not job["tidal_rate_limited"] and not rate_limited_now:
                     _phase(connection, job_id, "waiting_for_retry")
@@ -395,6 +404,26 @@ def process_job(connection: Any, job_id: str) -> None:
                     return
                 if not embedded:
                     _finish(connection, job_id, "completed")
+        elif (int(refreshed["batch_discovered_count"]) >= BATCH_SIZE
+              or (int(refreshed["batch_discovered_count"]) > 0 and int(refreshed["next_start_index"]) == 1)):
+            if not remaining:
+                connection.execute(
+                    """UPDATE ems_melon_jobs SET batch_discovered_count = 0,
+                              next_batch_at = now() + make_interval(secs => %s),
+                              phase = 'batch_wait', heartbeat_at = now(), updated_at = now()
+                        WHERE id = %s AND status = 'running'""",
+                    (BATCH_INTERVAL_SECONDS, job_id),
+                )
+            elif not job["tidal_rate_limited"] and not rate_limited_now:
+                ready = connection.execute(
+                    """SELECT 1 FROM ems_ingest_candidates WHERE run_id = %s
+                        AND resolver_status IN ('pending', 'retryable', 'resolving')
+                        AND (next_attempt_at IS NULL OR next_attempt_at <= now())
+                        AND (lease_expires_at IS NULL OR lease_expires_at <= now()) LIMIT 1""",
+                    (job_id,),
+                ).fetchone()
+                if not ready:
+                    _phase(connection, job_id, "waiting_for_retry")
 
 
 def fail_job(connection: Any, job_id: str, error: Exception) -> None:

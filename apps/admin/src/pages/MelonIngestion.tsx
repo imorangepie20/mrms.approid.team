@@ -15,6 +15,7 @@ const phaseLabels: Record<string, string> = {
   resolving: "TIDAL 매칭", paused: "일시정지", finished: "종료",
   rate_limited: "요청 간격 대기", waiting_for_retry: "재시도 대기",
   embedding: "임베딩 생성", embedding_retry: "임베딩 재시도 대기",
+  batch_wait: "다음 100곡 대기",
 };
 
 function formatDate(value: string | null) {
@@ -88,7 +89,7 @@ export default function MelonIngestion() {
       <div>
         <p className="text-xs uppercase tracking-[0.28em] text-hud-accent-primary">EMS / Melon</p>
         <h1 className="mt-2 text-3xl font-semibold">멜론 K-pop 수집</h1>
-        <p className="mt-2 max-w-2xl text-sm text-hud-text-secondary">한국대중음악 장르별 최신곡을 수집합니다. 멜론 원천곡을 저장하고 TIDAL에서 재생 가능한 곡을 EMS에 연결합니다.</p>
+        <p className="mt-2 max-w-2xl text-sm text-hud-text-secondary">한국대중음악 최신곡을 100곡씩 수집합니다. 각 묶음의 TIDAL 확인이 끝나면 1분 뒤 다음 묶음을 자동 시작합니다.</p>
       </div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => { void refresh(); }} aria-label="멜론 수집 현황 새로고침" className="rounded-xl border border-hud-border-secondary p-3 text-hud-text-secondary hover:bg-hud-bg-hover"><RefreshCw size={18} /></button>
@@ -121,6 +122,9 @@ export default function MelonIngestion() {
             <div><dt className="text-hud-text-muted">다음 목록 위치</dt><dd className="mt-1 tabular-nums">{job.nextStartIndex.toLocaleString("ko-KR")}</dd></div>
             <div><dt className="text-hud-text-muted">멜론 요청</dt><dd className="mt-1 tabular-nums">{job.requestCount.toLocaleString("ko-KR")}</dd></div>
             <div><dt className="text-hud-text-muted">이번 작업 TIDAL 연결</dt><dd className="mt-1 tabular-nums">{job.matchedCount.toLocaleString("ko-KR")}</dd></div>
+            <div><dt className="text-hud-text-muted">현재 100곡 묶음</dt><dd className="mt-1 tabular-nums">{job.batchDiscoveredCount.toLocaleString("ko-KR")} / 100곡</dd></div>
+            <div><dt className="text-hud-text-muted">확인 대기 후보</dt><dd className="mt-1 tabular-nums">{job.pendingCount.toLocaleString("ko-KR")}</dd></div>
+            {job.nextBatchAt && <div><dt className="text-hud-text-muted">다음 묶음</dt><dd className="mt-1">{formatDate(job.nextBatchAt)}</dd></div>}
             <div><dt className="text-hud-text-muted">시작</dt><dd className="mt-1">{formatDate(job.createdAt)}</dd></div>
             <div><dt className="text-hud-text-muted">마지막 업데이트</dt><dd className="mt-1">{formatDate(job.updatedAt)}</dd></div>
           </dl>

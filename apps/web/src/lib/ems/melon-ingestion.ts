@@ -3,7 +3,8 @@ import type { QueryExecutor } from "@/lib/ems/admin";
 type JobRow = {
   id: string; status: string; phase: string; genre_codes: Array<{ code: string; name: string }> | null;
   genre_index: number; next_start_index: number; request_count: number; discovered_count: number;
-  staged_count: number; matched_count: number; error_code: string | null;
+  staged_count: number; matched_count: number; pending_count: number;
+  batch_discovered_count: number; next_batch_at: string | null; error_code: string | null;
   created_at: string; updated_at: string; finished_at: string | null;
 };
 
@@ -11,7 +12,9 @@ export async function getMelonIngestion(executor: QueryExecutor) {
   const [jobs, totals, genres, tracks] = await Promise.all([
     executor.query<JobRow>(`
       SELECT j.*, (SELECT count(*)::int FROM ems_ingest_candidates c
-                    WHERE c.run_id = j.id AND c.resolver_status = 'matched') AS matched_count
+                    WHERE c.run_id = j.id AND c.resolver_status = 'matched') AS matched_count,
+             (SELECT count(*)::int FROM ems_ingest_candidates c WHERE c.run_id = j.id
+                AND c.resolver_status IN ('pending', 'resolving', 'retryable')) AS pending_count
         FROM ems_melon_jobs j ORDER BY j.created_at DESC LIMIT 1`),
     executor.query<{ source_tracks: number; matched_tracks: number }>(`
       SELECT (SELECT count(*)::int FROM ems_melon_tracks) AS source_tracks,
@@ -38,7 +41,9 @@ export async function getMelonIngestion(executor: QueryExecutor) {
       genreCode: genre?.code ?? null, genreName: genre?.name ?? null,
       nextStartIndex: Number(row.next_start_index), requestCount: Number(row.request_count),
       discoveredCount: Number(row.discovered_count), stagedCount: Number(row.staged_count),
-      matchedCount: Number(row.matched_count), errorCode: row.error_code,
+      matchedCount: Number(row.matched_count), pendingCount: Number(row.pending_count),
+      batchDiscoveredCount: Number(row.batch_discovered_count), nextBatchAt: row.next_batch_at,
+      errorCode: row.error_code,
       createdAt: row.created_at, updatedAt: row.updated_at, finishedAt: row.finished_at,
     } : null,
     totals: {

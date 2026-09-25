@@ -145,6 +145,9 @@ export type MelonIngestJob = {
   discoveredCount: number;
   stagedCount: number;
   matchedCount: number;
+  pendingCount: number;
+  batchDiscoveredCount: number;
+  nextBatchAt: string | null;
   errorCode: string | null;
   createdAt: string;
   updatedAt: string;
