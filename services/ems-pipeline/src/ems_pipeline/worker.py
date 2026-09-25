@@ -48,7 +48,7 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                     attempt_count = candidate.attempt_count + 1
                 FROM claimed
                 WHERE candidate.id = claimed.id
-                RETURNING candidate.id, candidate.candidate_key, candidate.title,
+                RETURNING candidate.id, candidate.candidate_key, candidate.selection_bucket, candidate.title,
                           candidate.artist, candidate.album, candidate.isrc,
                           candidate.recording_mbid, candidate.duration_ms, candidate.release_date, candidate.attempt_count;
                 """,
@@ -96,7 +96,7 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                 duration_ms=row.get("duration_ms"),
                 release_date=row.get("release_date"),
                 artist_region=None,
-                selection_bucket="canonical",
+                selection_bucket=str(row.get("selection_bucket", "canonical")),
                 selection_score=0.0,
             )
             try:

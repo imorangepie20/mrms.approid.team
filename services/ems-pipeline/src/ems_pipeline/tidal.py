@@ -339,11 +339,14 @@ class TidalCatalogClient:
             rule = "isrc_exact"
             confidence = 1.0
         else:
-            matches = [track for track in tracks if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist) and _duration_matches(candidate.duration_ms, track.duration_ms)]
+            matches = [track for track in tracks if normalize(track.title) == normalize(candidate.title) and normalize(track.artist) == normalize(candidate.artist) and _duration_matches(candidate.duration_ms, track.duration_ms)
+                       and (candidate.selection_bucket != "melon" or (candidate.album and normalize(track.album or "") == normalize(candidate.album)))]
             rule = "metadata_exact_duration"
             confidence = 0.95
         if not matches:
             return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="no_match")
+        if candidate.selection_bucket == "melon" and len(matches) > 1:
+            return ResolveResult(ResolveStatus.AMBIGUOUS, query_hash=query_hash, error_code="multiple_album_matches")
         match = _choose_best_match(candidate, matches, self.country_code)
         if len(matches) > 1:
             rule = f"{rule}_tiebreak"

@@ -118,7 +118,7 @@ export type EmsAdminIngestion = {
 };
 
 export type EmsSourceRoutine = {
-  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical" | "musicbrainz_metadata";
+  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical" | "musicbrainz_metadata" | "melon_genres";
   enabled: boolean;
   intervalSeconds: number;
   status: string;
@@ -132,6 +132,40 @@ export type EmsSourceRoutine = {
   currentRunMatchedCount: number;
   currentRunPendingCount: number;
   errorCode: string | null;
+};
+
+export type MelonIngestJob = {
+  id: string;
+  status: string;
+  phase: string;
+  genreCode: string | null;
+  genreName: string | null;
+  nextStartIndex: number;
+  requestCount: number;
+  discoveredCount: number;
+  stagedCount: number;
+  matchedCount: number;
+  errorCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+  finishedAt: string | null;
+};
+
+export type MelonIngestion = {
+  job: MelonIngestJob | null;
+  totals: { sourceTracks: number; matchedTracks: number };
+  genres: Array<{ code: string; name: string; trackCount: number }>;
+  tracks: Array<{
+    songId: string;
+    title: string;
+    artist: string;
+    album: string | null;
+    sourceUrl: string;
+    genres: string[];
+    firstSeenAt: string;
+    lastSeenAt: string;
+    tidalId: string | null;
+  }>;
 };
 
 export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
@@ -241,6 +275,22 @@ export function startEmsAdminIngestion() {
 
 export function changeEmsAdminIngestion(id: string, action: "pause" | "resume") {
   return requestJson<{ id: string; status: string }>(`/api/admin/ems/ingest-jobs/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+}
+
+export function getMelonIngestion() {
+  return requestJson<MelonIngestion>("/api/admin/ems/melon");
+}
+
+export function startMelonIngestion() {
+  return requestJson<{ id: string }>("/api/admin/ems/melon", { method: "POST" });
+}
+
+export function changeMelonIngestion(id: string, action: "pause" | "resume") {
+  return requestJson<{ id: string; status: string }>(`/api/admin/ems/melon/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ action }),

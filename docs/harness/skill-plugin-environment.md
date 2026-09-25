@@ -2,6 +2,8 @@
 
 ## 2026-09-26 Codex Desktop 확인
 
+- 이번 멜론 수집 작업에서 `ecc:orch-add-feature` 2.2.2 스킬 파일을 읽고 조사·계획·구현·코드 및 보안 검토 단계를 실행했다. 설치 상태와 별개로 실제 단계 사용을 확인했다. 상위 개발 지침에 따라 테스트 추가·실행 및 두 확인 게이트는 적용하지 않았다.
+
 - 사용자 요청에 따라 공식 `affaan-m/ECC` 마켓플레이스를 Codex에 등록하고 `ecc@ecc` 2.2.2를 설치했다.
 - `codex plugin list --json`에서 `installed: true`, `enabled: true`를 확인했다. 설치 경로는 사용자 전역 `~/.codex/plugins/cache/ecc/ecc/2.2.2`다.
 - 현재 대화의 스킬 노출 갱신과 Codex 훅 신뢰·실행은 확인하지 않았다. 새 작업에서 사용 가능 여부를 별도로 확인한다.

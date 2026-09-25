@@ -5,6 +5,7 @@ import { changeEmsSourceRoutine, getEmsSourceRoutines, type EmsSourceRoutine } f
 import { apiErrorMessage } from "../lib/ui";
 
 const labels: Record<EmsSourceRoutine["key"], { title: string; role: string; interval: string }> = {
+  melon_genres: { title: "멜론 한국대중음악", role: "장르별 최신곡을 저장하고 TIDAL에서 확인", interval: "24시간마다 재탐색" },
   tidal_editorial: { title: "TIDAL 에디토리얼", role: "공개 플레이리스트의 재생 가능곡 탐색", interval: "매일 재탐색" },
   musicbrainz_core: { title: "MusicBrainz core", role: "녹음·ISRC 신규 항목 확인", interval: "12시간마다 버전 확인" },
   musicbrainz_canonical: { title: "MusicBrainz canonical", role: "대표 녹음·발매 순위 갱신", interval: "24시간마다 버전 확인" },
@@ -96,6 +97,7 @@ export default function SourceRoutines() {
       <p className="mt-2">MusicBrainz 메타데이터는 검증된 core·derived 스냅샷으로 새 활성곡의 태그와 녹음 최초 발매일을 갱신합니다.</p>
       <p className="mt-2">사용자 가져오기: 이벤트 기반 · 다음 예약 없음 · 개인 플레이리스트 데이터는 공용 갱신 후보와 분리</p>
       <Link to="/ems/ingestion" className="mt-3 inline-block text-hud-accent-primary underline underline-offset-4">실행 현황과 그래프 보기</Link>
+      <Link to="/ems/melon" className="ml-4 inline-block text-hud-accent-primary underline underline-offset-4">멜론 장르 수집 보기</Link>
     </section>
   </div>;
 }

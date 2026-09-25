@@ -409,7 +409,12 @@ def _process_snapshot_run(connection: Any, run_id: str) -> None:
             should_continue=can_continue,
         )
         matched_since_embed = 0
+        processed_in_slice = 0
         while can_continue():
+            if processed_in_slice >= 10:
+                if matched_since_embed:
+                    embed_ems_batch(connection, lambda texts: embed_remote(texts, os.environ.get("EMBEDDING_SERVICE_URL", "http://embedding:8000")), limit=16)
+                return
             disk = shutil.disk_usage("/")
             if not HealthGate().can_run(disk_used_percent=100 * disk.used / disk.total, database_ready=True, embedding_ready=True):
                 client.wait(30)
@@ -422,6 +427,7 @@ def _process_snapshot_run(connection: Any, run_id: str) -> None:
 
             counts = run_worker(connection, run_id, client, batch_size=1, max_batches=1, on_result=remember)
             if sum(counts.values()):
+                processed_in_slice += sum(counts.values())
                 matched_since_embed += counts.get("matched", 0)
                 connection.execute(
                     """UPDATE ems_ingest_runs SET matched_count = matched_count + %s,
@@ -438,7 +444,7 @@ def _process_snapshot_run(connection: Any, run_id: str) -> None:
                 continue
             if _unfinished_candidates(connection, run_id):
                 client.wait(3)
-                continue
+                return
             while embed_ems_batch(connection, lambda texts: embed_remote(texts, os.environ.get("EMBEDDING_SERVICE_URL", "http://embedding:8000")), limit=16)["embedded"]:
                 pass
             with connection.transaction():
@@ -467,11 +473,13 @@ def serve_admin_jobs() -> None:
                 if not locked:
                     time.sleep(5)
                     continue
+                prefer_melon = True
                 while True:
                     connection.execute(
                         """UPDATE ems_ingest_runs r SET status = 'pending'
                               FROM ems_source_routines s
-                             WHERE r.id = s.current_run_id AND r.status = 'paused' AND s.enabled"""
+                             WHERE r.id = s.current_run_id AND r.status = 'paused' AND s.enabled
+                               AND s.source_key <> 'melon_genres'"""
                     )
                     job = connection.execute(
                         """SELECT id FROM ems_admin_ingest_jobs
@@ -479,6 +487,10 @@ def serve_admin_jobs() -> None:
                             ORDER BY created_at LIMIT 1"""
                     ).fetchone()
                     if job is None:
+                        melon_job = connection.execute(
+                            """SELECT id FROM ems_melon_jobs WHERE status IN ('pending', 'running')
+                                 ORDER BY created_at LIMIT 1"""
+                        ).fetchone()
                         snapshot = connection.execute(
                             """SELECT r.id FROM ems_ingest_runs r
                                 JOIN ems_source_routines s ON s.current_run_id = r.id
@@ -486,6 +498,22 @@ def serve_admin_jobs() -> None:
                                  AND r.status IN ('pending', 'running') AND s.enabled
                                ORDER BY r.created_at LIMIT 1"""
                         ).fetchone()
+                        if melon_job is not None and (snapshot is None or prefer_melon):
+                            from .melon import fail_job, process_job as process_melon_job
+
+                            melon_id = str(melon_job["id"])
+                            try:
+                                process_melon_job(connection, melon_id)
+                            except CatalogRequestPaused:
+                                pass
+                            except psycopg.Error:
+                                raise
+                            except Exception as error:
+                                fail_job(connection, melon_id, error)
+                                print(json.dumps({"job_id": melon_id, "status": "failed", "error_code": str(error)[:120]}), flush=True)
+                            time.sleep(1)
+                            prefer_melon = False
+                            continue
                         if snapshot is not None:
                             run_id = str(snapshot["id"])
                             try:
@@ -508,6 +536,11 @@ def serve_admin_jobs() -> None:
                                     (code, run_id),
                                 )
                                 print(json.dumps({"run_id": run_id, "status": "failed", "error_code": code}), flush=True)
+                            prefer_melon = True
+                            continue
+                        from .melon import schedule_refresh as schedule_melon_refresh
+
+                        if schedule_melon_refresh(connection):
                             continue
                         if _schedule_tidal_refresh(connection):
                             continue

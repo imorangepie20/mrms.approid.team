@@ -51,7 +51,7 @@ export async function listEmsSourceRoutines(executor: QueryExecutor) {
 }
 
 export async function updateEmsSourceRoutine(key: string, action: "enable" | "disable" | "check_now", executor: QueryExecutor) {
-  if (!["tidal_editorial", "musicbrainz_core", "musicbrainz_canonical", "musicbrainz_metadata"].includes(key)) throw new Error("invalid_ems_source_key");
+  if (!["tidal_editorial", "musicbrainz_core", "musicbrainz_canonical", "musicbrainz_metadata", "melon_genres"].includes(key)) throw new Error("invalid_ems_source_key");
   const result = await executor.query<RoutineRow>(`
     UPDATE ems_source_routines
        SET enabled = CASE WHEN $2 = 'enable' THEN true WHEN $2 = 'disable' THEN false ELSE enabled END,

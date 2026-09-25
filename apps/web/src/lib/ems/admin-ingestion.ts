@@ -113,7 +113,7 @@ export async function getEmsAdminIngestion(executor: QueryExecutor) {
         FROM (
           SELECT id, run_type, status, error_code, heartbeat_at, started_at, created_at
             FROM ems_ingest_runs
-           WHERE run_type IN ('musicbrainz_snapshot', 'tidal_resolve')
+           WHERE run_type IN ('musicbrainz_snapshot', 'tidal_resolve', 'melon_genres')
            ORDER BY (status = 'running') DESC, (status = 'pending') DESC, created_at DESC
            LIMIT 1
         ) r

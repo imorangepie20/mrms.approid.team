@@ -45,6 +45,7 @@ function statusLabel(status: string) {
 function runLabel(runType: string) {
   if (runType === "musicbrainz_snapshot") return "MusicBrainz 후보 확인";
   if (runType === "tidal_resolve") return "TIDAL 에디토리얼 수집";
+  if (runType === "melon_genres") return "멜론 장르 수집";
   return runType;
 }
 

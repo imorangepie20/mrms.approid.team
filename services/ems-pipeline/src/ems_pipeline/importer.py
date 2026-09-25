@@ -105,6 +105,21 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                     [track_id, match.recording_mbid, candidate_id],
                 )
             cursor.execute(
+                """INSERT INTO ems_track_sources
+                     (track_id, source_type, source_id, source_license, metadata, last_seen_at)
+                   SELECT %s, 'melon', m.song_id, 'melon-authorized-use',
+                          jsonb_build_object('source_url', m.source_url,
+                            'title', m.title, 'artist', m.artist, 'album', m.album,
+                            'genres', (SELECT jsonb_agg(jsonb_build_object('code', g.genre_code, 'name', g.genre_name))
+                                         FROM ems_melon_track_genres g WHERE g.song_id = m.song_id)), now()
+                     FROM ems_ingest_candidates c JOIN ems_melon_tracks m
+                       ON c.candidate_key = 'melon:' || m.song_id
+                    WHERE c.id = %s AND c.selection_bucket = 'melon'
+                   ON CONFLICT (source_type, source_id) DO UPDATE
+                     SET track_id = EXCLUDED.track_id, metadata = EXCLUDED.metadata, last_seen_at = now()""",
+                [track_id, candidate_id],
+            )
+            cursor.execute(
                 """
                 INSERT INTO ems_availability_events (track_id, region, capability, playable)
                 VALUES (%s, %s, 'STREAM', true)

@@ -41,6 +41,7 @@ import EmsDashboard from "./pages/Dashboard";
 import EmsSections from "./pages/Sections";
 import EmsTracks from "./pages/Tracks";
 import EmsIngestion from "./pages/Ingestion";
+import MelonIngestion from "./pages/MelonIngestion";
 import SourceRoutines from "./pages/SourceRoutines";
 import EmsStatistics from "./pages/Statistics";
 
@@ -89,6 +90,7 @@ function TemplateRoutes() {
         <Route path="ems/tracks" element={<EmsTracks />} />
         <Route path="ems/statistics" element={<EmsStatistics />} />
         <Route path="ems/ingestion" element={<EmsIngestion />} />
+        <Route path="ems/melon" element={<MelonIngestion />} />
         <Route path="ems/routines" element={<SourceRoutines />} />
         <Route path="*" element={<Error404 />} />
       </Route>
