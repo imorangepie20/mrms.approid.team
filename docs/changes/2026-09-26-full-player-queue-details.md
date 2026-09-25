@@ -10,4 +10,5 @@
 
 - Web production build와 TypeScript 검사 통과. `git diff --check` 통과.
 - 자동 테스트는 이번 요청에서 추가·실행하지 않았다.
-- 운영 적용 및 실제 브라우저 표시 확인 결과는 배포 후 기록한다.
+- `4e1fd371e97b` Web 이미지를 Zorin에 배포했다. 이전 Web 이미지는 `music-pie-web:pre-queue-details-4e1fd371e97b`로 보존했다. Web 컨테이너는 healthy, readiness는 `ready`다.
+- 실제 로그인 계정의 전체 플레이어 화면과 모바일 시각 확인은 수행하지 않았다.

@@ -2,9 +2,11 @@
 
 최종 갱신: 2026-09-26
 
-최신 기능 기준 커밋: `3ccc0d25f5ed`
+최신 기능 기준 커밋: `4e1fd371e97b`
 
-최신 Zorin Web·EMS 배포 기준 커밋: `3ccc0d25f5ed` (멜론 100곡 묶음 자동 이어 수집, image `music-pie-web:current`·`music-pie-ems-pipeline:current`)
+최신 Zorin Web 배포 기준 커밋: `4e1fd371e97b` (전체 플레이어 대기열 곡 정보)
+
+최신 Zorin EMS 배포 기준 커밋: `3ccc0d25f5ed` (멜론 100곡 묶음 자동 이어 수집)
 
 ## 이번 목표
 
@@ -12,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-26 `4e1fd371e97b`에서 전체 플레이어 대기열에 앨범 아트·앨범명·재생 시간을 추가했다. Web build·TypeScript와 운영 Web healthy·readiness를 확인했다. 실제 로그인 화면의 시각 확인은 남았다. 상세는 `docs/changes/2026-09-26-full-player-queue-details.md`에 기록한다.
 - 2026-09-26 `3ccc0d25f5ed`에서 멜론 수집을 최대 100곡씩 처리하고 후보 확인 완료 60초 후 체크포인트에서 자동 재개하도록 변경했다. 운영 `019_ems_melon_batches.sql` 적용, DB 백업 확인, Web·EMS 배포와 기존 작업 재개를 완료했다. 기존 후보 131곡을 모두 처리한 뒤 60초 대기와 다음 100곡 자동 조회를 관찰했다(누적 발견 1,650→1,750곡). 상세는 `docs/changes/2026-09-26-melon-100-track-batches.md`에 기록한다.
 - 2026-09-26 `dd6a9e993abe`에서 멜론 한국대중음악 8개 장르 최신곡 목록 수집, 원천곡·장르·출처 보존, TIDAL 확인 뒤 EMS 승격, 관리자 `/admin/ems/melon`과 24시간 정기 수집을 추가했다. 운영 DB 백업 뒤 `018_ems_melon_genres.sql`을 적용하고 Web·EMS 이미지를 배포했다. 건강 상태와 인증 경계를 확인했다. 실제 장르별 수집·매칭 결과는 진행 중이다. 상세는 `docs/changes/2026-09-26-melon-genre-ingestion.md`에 기록한다.
 - 2026-09-26 `d7fdfe6`에서 메인에 사이트 개념·3단계 이용법·음악 이야기 카드와 기존 EMS 선곡을 배치했다. 관리자 메인 화면 관리에서 문구·링크·순서·노출을 편집하고 음악 이야기를 추가·삭제한다. 운영에 `017_home_content.sql`을 적용했고 공개 콘텐츠 7건, Web healthy, 관리자 저장 표시를 확인했다. 모바일 화면 크기 전환이 브라우저 도구에 적용되지 않아 모바일 시각 검증은 남았다. 상세는 `docs/changes/2026-09-26-home-content.md`에 기록한다.
