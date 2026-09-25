@@ -11,4 +11,6 @@
 
 - Python `compileall`, 관리자 `npm run build`, Web `npm run build`, EMS Docker 이미지 빌드 성공.
 - 자동 테스트는 이번 요청에서 추가·실행하지 않았다.
-- 운영 migration·이미지 전환과 100곡 묶음 전환 결과는 배포 후 기록한다.
+- 운영 작업을 `genre_index=0`, `next_start_index=1651`, 발견 1,650곡에서 일시정지한 뒤 142MB PostgreSQL 백업의 `pg_restore -l` 목록을 확인했다. 백업: `/home/approid/apps/music-pie/shared/backups/pre-melon-batches-3ccc0d25f5ed.dump`.
+- 운영 `019_ems_melon_batches.sql` 적용, Web·EMS·정기 수집 컨테이너를 `3ccc0d25f5ed`로 전환하고 같은 작업을 재개했다. Web readiness는 `ready`, Web·EMS 컨테이너는 healthy, 비인증 관리자 API는 HTTP 401이다.
+- 재개 직후 `running|resolving`, 다음 목록 위치 1,651, 누적 발견 1,650곡, 묶음 닫힘 100곡을 확인했다. 이 시점의 미처리 후보 131곡이 끝나야 60초 대기와 다음 100곡 조회로 넘어간다. 실제 다음 묶음 전환은 아직 관찰하지 못했다.
