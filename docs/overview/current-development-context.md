@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-26
 
-최신 기능 기준 커밋: `d7fdfe6`
+최신 기능 기준 커밋: `dd6a9e993abe`
 
-최신 Zorin Web 배포 기준 커밋: `d7fdfe6` (메인 콘텐츠 확장, image `music-pie-web:current`)
+최신 Zorin Web·EMS 배포 기준 커밋: `dd6a9e993abe` (멜론 장르 수집, image `music-pie-web:current`·`music-pie-ems-pipeline:current`)
 
 ## 이번 목표
 
@@ -12,6 +12,7 @@
 
 ## 현재 구현
 
+- 2026-09-26 `dd6a9e993abe`에서 멜론 한국대중음악 8개 장르 최신곡 목록 수집, 원천곡·장르·출처 보존, TIDAL 확인 뒤 EMS 승격, 관리자 `/admin/ems/melon`과 24시간 정기 수집을 추가했다. 운영 DB 백업 뒤 `018_ems_melon_genres.sql`을 적용하고 Web·EMS 이미지를 배포했다. 건강 상태와 인증 경계를 확인했다. 실제 장르별 수집·매칭 결과는 진행 중이다. 상세는 `docs/changes/2026-09-26-melon-genre-ingestion.md`에 기록한다.
 - 2026-09-26 `d7fdfe6`에서 메인에 사이트 개념·3단계 이용법·음악 이야기 카드와 기존 EMS 선곡을 배치했다. 관리자 메인 화면 관리에서 문구·링크·순서·노출을 편집하고 음악 이야기를 추가·삭제한다. 운영에 `017_home_content.sql`을 적용했고 공개 콘텐츠 7건, Web healthy, 관리자 저장 표시를 확인했다. 모바일 화면 크기 전환이 브라우저 도구에 적용되지 않아 모바일 시각 검증은 남았다. 상세는 `docs/changes/2026-09-26-home-content.md`에 기록한다.
 - 2026-09-25 `9884548`에서 전체 플레이어를 현재 곡 중심의 2열 카드·대기열 박스로 재구성했다. 모바일은 1열로 현재 곡 정보가 첫 화면에 보인다. 운영에서 실제 곡 재생 중 데스크톱·390×844 모바일 화면, Web healthy를 확인했다. 상세는 `docs/changes/2026-09-25-full-player-visual-refresh.md`에 있다.
 - 2026-09-25 `24bf96f`에서 회원 Auth0 로그인 뒤 사용자별 TIDAL 연결 상태 화면을 반드시 거치게 했다. 연결된 회원은 재동의 없이 원래 요청한 회원 화면으로 계속하고, 관리자 로그인은 관리자 화면으로 돌아간다. 운영에서 실제 Auth0 SSO 콜백과 연결 상태 화면, 관리자 복귀, Web healthy를 확인했다. 미연결 계정 화면의 실제 브라우저 확인은 남았다. 상세는 `docs/changes/2026-09-25-member-login-tidal-checkpoint.md`에 있다.

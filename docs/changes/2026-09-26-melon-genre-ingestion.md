@@ -7,8 +7,12 @@
 - 페이지 체크포인트와 최소 3초 멜론 요청 간격, 429 대기, 접근 차단 종료를 추가했다. 후보는 기존 TIDAL 확인을 통과한 뒤에만 EMS로 승격한다.
 - 정기 수집 메뉴에 24시간 멜론 재탐색을 추가했다. 기존 MusicBrainz 작업과 멜론 작업은 단일 워커에서 짧은 단위로 교대한다.
 
-## 검증과 남은 점
+## 검증과 운영 적용
 
 - 관리자 앱 `npm run build`, Web 앱 `npm run build`, Python `compileall`, EMS Docker 이미지 빌드 성공.
+- `dd6a9e993abe` 릴리스를 Zorin에 전달했다. 변경 전 DB custom-format 백업 `pre-melon-dd6a9e993abe.dump`(142 MB)를 만들고 `pg_restore -l`로 읽기 확인했다.
+- 운영 migration 1개 적용. Web·`ems-pipeline`·`ems-source-routines`를 새 이미지로 재생성했다. `/api/health/ready`는 `ready`, 비로그인 `/admin/ems/melon`은 로그인 이동(307), 관리자 API는 401을 반환했다.
+- 멜론 루틴은 등록·활성 상태다. 첫 실행을 즉시 예약했고 장르 수집 및 TIDAL 매칭 결과는 진행 상태에서 확인한다.
+- 첫 운영 확인에서 발라드 `GN0100` 원천곡 150건을 저장했고, 작업은 `resolving` 단계였다. 초기 후보 7건은 모호 2건·미발견 5건으로 분리됐으며 아직 TIDAL 연결곡은 없었다. 이후 수치는 관리자 화면에서 계속 갱신된다.
 - 자동 테스트는 이번 요청에서 추가·실행하지 않았다.
-- 실서비스 DB migration, 관리자 화면 인증 흐름, 운영 멜론 페이지 및 TIDAL 매칭 결과는 배포 후 별도 확인한다.
+- 로그인된 관리자 화면의 실제 브라우저 렌더링과 전체 장르 완료 시점의 매칭 품질은 아직 확인하지 않았다.
