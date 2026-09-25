@@ -13,6 +13,7 @@ import { TrackRail } from "@/components/music/track-rail";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { fetchEmsSections } from "@/lib/ems/client";
 import type { EmsSectionsResponse } from "@/lib/ems/sections";
+import type { HomeContent } from "@/lib/home/content";
 import type { Track } from "@/lib/music/types";
 import {
   canUsePersonalization,
@@ -72,6 +73,8 @@ function PersonalizationGate({ access, returnTo }: { access: PersonalizationAcce
 function Home() {
   const [response, setResponse] = useState<EmsSectionsResponse | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [content, setContent] = useState<HomeContent[]>([]);
+  const [contentError, setContentError] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -84,18 +87,48 @@ function Home() {
         if (reason instanceof DOMException && reason.name === "AbortError") return;
         setState("error");
       });
+    fetch("/api/home/content", { signal: controller.signal })
+      .then(async (result) => {
+        if (!result.ok) throw new Error("home_content_unavailable");
+        setContent(await result.json() as HomeContent[]);
+      })
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+        setContentError(true);
+      });
     return () => controller.abort();
   }, []);
+
+  const hero = content.find((item) => item.kind === "hero");
+  const concept = content.find((item) => item.kind === "concept");
+  const guides = content.filter((item) => item.kind === "guide");
+  const stories = content.filter((item) => item.kind === "story");
 
   return (
     <section className="dashboard-page">
       <header className="space-title">Home<small>DISCOVER</small></header>
-      <div className="space-hero home-hero">
-        <p>MUSIC PIE</p>
-        <h1>당신의 다음 장면</h1>
-        <span>좋아할 음악을 발견하고 나만의 취향 지도를 만드세요.</span>
-        <Link href="/ems">카탈로그 둘러보기</Link>
-      </div>
+      {hero ? <section className="home-feature" aria-labelledby="home-feature-title">
+        <div className="home-feature-copy">
+          <p className="home-wordmark">MUSIC PIE</p>
+          <h1 id="home-feature-title">{hero.title}</h1>
+          <p>{hero.body}</p>
+          {hero.linkHref ? <Link className="home-action" href={hero.linkHref}>{hero.linkLabel}</Link> : null}
+        </div>
+        <div className="home-feature-art" aria-hidden="true"><div className="home-disc"><div /></div><span>DISCOVER<br />YOUR SOUND</span></div>
+      </section> : null}
+      {concept ? <section className="home-concept" aria-labelledby="home-concept-title">
+        <div><h2 id="home-concept-title">{concept.title}</h2><p>{concept.body}</p></div>
+        {concept.linkHref ? <Link href={concept.linkHref}>{concept.linkLabel} <span aria-hidden="true">↗</span></Link> : null}
+      </section> : null}
+      {guides.length ? <section className="home-guides" aria-labelledby="home-guides-title">
+        <div className="home-section-heading"><h2 id="home-guides-title">Music Pie 이용법</h2><p>플레이리스트 하나에서 시작해 내 음악 공간까지.</p></div>
+        <div className="home-guide-grid">{guides.map((guide, index) => <article className="home-guide" key={guide.id}>
+          <span className="home-guide-number">{String(index + 1).padStart(2, "0")}</span><h3>{guide.title}</h3><p>{guide.body}</p>
+          {guide.linkHref ? <Link href={guide.linkHref}>{guide.linkLabel} <span aria-hidden="true">↗</span></Link> : null}
+        </article>)}</div>
+      </section> : null}
+      {contentError ? <p className="empty-state">메인 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p> : null}
+      <div className="home-section-heading home-picks-heading"><h2>지금 발견할 음악</h2><p>EMS 카탈로그에서 고른 실제 트랙을 들어보세요.</p></div>
       {state === "error" ? (
         <p className="empty-state">
           오늘의 편집 선곡을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
@@ -115,6 +148,13 @@ function Home() {
           ))}
         </div>
       )}
+      {stories.length ? <section className="home-stories" aria-labelledby="home-stories-title">
+        <div className="home-section-heading"><h2 id="home-stories-title">음악을 즐기는 이야기</h2><p>듣고, 발견하고, 내 것으로 만드는 방법.</p></div>
+        <div className="home-story-grid">{stories.map((story) => <article className="home-story" key={story.id}>
+          <div className="home-story-mark" aria-hidden="true" /><h3>{story.title}</h3><p>{story.body}</p>
+          {story.linkHref ? <Link href={story.linkHref}>{story.linkLabel} <span aria-hidden="true">↗</span></Link> : null}
+        </article>)}</div>
+      </section> : null}
     </section>
   );
 }

@@ -32,6 +32,20 @@ export type EmsSection = {
 
 export type Screen = "home" | "ems";
 
+export type HomeContent = {
+  id: string;
+  kind: "hero" | "concept" | "guide" | "story";
+  title: string;
+  body: string;
+  linkLabel: string;
+  linkHref: string;
+  sortOrder: number;
+  active: boolean;
+  updatedAt: string;
+};
+
+export type HomeContentDraft = Pick<HomeContent, "title" | "body" | "linkLabel" | "linkHref" | "sortOrder" | "active">;
+
 export type EmsTrack = {
   id: string;
   tidalTrackId: string;
@@ -165,6 +179,27 @@ export function updateScreenSection(screen: Screen, id: string, patch: Pick<EmsS
     headers: { "content-type": "application/json" },
     body: JSON.stringify(patch),
   });
+}
+
+export function getHomeContent() {
+  return requestJson<HomeContent[]>("/api/admin/home/content");
+}
+
+export function updateHomeContent(id: string, patch: HomeContentDraft) {
+  return requestJson<HomeContent>(`/api/admin/home/content/${encodeURIComponent(id)}`, {
+    method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch),
+  });
+}
+
+export function createHomeStory(input: HomeContentDraft) {
+  return requestJson<HomeContent>("/api/admin/home/content", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input),
+  });
+}
+
+export async function deleteHomeStory(id: string) {
+  const response = await fetch(`/api/admin/home/content/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!response.ok) throw new AdminApiError(response.status, "home_content_delete_failed");
 }
 
 export function getEmsTracks(options: { query?: string; page?: number; cursor?: string; limit?: number; status?: string; embeddingStatus?: string } = {}) {
