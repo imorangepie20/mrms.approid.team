@@ -13,6 +13,25 @@ function formatTime(seconds: number) {
   return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
 }
 
+function QueueArtwork({ track }: { track: Track }) {
+  const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
+
+  return (
+    <span aria-hidden="true" className={`full-player-queue-artwork bg-gradient-to-br ${track.artworkClass}`}>
+      {track.artworkUrl && failedArtworkUrl !== track.artworkUrl ? (
+        <Image
+          alt=""
+          className="object-cover"
+          fill
+          sizes="44px"
+          src={track.artworkUrl}
+          onError={() => setFailedArtworkUrl(track.artworkUrl)}
+        />
+      ) : <span>♪</span>}
+    </span>
+  );
+}
+
 type FullPlayerDialogProps = {
   currentTrack: Track;
   currentIndex: number | null;
@@ -159,13 +178,26 @@ export function FullPlayerDialog({
                 <button
                   aria-current={index === currentIndex ? "true" : undefined}
                   aria-label={index === currentIndex ? `${item.track.title} 재생 중` : item.track.title}
+                  aria-description={[item.track.artist, item.track.album,
+                    typeof item.track.durationSeconds === "number" && Number.isFinite(item.track.durationSeconds) && item.track.durationSeconds > 0
+                      ? formatTime(item.track.durationSeconds) : null].filter(Boolean).join(", ")}
                   className="full-player-queue-item focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
                   type="button"
                   onClick={() => onSelectTrack(index)}
                 >
                   <span className="full-player-queue-number">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="full-player-queue-track"><strong>{item.track.title}</strong><small>{item.track.artist}</small></span>
-                  {index === currentIndex ? <span className="full-player-queue-current">재생 중</span> : null}
+                  <QueueArtwork track={item.track} />
+                  <span className="full-player-queue-track">
+                    <strong>{item.track.title}</strong>
+                    <small>{item.track.artist}</small>
+                    {item.track.album ? <small className="full-player-queue-album">{item.track.album}</small> : null}
+                  </span>
+                  <span className="full-player-queue-meta">
+                    {index === currentIndex ? <span className="full-player-queue-current">재생 중</span> : null}
+                    {typeof item.track.durationSeconds === "number" && Number.isFinite(item.track.durationSeconds) && item.track.durationSeconds > 0
+                      ? <span className="full-player-queue-duration">{formatTime(item.track.durationSeconds)}</span>
+                      : null}
+                  </span>
                 </button>
               </li>
             ))}
