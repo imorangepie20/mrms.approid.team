@@ -1,5 +1,12 @@
 # 스킬·플러그인 환경 기록
 
+## 2026-09-26 Codex Desktop 확인
+
+- 사용자 요청에 따라 공식 `affaan-m/ECC` 마켓플레이스를 Codex에 등록하고 `ecc@ecc` 2.2.2를 설치했다.
+- `codex plugin list --json`에서 `installed: true`, `enabled: true`를 확인했다. 설치 경로는 사용자 전역 `~/.codex/plugins/cache/ecc/ecc/2.2.2`다.
+- 현재 대화의 스킬 노출 갱신과 Codex 훅 신뢰·실행은 확인하지 않았다. 새 작업에서 사용 가능 여부를 별도로 확인한다.
+- 아래의 2026-09-21 기록은 당시 OLKIL 런타임에 대한 기록이며 이번 Codex Desktop 상태를 나타내지 않는다.
+
 기준일: 2026-09-21 / 환경: Windows (`win32`), OLKIL 코딩 에이전트, PowerShell 5.1
 
 `portable-project-harness.md` 4.5절 양식을 이 런타임에서 확인한 상태로 채웠다. 설치 파일 존재, 세션 노출, 실제 실행은 서로 다른 상태이므로 구분해서 기록한다.
