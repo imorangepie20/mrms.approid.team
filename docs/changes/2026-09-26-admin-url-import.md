@@ -24,13 +24,14 @@
 
 ## 미검증·배포 상태
 
-- migration 020을 운영 DB에 적용하지 않았고 Web·EMS 이미지를 배포하지 않았다.
+- 2026-09-27 커밋 `c7a002d`를 `origin/codex/admin-url-ingestion`에 push하고 Zorin release `/home/approid/apps/music-pie/releases/c7a002d`에 배포했다. `music-pie-web:c7a002d`, `music-pie-ems-pipeline:c7a002d` 이미지를 만들고 Web·EMS·source-routines를 재생성했다.
+- migration 실행 전 PostgreSQL custom-format 백업 `/home/approid/apps/music-pie/shared/backups/pre-deploy-c7a002d.dump`을 생성했다. SHA-256은 `cd04ef2a3cef789d04f3230f40b5af08b64111c189cbaa10cc4c78d6eec3ee36`이며, PostgreSQL 컨테이너의 `pg_restore -l`로 archive 목록을 확인했다.
+- `docker compose -p music-pie -f /home/approid/apps/music-pie/releases/c7a002d/infra/compose.zorin.yml --profile tools run --rm migrate`가 pending migration 1개를 적용했다.
+- 배포 후 local/public `/api/health/ready`와 공개 `/gms`는 HTTP 200, 비로그인 `/api/admin/ems/url-imports`는 401이었다. 비로그인 `/admin` 요청은 Auth0 로그인으로 307 이동했다.
 - 공개 Melon/TIDAL live extraction, 로그인 관리자의 검토·승인 브라우저 조작, promotion·embedding 결과는 아직 확인하지 않았다.
 - TIDAL API가 앨범·플레이리스트 관계 track을 포함하지 않거나 pagination 계약을 바꾸는 경우 해당 소스 추출은 실패로 기록된다.
-- 기존 로그인 사용자의 좋아요·추천 액션을 취향 프로필 재계산에 반영하는 경로는 이번 변경에 포함하지 않았다.
 
 ## 다음 작업
 
-1. migration과 Web·EMS release를 운영에 적용한 뒤, 공개 Melon 장르와 TIDAL track·album·playlist URL을 관리자 계정으로 검증한다.
-2. 사용자별 좋아요 및 추천 수락·거절을 취향 프로필 입력과 재계산 흐름에 연결한다.
-3. 일반 회원에게 관리자 경로가 노출되지 않는지와 작은 화면 검토 화면을 브라우저로 확인한다.
+1. 관리자 계정 브라우저에서 Melon 장르와 TIDAL track·album·playlist URL을 제출하고 검토·승인 후 EMS 저장을 확인한다.
+2. 일반 회원에게 관리자 경로가 노출되지 않는지와 작은 화면 검토 화면을 브라우저로 확인한다.

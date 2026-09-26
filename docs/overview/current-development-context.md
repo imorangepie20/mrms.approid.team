@@ -1,12 +1,12 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-09-26
+최종 갱신: 2026-09-27
 
-최신 기능 기준 커밋: `4e1fd371e97b`
+최신 기능 기준 커밋: `c7a002d`
 
-최신 Zorin Web 배포 기준 커밋: `4e1fd371e97b` (전체 플레이어 대기열 곡 정보)
+최신 Zorin Web 배포 기준 커밋: `c7a002d` (관리자 공개 URL 수집·사용자 액션 취향 반영)
 
-최신 Zorin EMS 배포 기준 커밋: `3ccc0d25f5ed` (멜론 100곡 묶음 자동 이어 수집)
+최신 Zorin EMS 배포 기준 커밋: `c7a002d` (관리자 공개 URL 수집 worker)
 
 ## 이번 목표
 
@@ -14,8 +14,8 @@
 
 ## 현재 구현
 
-- 2026-09-26 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 개인 취향 프로필에 반영하도록 로컬 구현했다. 좋아요의 완료 EMS 임베딩을 재사용하고 EMS·사용자 라이브러리에 없는 TIDAL 좋아요는 메타데이터 스냅샷으로 계산 중 임베딩한다. 긍정 액션 트랙은 기본 가중치의 2배로 반영하고 거절 이력은 긍정 피드백과 GMS 후보에서 제외한다. Web build·lint와 diff 검사는 통과했다. 2026-09-27 운영 GMS 추천 카드 표시는 확인했으며 액션 재계산 코드는 미배포 상태라 액션 검증은 남았다. 상세는 `docs/changes/2026-09-26-user-action-taste-profile.md`에 기록한다.
-- 2026-09-26 관리자 공개 URL 수집·검토 경로를 로컬 구현했다. 관리자 Melon 장르·TIDAL track/album/playlist URL 제출, 원본·항목 출처와 수집 시각 저장, 곡별 승인·제외, 기존 EMS resolver 연동을 추가했다. 운영 migration·배포와 live URL·관리자 브라우저 검증은 남아 있다. 상세는 `docs/changes/2026-09-26-admin-url-import.md`에 기록한다.
+- 2026-09-27 `c7a002d`에 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절 후 개인 취향 프로필을 다시 계산하는 경로를 배포했다. 긍정 액션 트랙은 기본 가중치의 2배이고 거절 이력은 프로필 입력과 사용자 GMS 후보에서 제외된다. Web·admin build, Web lint, Python compileall, 운영 readiness와 인증 경계를 확인했다. 좋아요·수락·거절을 실제 저장한 브라우저 검증은 아직 하지 않았다. 상세는 `docs/changes/2026-09-26-user-action-taste-profile.md`에 기록한다.
+- 2026-09-27 `c7a002d`에서 관리자 Melon 장르·TIDAL track/album/playlist URL 제출·검토, 최대 100곡 추출, 원본·항목 출처와 수집 시각 보존, 곡별 승인·제외, 기존 EMS resolver 연동을 배포했다. 운영 DB 백업 후 `020_ems_manual_url_import.sql`을 적용했다. readiness·비로그인 API 인증 경계는 확인했고 live URL extraction과 로그인 관리자 브라우저 승인 흐름은 남아 있다. 상세는 `docs/changes/2026-09-26-admin-url-import.md`에 기록한다.
 - 2026-09-26 `4e1fd371e97b`에서 전체 플레이어 대기열에 앨범 아트·앨범명·재생 시간을 추가했다. Web build·TypeScript와 운영 Web healthy·readiness를 확인했다. 실제 로그인 화면의 시각 확인은 남았다. 상세는 `docs/changes/2026-09-26-full-player-queue-details.md`에 기록한다.
 - 2026-09-26 `3ccc0d25f5ed`에서 멜론 수집을 최대 100곡씩 처리하고 후보 확인 완료 60초 후 체크포인트에서 자동 재개하도록 변경했다. 운영 `019_ems_melon_batches.sql` 적용, DB 백업 확인, Web·EMS 배포와 기존 작업 재개를 완료했다. 기존 후보 131곡을 모두 처리한 뒤 60초 대기와 다음 100곡 자동 조회를 관찰했다(누적 발견 1,650→1,750곡). 상세는 `docs/changes/2026-09-26-melon-100-track-batches.md`에 기록한다.
 - 2026-09-26 `dd6a9e993abe`에서 멜론 한국대중음악 8개 장르 최신곡 목록 수집, 원천곡·장르·출처 보존, TIDAL 확인 뒤 EMS 승격, 관리자 `/admin/ems/melon`과 24시간 정기 수집을 추가했다. 운영 DB 백업 뒤 `018_ems_melon_genres.sql`을 적용하고 Web·EMS 이미지를 배포했다. 건강 상태와 인증 경계를 확인했다. 실제 장르별 수집·매칭 결과는 진행 중이다. 상세는 `docs/changes/2026-09-26-melon-genre-ingestion.md`에 기록한다.
@@ -85,6 +85,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-27 | Web/admin build, Web lint, EMS `compileall`, `git diff --check`; Zorin backup·migration·Docker build·Compose release; local/public HTTP smoke | 관리자 URL import·액션 기반 프로필 코드 반영, DB 보존, Web·EMS 가용 및 비로그인 API 차단 | 통과: 커밋 `c7a002d` push·배포, backup `pre-deploy-c7a002d.dump` (`cd04ef2a…eec3ee36`), migration 1건 적용, Web·EMS·source-routines 재생성, local/public readiness 200, `/gms` 200, URL import API 401, 비로그인 `/admin` Auth0 redirect 307. 자동 테스트·로그인 기능 조작 미실행 |
 | 2026-09-20 | 생성 문서의 경로·링크·템플릿 확인 | `AGENTS.md`가 가리키는 4개 문서와 작업·변경 템플릿이 존재함 | 통과: 7개 필수 문서의 존재, `AGENTS.md` 참조, 템플릿 표식 확인 |
 | 2026-09-20 | 수정된 하네스 안내와 작업·변경 템플릿 대조 | 조사 근거·직접 검증·미정 항목을 기록할 수 있음 | 통과: 필수 문서 7개, `AGENTS.md` 참조, 추가 템플릿 항목 확인 |
 | 2026-09-21 | `apps/web`: `npm test` | 전체 회귀 통과 | 통과: 43개 파일, 132개 테스트 |
@@ -137,16 +138,16 @@
 
 ## 미검증·제약
 
-- 관리자 URL 수집은 코드·로컬 build까지만 확인했다. 운영 migration·배포, Melon/TIDAL live extraction과 로그인 관리자 화면에서의 승인 후 EMS 저장은 미검증이다.
-- 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 취향 프로필에 반영하는 코드는 로컬 구현 및 Web build/lint까지 확인했다. 운영 배포는 아직 하지 않았다.
-- 2026-09-27 로그인된 운영 `/gms`에서 추천 12곡 표시를 확인했다. 액션 저장과 프로필 갱신은 로컬 변경이 미배포 상태이고 실계정 데이터 변경도 하지 않아 아직 미검증이다. 2026-09-23 운영 취향 프로필은 `completed|101`이며 전체 1개·군집 2개 centroid 생성 기록으로 2026-09-22의 `profile_count=0` 메모를 대체한다.
+- 관리자 URL 수집·검토 코드는 운영에 배포하고 migration 020을 적용했다. 공개 Melon/TIDAL live extraction, 로그인 관리자 브라우저 검토·승인, promotion·embedding 결과는 미검증이다. 비로그인 `/admin`은 Auth0 redirect 307, URL import API는 401을 반환했다.
+- 사용자 액션 후 취향 프로필 재계산 코드는 운영에 배포했다. 액션 저장·프로필 갱신·거절 영구 제외는 운영 브라우저에서 아직 검증하지 않았다. 계정 액션 데이터를 변경하지 않았다. 2026-09-23 운영 취향 프로필은 `completed|101`이며 전체 1개·군집 2개 centroid 생성 기록으로 2026-09-22의 `profile_count=0` 메모를 대체한다.
+- 2026-09-27 로그인된 운영 `/gms`에서 추천 12곡 표시를 확인했다. 배포 후 공개 `/gms` 200, local/public readiness 200을 확인했다.
 - fixture 기반 EMS 트랙에는 `tidalTrackId`가 없어 실제 스트리밍 대상이 아니다.
 - 실제 계정으로 네 유형 좋아요와 MMS 즉시 반영을 확인하는 브라우저 시각 검증은 아직 하지 않았다.
 - legacy TIDAL v1 `playbackinfo` 계약이 변경되면 전체 재생 경로를 다시 검증해야 한다.
 - 실제 모바일 기기의 codec 지원과 백그라운드 오디오 동작은 아직 검증하지 않았다.
 - AI 분석 입력 허용은 테스트 배포까지다. production 배포 범위와 TIDAL 연결 해제 시 데이터 삭제 의무는 아직 확정하지 않았다.
 - MusicBrainz 장르 라이선스 확인, 공용 장르 어휘의 콜드스타트 정책, 캐시 만료·갱신 정책은 아직 확정하지 않았다.
-- 로그인 계정의 분석 시작 UI는 아직 미검증이다. 운영 `/gms` 카드 표시는 2026-09-27 확인했으나 로컬 액션 프로필 코드가 미배포라 추천 결정 저장 후 프로필 갱신은 확인하지 않았다.
+- 로그인 계정의 분석 시작 UI는 아직 미검증이다. 운영 `/gms` 카드 표시는 확인했으나 추천 결정 저장 후 프로필 갱신은 확인하지 않았다.
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
