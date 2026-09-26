@@ -92,6 +92,24 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                 """,
                 [track_id, match.tidal_id, json.dumps(match.source_metadata or {})],
             )
+            cursor.execute(
+                """INSERT INTO ems_track_sources
+                     (track_id, source_type, source_id, source_license, metadata, last_seen_at)
+                   SELECT %s, 'user_import', 'urlimport:' || i.id::text,
+                          CASE WHEN j.source_type = 'tidal' THEN 'tidal-authorized-use' ELSE 'melon-authorized-use' END,
+                          jsonb_build_object('source_type', j.source_type, 'source_url', j.source_url,
+                            'source_item_url', i.source_item_url, 'collected_at', i.collected_at,
+                            'title', i.title, 'artist', i.artist, 'album', i.album,
+                            'source_metadata', i.metadata), now()
+                     FROM ems_ingest_candidates c
+                     JOIN ems_manual_url_import_items i
+                       ON c.candidate_key = 'urlimport:' || i.id::text AND c.run_id = i.ingest_run_id
+                     JOIN ems_manual_url_import_jobs j ON j.id = i.job_id
+                    WHERE c.id = %s
+                   ON CONFLICT (source_type, source_id) DO UPDATE
+                     SET track_id = EXCLUDED.track_id, metadata = EXCLUDED.metadata, last_seen_at = now()""",
+                [track_id, candidate_id],
+            )
             if match.recording_mbid:
                 cursor.execute(
                     """INSERT INTO ems_track_sources

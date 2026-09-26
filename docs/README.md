@@ -17,6 +17,8 @@
 ### 개인화 추천·GMS
 
 - [개인화 추천 초기 전략](decisions/2026-09-20-personalized-recommendation-baseline.md)
+- [사용자 액션 취향 프로필 반영 계획](plans/2026-09-26-user-action-taste-profile.md)
+- [사용자 액션 취향 프로필 반영 변경 기록](changes/2026-09-26-user-action-taste-profile.md)
 - [트랙 임베딩·취향 프로필 설계](superpowers/specs/2026-09-22-track-embedding-taste-profile-design.md)
 - [GMS 개인화 추천 구현 계획](superpowers/plans/2026-09-22-gms-personalized-recommendations.md)
 - [GMS 개인화 추천 변경 기록](changes/2026-09-22-gms-personalized-recommendations.md)
@@ -40,6 +42,8 @@
 - [Home·EMS 에디토리얼 섹션 설계](superpowers/specs/2026-09-22-ems-editorial-sections-design.md)
 - [Home·EMS 에디토리얼 섹션 구현 계획](superpowers/plans/2026-09-22-home-ems-editorial-sections.md)
 - [Home·EMS 에디토리얼 섹션 변경 기록](changes/2026-09-22-ems-editorial-sections.md)
+- [관리자 URL 수집·검토 계획](plans/2026-09-26-admin-url-import.md)
+- [관리자 URL 수집·검토 변경 기록](changes/2026-09-26-admin-url-import.md)
 
 ### TIDAL 연결·라이브러리·재생
 

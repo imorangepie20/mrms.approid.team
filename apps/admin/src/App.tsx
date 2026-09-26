@@ -44,6 +44,7 @@ import EmsIngestion from "./pages/Ingestion";
 import MelonIngestion from "./pages/MelonIngestion";
 import SourceRoutines from "./pages/SourceRoutines";
 import EmsStatistics from "./pages/Statistics";
+import UrlImports from "./pages/UrlImports";
 
 function TemplateRoutes() {
   return (
@@ -91,6 +92,7 @@ function TemplateRoutes() {
         <Route path="ems/statistics" element={<EmsStatistics />} />
         <Route path="ems/ingestion" element={<EmsIngestion />} />
         <Route path="ems/melon" element={<MelonIngestion />} />
+        <Route path="ems/url-imports" element={<UrlImports />} />
         <Route path="ems/routines" element={<SourceRoutines />} />
         <Route path="*" element={<Error404 />} />
       </Route>

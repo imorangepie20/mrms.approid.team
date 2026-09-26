@@ -171,6 +171,38 @@ export type MelonIngestion = {
   }>;
 };
 
+export type ManualUrlImportItem = {
+  id: string;
+  sourceId: string;
+  sourceItemUrl: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  durationMs: number | null;
+  artworkUrl: string | null;
+  releaseDate: string | null;
+  status: "review" | "approved" | "queued" | "rejected";
+  collectedAt: string;
+  candidateStatus: string | null;
+  tidalId: string | null;
+};
+
+export type ManualUrlImportJob = {
+  id: string;
+  sourceType: "melon" | "tidal";
+  sourceUrl: string;
+  status: string;
+  phase: string;
+  itemCount: number;
+  requestCount: number;
+  errorCode: string | null;
+  createdBy: string;
+  collectedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ManualUrlImportItem[];
+};
+
 export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
 
 export class AdminApiError extends Error {
@@ -297,5 +329,27 @@ export function changeMelonIngestion(id: string, action: "pause" | "resume") {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ action }),
+  });
+}
+
+export function getManualUrlImports() {
+  return requestJson<{ jobs: ManualUrlImportJob[] }>("/api/admin/ems/url-imports");
+}
+
+export function createManualUrlImport(url: string) {
+  return requestJson<{ id: string; status: string }>("/api/admin/ems/url-imports", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }),
+  });
+}
+
+export function decideManualUrlImportItem(id: string, action: "approve" | "reject") {
+  return requestJson<{ id: string; status: string }>(`/api/admin/ems/url-imports/items/${encodeURIComponent(id)}`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }),
+  });
+}
+
+export function startApprovedManualUrlImport(id: string) {
+  return requestJson<{ id: string; status: string }>(`/api/admin/ems/url-imports/${encodeURIComponent(id)}`, {
+    method: "POST",
   });
 }

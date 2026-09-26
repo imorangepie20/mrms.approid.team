@@ -35,6 +35,7 @@ class Candidate:
     artist_region: str | None
     selection_bucket: str
     selection_score: float
+    source_tidal_id: str | None = None
 
 
 def _key(row: CanonicalRow) -> str:

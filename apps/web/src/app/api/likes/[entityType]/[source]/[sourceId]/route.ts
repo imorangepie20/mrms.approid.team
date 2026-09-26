@@ -1,5 +1,6 @@
 import { requireAuth0Subject } from "@/lib/auth/auth0";
 import { deleteUserLike, upsertUserLike } from "@/lib/db/user-likes";
+import { refreshTasteProfileFromActions } from "@/lib/embeddings/jobs";
 import { parseLikeKey, parseLikeSnapshot } from "@/lib/likes/types";
 
 type LikeRouteContext = {
@@ -57,12 +58,23 @@ export async function PUT(request: Request, context: LikeRouteContext) {
     return Response.json({ code: "unauthorized" }, { status: 401 });
   }
 
+  let item: Awaited<ReturnType<typeof upsertUserLike>>;
   try {
-    const item = await upsertUserLike(auth0Subject, { ...key, ...snapshot });
-    return Response.json({ item, liked: true });
+    item = await upsertUserLike(auth0Subject, { ...key, ...snapshot });
   } catch {
     return Response.json({ code: "like_write_failed" }, { status: 500 });
   }
+  if (key.entityType === "track") {
+    try {
+      await refreshTasteProfileFromActions(auth0Subject);
+    } catch {
+      return Response.json(
+        { code: "taste_profile_refresh_failed", item, liked: true },
+        { status: 503 },
+      );
+    }
+  }
+  return Response.json({ item, liked: true });
 }
 
 export async function DELETE(_request: Request, context: LikeRouteContext) {
@@ -81,8 +93,18 @@ export async function DELETE(_request: Request, context: LikeRouteContext) {
 
   try {
     await deleteUserLike(auth0Subject, key);
-    return Response.json({ liked: false });
   } catch {
     return Response.json({ code: "like_delete_failed" }, { status: 500 });
   }
+  if (key.entityType === "track") {
+    try {
+      await refreshTasteProfileFromActions(auth0Subject);
+    } catch {
+      return Response.json(
+        { code: "taste_profile_refresh_failed", liked: false },
+        { status: 503 },
+      );
+    }
+  }
+  return Response.json({ liked: false });
 }

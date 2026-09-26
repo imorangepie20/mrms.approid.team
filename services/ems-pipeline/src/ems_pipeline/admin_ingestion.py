@@ -255,8 +255,31 @@ def _finish(connection: Any, job_id: str, status: str, error_code: str | None = 
                   last_success_at = CASE WHEN %s = 'completed' THEN now() ELSE last_success_at END,
                   next_check_at = now() + make_interval(secs => CASE WHEN %s = 'completed' THEN check_interval_seconds ELSE 21600 END),
                   error_code = %s, updated_at = now()
-            WHERE source_key = 'tidal_editorial'""",
-        (status, status, status, error_code),
+            WHERE source_key = 'tidal_editorial' AND current_run_id = %s""",
+        (status, status, status, error_code, job_id),
+    )
+    connection.execute(
+        """UPDATE ems_manual_url_import_jobs j
+              SET status = CASE
+                    WHEN %s = 'failed' THEN 'failed'
+                    WHEN EXISTS (SELECT 1 FROM ems_manual_url_import_items i
+                                  WHERE i.job_id = j.id AND i.status = 'review') THEN 'review'
+                    WHEN EXISTS (SELECT 1 FROM ems_manual_url_import_items i
+                                  JOIN ems_ingest_runs r ON r.id = i.ingest_run_id
+                                 WHERE i.job_id = j.id AND i.status = 'queued' AND r.status <> 'completed') THEN 'processing'
+                    ELSE 'completed' END,
+                  phase = CASE WHEN %s = 'failed' THEN 'failed'
+                               WHEN EXISTS (SELECT 1 FROM ems_manual_url_import_items i
+                                             WHERE i.job_id = j.id AND i.status = 'review')
+                               THEN 'review'
+                               WHEN EXISTS (SELECT 1 FROM ems_manual_url_import_items i
+                                             JOIN ems_ingest_runs r ON r.id = i.ingest_run_id
+                                            WHERE i.job_id = j.id AND i.status = 'queued' AND r.status <> 'completed')
+                               THEN 'processing' ELSE 'completed' END,
+                  updated_at = now()
+             WHERE EXISTS (SELECT 1 FROM ems_manual_url_import_items i
+                            WHERE i.job_id = j.id AND i.ingest_run_id = %s)""",
+        (status, status, job_id),
     )
 
 
@@ -475,6 +498,22 @@ def serve_admin_jobs() -> None:
                     continue
                 prefer_melon = True
                 while True:
+                    manual_import = connection.execute(
+                        "SELECT id FROM ems_manual_url_import_jobs WHERE status = 'pending' ORDER BY created_at LIMIT 1"
+                    ).fetchone()
+                    if manual_import is not None:
+                        from .url_imports import fail_url_import_job, process_url_import_job
+
+                        import_id = str(manual_import["id"])
+                        try:
+                            process_url_import_job(connection, import_id)
+                        except psycopg.Error:
+                            raise
+                        except Exception as error:
+                            fail_url_import_job(connection, import_id, error)
+                            print(json.dumps({"job_id": import_id, "status": "failed", "error_code": type(error).__name__.lower()}), flush=True)
+                        time.sleep(1)
+                        continue
                     connection.execute(
                         """UPDATE ems_ingest_runs r SET status = 'pending'
                               FROM ems_source_routines s

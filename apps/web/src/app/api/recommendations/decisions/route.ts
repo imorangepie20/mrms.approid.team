@@ -1,4 +1,5 @@
 import { requireAuth0Subject } from "@/lib/auth/auth0";
+import { refreshTasteProfileFromActions } from "@/lib/embeddings/jobs";
 import {
   saveRecommendationDecision,
   type RecommendationDecision,
@@ -47,11 +48,22 @@ export async function POST(request: Request) {
 
   try {
     await saveRecommendationDecision(auth0Subject, body);
-    return new Response(null, { status: 204 });
   } catch (error) {
     if (error instanceof Error && error.message === "recommendation_user_not_found") {
       return Response.json({ code: "user_not_found" }, { status: 404 });
     }
     return Response.json({ code: "decision_unavailable" }, { status: 503 });
   }
+
+  if (body.decision !== "skip") {
+    try {
+      await refreshTasteProfileFromActions(auth0Subject);
+    } catch {
+      return Response.json(
+        { code: "taste_profile_refresh_failed", decisionSaved: true },
+        { status: 503 },
+      );
+    }
+  }
+  return new Response(null, { status: 204 });
 }

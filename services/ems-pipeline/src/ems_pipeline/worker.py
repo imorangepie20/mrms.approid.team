@@ -50,7 +50,8 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                 WHERE candidate.id = claimed.id
                 RETURNING candidate.id, candidate.candidate_key, candidate.selection_bucket, candidate.title,
                           candidate.artist, candidate.album, candidate.isrc,
-                          candidate.recording_mbid, candidate.duration_ms, candidate.release_date, candidate.attempt_count;
+                          candidate.recording_mbid, candidate.duration_ms, candidate.release_date,
+                          candidate.tidal_id AS source_tidal_id, candidate.attempt_count;
                 """,
                 (run_id, batch_size, lease_seconds),
             )
@@ -98,6 +99,7 @@ def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size:
                 artist_region=None,
                 selection_bucket=str(row.get("selection_bucket", "canonical")),
                 selection_score=0.0,
+                source_tidal_id=row.get("source_tidal_id"),
             )
             try:
                 result = catalog_client.resolve(candidate)

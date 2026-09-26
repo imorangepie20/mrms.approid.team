@@ -295,6 +295,27 @@ class TidalCatalogClient:
                 return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="upstream_5xx")
             return None
 
+        if candidate.source_tidal_id:
+            direct = request(
+                f"{self.api_base_url}/tracks/{candidate.source_tidal_id}",
+                {"countryCode": self.country_code, "include": "artists,albums,albums.coverArt"},
+            )
+            if isinstance(direct, ResolveResult):
+                return direct
+            direct_error = response_error(direct)
+            if direct_error:
+                return direct_error
+            if direct.status_code >= 400:
+                return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="source_track_missing")
+            try:
+                source_tracks = parse_tracks(direct.json())
+            except (TypeError, ValueError):
+                return ResolveResult(ResolveStatus.RETRYABLE, query_hash=query_hash, error_code="invalid_response")
+            exact = next((track for track in source_tracks if track.id == candidate.source_tidal_id), None)
+            if exact is None:
+                return ResolveResult(ResolveStatus.NOT_FOUND, query_hash=query_hash, error_code="source_track_missing")
+            return _validated_match(candidate, exact, query_hash, "tidal_url_exact", 1.0, self.country_code)
+
         if candidate.isrc:
             direct = request(
                 f"{self.api_base_url}/tracks",

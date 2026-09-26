@@ -52,3 +52,8 @@ GMS가 임시 fixture 목록을 보여주고 있어 사용자별 취향 프로�
 1. 실제 completed profile이 있는 계정으로 GMS 후보·점수·제외 동작을 확인한다.
 2. GMS 카드에 추천 이유 문구를 노출할지 UX를 검토한다.
 3. 실제 completed profile 계정으로 GMS 후보·결정 저장을 smoke test한다.
+
+## 후속 상태 (2026-09-23 이후)
+
+- 위 미검증 항목의 completed profile 0건 및 초기 production release 보류 상태는 2026-09-23 운영 취향 분석 작업으로 대체됐다. 실제 사용자 101곡 임베딩, `taste-v1` completed profile 1건, centroid 3개를 DB에서 확인했고 이후 Web release가 배포됐다. 세부 근거는 `docs/changes/2026-09-23-taste-profile-completion.md`와 `docs/overview/current-development-context.md`에 있다.
+- 실제 로그인 브라우저에서 GMS 추천 카드는 2026-09-27 확인했지만 수락·거절 저장 동작은 검증하지 않았다. 2026-09-26에 액션 기반 프로필 갱신 코드를 로컬 구현했으며 production 배포와 액션 반영 검증은 남아 있다. 세부 상태는 `docs/changes/2026-09-26-user-action-taste-profile.md`를 따른다.

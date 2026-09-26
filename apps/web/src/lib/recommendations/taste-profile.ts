@@ -8,6 +8,7 @@ const MULTI_TASTE_TRACKS = 60;
 export type TasteProfileInput = {
   artist: string;
   embedding: number[];
+  feedbackWeight?: number;
   playlistCount: number;
   trackId: string;
 };
@@ -203,10 +204,14 @@ function weightedInputs(inputs: TasteProfileInput[]): WeightedInput[] {
     const playlistCount = Math.max(1, Math.trunc(input.playlistCount));
     const playlistWeight = 1 + 0.25 * Math.min(playlistCount - 1, 3);
     const artistWeight = 1 / Math.sqrt(artistCounts.get(input.artist) ?? 1);
+    const feedbackWeight = input.feedbackWeight ?? 1;
+    if (!Number.isFinite(feedbackWeight) || feedbackWeight < 1) {
+      throw new Error("taste_profile_feedback_weight_invalid");
+    }
     return {
       ...input,
       embedding: normalize(input.embedding),
-      weight: playlistWeight * artistWeight,
+      weight: playlistWeight * artistWeight * feedbackWeight,
     };
   });
 }

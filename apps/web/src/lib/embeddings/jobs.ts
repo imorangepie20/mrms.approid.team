@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/embeddings";
 import { getSharedGenreVocabulary } from "@/lib/db/music-library";
 import {
+  loadUnmatchedTidalTrackLikes,
   loadCompletedTasteProfileInputs,
   replaceTasteProfile,
 } from "@/lib/db/taste-profiles";
@@ -67,7 +68,7 @@ const productionDependencies: EmbeddingJobDependencies = {
   countFailed: countFailedEmbeddingJobs,
   countRemaining: countPendingEmbeddingJobs,
   embed: embedTexts,
-  loadProfileInputs: loadCompletedTasteProfileInputs,
+  loadProfileInputs: loadTasteProfileInputsWithActions,
   replaceProfile: (auth0Subject, result) => replaceTasteProfile(
     auth0Subject,
     result,
@@ -87,6 +88,41 @@ const productionDependencies: EmbeddingJobDependencies = {
     await getSharedGenreVocabulary(),
   ),
 };
+
+async function loadTasteProfileInputsWithActions(auth0Subject: string) {
+  const inputs = await loadCompletedTasteProfileInputs(auth0Subject);
+  const likes = await loadUnmatchedTidalTrackLikes(auth0Subject);
+  for (let offset = 0; offset < likes.length; offset += 16) {
+    const batch = likes.slice(offset, offset + 16);
+    const embeddings = await embedTexts(batch.map((like) => [
+      like.title,
+      like.artist,
+      like.album ?? "",
+    ].filter(Boolean).join(" | ")));
+    inputs.push(...batch.map((like, index) => ({
+      artist: like.artist,
+      embedding: embeddings.embeddings[index] ?? [],
+      feedbackWeight: 2,
+      playlistCount: 1,
+      trackId: `tidal:${like.sourceId}`,
+    })));
+  }
+  return inputs;
+}
+
+export async function refreshTasteProfileFromActions(
+  auth0Subject: string,
+): Promise<boolean> {
+  const inputs = await loadTasteProfileInputsWithActions(auth0Subject);
+  if (inputs.length < 15) return false;
+  const result = buildTasteProfile(inputs);
+  await replaceTasteProfile(auth0Subject, result, {
+    algorithmVersion: "taste-v1",
+    modelId: EMBEDDING_MODEL_ID,
+    modelRevision: EMBEDDING_MODEL_REVISION,
+  });
+  return true;
+}
 
 async function progress(
   auth0Subject: string,
