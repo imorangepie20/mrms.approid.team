@@ -14,7 +14,7 @@ type Props = {
 
 const BAR_COUNT = 48;
 const BAR_HORIZONTAL_SHIFT_RATIO = 0.025;
-const HIGH_FREQUENCY_GAIN = 2.6;
+const HIGH_FREQUENCY_GAIN = 0.45;
 const NOISE_FLOOR = 0.04;
 
 export function resolveVisualizerBarLayout(width: number, count = BAR_COUNT) {
@@ -30,7 +30,7 @@ export function resolveVisualizerBarLayout(width: number, count = BAR_COUNT) {
 }
 
 export function resolveVisualizerMaxBarHeight(height: number) {
-  return Math.min(height * 0.46, 390);
+  return Math.min(height * 0.38, 390);
 }
 
 export function createVisualizerBarLevels(values: Float32Array, count = BAR_COUNT) {
@@ -58,7 +58,7 @@ export function createVisualizerBarLevels(values: Float32Array, count = BAR_COUN
     const average = sum / Math.max(1, end - start) / 255;
     const gained = average * (1 + bandPosition * HIGH_FREQUENCY_GAIN);
     const gated = Math.max(0, gained - NOISE_FLOOR) / (1 - NOISE_FLOOR);
-    levels[index] = Math.min(1, Math.pow(gated, 0.95) * 0.8);
+    levels[index] = Math.min(0.88, Math.pow(gated, 1.08) * 0.82);
   }
   return levels;
 }

@@ -15,8 +15,21 @@ describe("visual equalizer bar distribution", () => {
   });
 
   it("keeps bar height below half of the stage", () => {
-    expect(resolveVisualizerMaxBarHeight(800)).toBe(368);
+    expect(resolveVisualizerMaxBarHeight(800)).toBe(304);
     expect(resolveVisualizerMaxBarHeight(1200)).toBe(390);
+  });
+
+  it("preserves height variation instead of saturating loud bands", () => {
+    const spectrum = Float32Array.from(
+      { length: 128 },
+      (_, index) => 230 - index * 1.25,
+    );
+
+    const levels = createVisualizerBarLevels(spectrum);
+    const distinctHeights = new Set(Array.from(levels, (level) => level.toFixed(3)));
+
+    expect(distinctHeights.size).toBeGreaterThan(12);
+    expect(levels.filter((level) => level >= 0.87)).toHaveLength(0);
   });
 
   it("spreads low and high frequency energy across logarithmic bands", () => {

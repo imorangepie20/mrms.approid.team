@@ -6,13 +6,14 @@
 
 ## 변경 내용
 
-- 독립 `/visualizer` UI와 compact player의 `EQ` 링크를 제거하고, 전체 플레이어 앨범 아트 하단 31% 영역에 실제 PCM frequency bin을 그리는 반투명 막대형 overlay를 배치했다. 기존 `/visualizer` URL은 Home으로 이동한다.
+- 독립 `/visualizer` UI와 compact player의 `EQ` 링크를 제거하고, 전체 플레이어 앨범 아트 하단 27% 영역에 실제 PCM frequency bin을 그리는 반투명 막대형 overlay를 배치했다. 기존 `/visualizer` URL은 Home으로 이동한다.
 - 막대형은 FFT bin을 로그 주파수 밴드로 묶고 고역 gain을 보정해 저역 막대가 좌측에만 몰리지 않게 했으며, 전체 막대 묶음을 canvas 중앙 기준으로 배치한다.
 - 운영 화면 피드백을 반영해 막대 묶음을 canvas 너비의 2.5%만큼 오른쪽으로 미세 조정하고 최대 높이를 stage의 54%에서 46%로 낮춘다.
 - `/visualizer` 진입 직후 약 2초 동안 막대가 시작하지 않는다는 운영 피드백에 따라 마지막 HLS media segment를 메모리에 1개만 보존하고 늦게 연결된 analyser에 즉시 재전달한다. 재생 중 동기화를 왜곡하던 timing advance는 제거했다.
 - direct `LOSSLESS` 재생에서는 큰 FLAC 전체 다운로드가 첫 EQ 시작을 지연시키므로, 재생 음질은 유지하면서 분석 전용 same-origin 요청만 `LOW` 품질로 고정해 초기 전송·decode 크기를 줄인다.
 - 전체 플레이어를 연 뒤에 analyser를 생성하던 구조 때문에 overlay가 늦게 준비되는 결함을 수정했다. analyser는 전역 플레이어와 함께 한 번만 마운트해 재생 시작부터 분석을 준비하고, 전체 플레이어를 열고 닫아도 같은 분석 상태를 유지한다.
 - 분석 전용 파일 전체의 다운로드와 `decodeAudioData` 완료를 기다리던 direct stream 경로를 same-origin streaming media와 Web Audio `AnalyserNode` 경로로 교체했다. 무음 gain graph에서 즉시 frequency bin을 읽고 실제 플레이어의 재생·일시정지·현재 시각을 동기화하며, 미지원·실패 브라우저에서는 기존 bounded 전체 디코드로 복귀한다.
+- 운영 캡처에서 넓은 주파수 구간이 같은 높이로 포화된 것을 확인해 고역 gain을 2.6에서 0.45로 낮추고 hard clipping을 완만한 곡선으로 교체했다. overlay는 31%에서 27%, 막대 최대 높이는 46%에서 38%로 줄여 앨범 아트 가림을 완화한다.
 - 현재 트랙 artwork, 재생 위치, 이전·재생/일시정지·다음, 대기열 전환과 표시 방식 segmented control을 desktop·mobile 공통으로 제공한다.
 - 전역 플레이어에서 TIDAL ID가 있는 현재 트랙에만 `EQ` 진입 링크를 표시하고 Next client navigation으로 재생 세션을 보존한다. 현재 TIDAL 트랙 없이 직접 접근하면 Home으로 복귀한다.
 - HLS.js의 `BUFFER_CODECS`·`BUFFER_APPENDING`에서 init/media fMP4를 캡처하고, `AudioContext.decodeAudioData`로 mono PCM을 만든다.
