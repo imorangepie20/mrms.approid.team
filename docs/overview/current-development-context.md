@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `45e0a6c`
+최신 기능 기준 커밋: `78d028b`
 
-최신 Zorin Web 배포 기준 커밋: `45e0a6c` (Home 셰이더 히어로와 mobile 상단 겹침 보정)
+최신 Zorin Web 배포 기준 커밋: `78d028b` (일반 OAuth 재연결의 TIDAL Device 재생 세션 보존)
 
 최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-28 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
+- 2026-09-28 `78d028b`에서 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. Web만 배포했고 local/public Home·MMS·EMS·readiness와 로그인 MMS 렌더링을 확인했다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
 - 2026-09-27 `211a97f`에서 Home 상단을 `21st.dev`의 셰이더 히어로 방향으로 재구성했다. 잠긴 예제 소스 대신 공식 `@paper-design/shaders-react@0.0.67`의 `MeshGradient`를 사용하고 관리자 hero 콘텐츠, 실제 EMS 선곡과 이하 Home 흐름은 유지했다. `72e7677`, `45e0a6c`에서는 `390x844` 운영 확인으로 찾은 기존 검색·인증·페이지 제목 겹침을 기능 손실 없이 보정했다. desktop/mobile 셰이더, 다음 영역 노출과 console error 0건을 확인했고 WebGL fallback, 감속 모드, 긴 문구 줄바꿈을 포함한다. 상세는 `docs/changes/2026-09-27-home-shader-hero.md`에 기록한다.
 - 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 줄였고, `968cff2`에서는 늦은 HLS 구독에 마지막 media segment 1개를 즉시 재전달하면서 임시 timing advance를 제거했다. `77e7dda`에서는 재생 음질은 유지하고 direct 분석 요청만 `LOW`로 고정해 첫 반응 대기량을 줄였다. `102ffb5`에서는 독립 EQ 화면과 compact player 링크를 제거하고 전체 플레이어 앨범 아트 하단에 반투명 막대 overlay를 배치했으며 `/visualizer`는 Home으로 전환한다. `54a5988`에서는 전체 파일 decode 대기를 없앤 same-origin live streaming analyser를 적용했고, 운영 캡처를 기준으로 overlay를 27%로 줄이고 포화되던 고역 gain을 낮춘다. 분석 API는 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
 - 2026-09-27 1,000곡 품질 gate를 근거로 10,000곡 cohort와 MusicBrainz snapshot delta 운영을 설계·검토했고 결정은 `HOLD_10K`다. 기준 run은 `paused`, matched `154`, pending `806`, retryable `40`이며 1k 완료·사용자 승인과 로그인 browser decode가 남았다. 1k 종료는 `846곡/36 batch/GET 1,800`, 10k 확대는 신규 `9,000곡/375 batch/GET 18,000` hard cap으로 제안했으며 이번 외부 요청·DB write·scheduler 변경은 0건이다. 기존 scheduler의 무제한 snapshot resolver, 승인 없는 resume, 상태·disk·embedding 관측 부족을 선행 차단 조건으로 기록했다. 상세는 `docs/changes/2026-09-27-ems-10k-snapshot-diff-gate.md`에 있다.

@@ -29,8 +29,13 @@
 
 ## 배포·롤백
 
-- Web만 교체하며 DB migration과 data write는 없다.
-- 배포 전 release와 Web image를 rollback 대상으로 보존한다.
-- 문제가 생기면 이전 Web image를 `current`로 복원하고 release symlink를 이전 대상으로 되돌린 뒤 Web만 재생성한다.
-- 실제 release, image, health와 smoke 결과는 배포 완료 후 이 문서에 기록한다.
+- 기능 커밋 `78d028b`를 release `/home/approid/apps/music-pie/releases/78d028b`와 Web image `sha256:2389b2f...`로 배포했다.
+- Web 컨테이너만 재생성했고 `healthy`다. local/public Home·MMS·EMS·readiness는 모두 HTTP `200`이다.
+- 로그인된 public MMS를 새로고침해 가져온 플레이리스트 5개와 전역 플레이어 렌더링을 확인했다.
+- DB migration과 data write는 수행하지 않았다. EMS pipeline `7312158fc9b0...`과 source routines `d5e6f27110e6...`의 image·시작 시각은 배포 전후 동일하다.
+- rollback은 이전 release `/home/approid/apps/music-pie/releases/9adacf8`과 `music-pie-web:pre-tidal-session-78d028b`(`sha256:4281f99f...`)이다. 문제가 생기면 이전 image를 `current`로 복원하고 release symlink를 되돌린 뒤 Web만 재생성한다.
 
+## 미검증·다음 작업
+
+- 운영 행은 배포 전에 이미 일반 OAuth scope로 교체되어 있었다. 사용자가 전체 재생 연결을 한 번 다시 승인한 뒤 버튼 해제, `FULL` manifest와 실제 재생을 확인해야 한다.
+- 그 승인 뒤 일반 TIDAL OAuth를 다시 완료해도 Device scope가 유지되는 production 실계정 회귀는 사용자 승인 흐름을 포함하므로 아직 실행하지 않았다. 자동 테스트가 같은 계정 보존과 다른 계정 교체 경계를 담당한다.
