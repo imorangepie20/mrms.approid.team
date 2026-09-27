@@ -245,7 +245,7 @@ export function TidalSearch() {
             dismissedSuggestionRequestRef.current = null;
             if (suggestions.length > 0) setIsSuggestionsOpen(true);
           }}
-          onClick={() => {
+          onPointerDown={() => {
             dismissedSuggestionRequestRef.current = null;
             if (suggestions.length > 0) setIsSuggestionsOpen(true);
           }}

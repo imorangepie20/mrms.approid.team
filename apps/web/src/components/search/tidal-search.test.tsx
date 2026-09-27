@@ -151,7 +151,7 @@ describe("TidalSearch", () => {
     expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
     expect(searchbox).toHaveFocus();
 
-    fireEvent.click(searchbox);
+    fireEvent.pointerDown(searchbox);
     expect(screen.getByRole("listbox", { name: "검색어 추천" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
