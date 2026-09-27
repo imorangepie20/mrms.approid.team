@@ -12,6 +12,7 @@ type Props = {
 };
 
 const BAR_COUNT = 48;
+const BAR_HORIZONTAL_SHIFT_RATIO = 0.025;
 const HIGH_FREQUENCY_GAIN = 2.6;
 const NOISE_FLOOR = 0.04;
 
@@ -19,7 +20,16 @@ export function resolveVisualizerBarLayout(width: number, count = BAR_COUNT) {
   const gap = Math.max(2, width * 0.004);
   const barWidth = Math.max(2, (width * 0.84 - gap * (count - 1)) / count);
   const totalWidth = barWidth * count + gap * (count - 1);
-  return { barWidth, gap, startX: (width - totalWidth) / 2, totalWidth };
+  return {
+    barWidth,
+    gap,
+    startX: (width - totalWidth) / 2 + width * BAR_HORIZONTAL_SHIFT_RATIO,
+    totalWidth,
+  };
+}
+
+export function resolveVisualizerMaxBarHeight(height: number) {
+  return Math.min(height * 0.46, 390);
 }
 
 export function createVisualizerBarLevels(values: Float32Array, count = BAR_COUNT) {
@@ -72,7 +82,7 @@ function drawBars(
   const levels = createVisualizerBarLevels(values);
   const { barWidth, gap, startX, totalWidth } = resolveVisualizerBarLayout(width, levels.length);
   const baseline = height * 0.78;
-  const maxHeight = Math.min(height * 0.54, 460);
+  const maxHeight = resolveVisualizerMaxBarHeight(height);
 
   context.strokeStyle = "rgba(255, 255, 255, 0.16)";
   context.beginPath();

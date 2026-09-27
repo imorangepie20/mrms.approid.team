@@ -3,14 +3,20 @@ import { describe, expect, it } from "vitest";
 import {
   createVisualizerBarLevels,
   resolveVisualizerBarLayout,
+  resolveVisualizerMaxBarHeight,
 } from "./visual-equalizer-canvas";
 
 describe("visual equalizer bar distribution", () => {
-  it("centers the full bar group in the canvas", () => {
+  it("places the full bar group slightly right of center", () => {
     const width = 1000;
     const layout = resolveVisualizerBarLayout(width);
-    expect(layout.startX + layout.totalWidth / 2).toBeCloseTo(width / 2, 5);
+    expect(layout.startX + layout.totalWidth / 2).toBeCloseTo(width * 0.525, 5);
     expect(layout.startX).toBeGreaterThan(0);
+  });
+
+  it("keeps bar height below half of the stage", () => {
+    expect(resolveVisualizerMaxBarHeight(800)).toBe(368);
+    expect(resolveVisualizerMaxBarHeight(1200)).toBe(390);
   });
 
   it("spreads low and high frequency energy across logarithmic bands", () => {

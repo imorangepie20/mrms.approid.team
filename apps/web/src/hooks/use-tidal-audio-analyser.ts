@@ -25,6 +25,13 @@ export type TidalAudioAnalyser = {
 
 const FFT_SIZE = 256;
 const BIN_COUNT = FFT_SIZE / 2;
+const VISUALIZER_LOOKAHEAD_SECONDS = 1.8;
+
+export function resolveVisualizerReadTime(currentTime: number) {
+  return Number.isFinite(currentTime)
+    ? Math.max(0, currentTime + VISUALIZER_LOOKAHEAD_SECONDS)
+    : Number.NaN;
+}
 
 function segmentStart(segment: CapturedAudioSegment, audio: HTMLAudioElement | null) {
   if (segment.startTime !== null) return segment.startTime;
@@ -178,7 +185,7 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
         return;
       }
       const currentTime = audio.current?.currentTime ?? Number.NaN;
-      const samples = ring.current.readWindow(currentTime, FFT_SIZE);
+      const samples = ring.current.readWindow(resolveVisualizerReadTime(currentTime), FFT_SIZE);
       if (!samples) {
         zero(target);
         return;
