@@ -2,11 +2,11 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `8822341`
+최신 기능 기준 커밋: `d0632d0`
 
-최신 Zorin Web 배포 기준 커밋: `8822341` (GMS 트랙 결정 액션 축약)
+최신 Zorin Web 배포 기준 커밋: `d0632d0` (Spotify 차트 EMS 수집·관리자 실행)
 
-최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
+최신 Zorin EMS 배포 기준 커밋: `d0632d0` (Spotify 차트 admin worker, 상시 source-routines는 `951fb9a` image 유지)
 
 ## 이번 목표
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-28 `d0632d0`에서 Spotify 추천 차트의 네 playlist를 관리자 `/admin/ems/spotify`에서 bounded 실행하고 public EMS `Spotify 차트`에 전시하도록 추가했다. 운영 run `8ca016f7-dac0-4604-b18b-6b1f49f68536`은 Spotify `4/4`, TIDAL `121/450`, source membership 200, unique 후보 110, matched 91, not_found 19로 완료됐다. playlist별 public 전시는 `46/36/45/38`곡이고 duplicate 0, active snapshot 1이다. 기존 active EMS 39,035곡과 사용자 집계 `1,5,0,1`을 dump 복원으로 대조했으며 배포 후 사용자 집계는 동일하고 active EMS만 39,099곡으로 증가했다. 상세는 `docs/changes/2026-09-28-spotify-chart-import.md`에 기록한다.
 - 2026-09-28 `be3c8e5`에서 GMS 개별 트랙 추천을 카드 rail에서 곡·아티스트·앨범·결정 액션이 구분된 세로 목록으로 전환하고, `8822341`에서 추천 수락을 `+ MMS`, 싫어요를 접근성 이름과 tooltip을 갖춘 Lucide `ThumbsDown` 아이콘으로 축약했다. 트랙 선택 시 GMS 추천 전체를 대기열로 설정하며 desktop과 `390x844`에서 12개 목록 행·축약 액션, 기존 카드·rail 0개, mobile overflow·action 잘림 0건과 browser 오류 0건을 확인했다. 현재 GMS 계약은 `Track[]`만 제공하므로 가짜 앨범·플레이리스트 데이터를 만들지 않았고 실제 컬렉션 엔터티는 카드형으로 표시하는 원칙을 유지한다. 상세는 `docs/changes/2026-09-28-gms-entity-layout.md`에 기록한다.
 - 2026-09-28 `d33d8fb`에서 앨범·플레이리스트의 셔플 큐 생성과 첫 곡 load를 provider의 원자적 `playQueue`로 통합하고, 재생 불가 곡 제외·순서 변화 보장·일반 큐 전환 시 셔플 해제를 적용했다. EQ는 실제 analyser RMS 에너지를 저역 중앙·고역 양쪽의 48개 대칭 막대로 다시 구성했다. 로그인 public MMS 31곡에서 무작위 첫 곡과 섞인 다음 곡 재생, `pcm` canvas 변화, desktop·`390x844`, browser 오류 0건을 확인했다. 상세는 `docs/changes/2026-09-28-shuffle-equalizer-reimplementation.md`에 기록한다.
 - 2026-09-28 `fa3e1ab`에서 검색 완료 즉시 제시어를 닫던 `94657c3`의 부자연스러운 동작을 교체했다. 현재는 검색 결과와 제시어를 함께 유지하고, 검색창·제시어 이외 영역 클릭 또는 `Escape`에서 닫으며, 검색창을 다시 누르거나 focus하면 보존한 제시어를 다시 연다. public Search의 결과·제시어 동시 표시, 외부 클릭·`Escape` 닫기와 Web health를 확인했고 오래된 응답 차단·새 입력·탭 선택·검색 실패 fallback은 유지한다. 상세는 `docs/changes/2026-09-28-search-suggestion-outside-dismissal.md`에 기록한다.
@@ -99,6 +100,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-28 | pipeline/Web/admin test·lint·build·audit, Zorin backup·migration·Web/EMS worker release, 관리자 실행, DB/API/browser QA | 4개×50곡, 예산 준수, completed snapshot만 전시, duplicate 0, 기존 EMS·사용자 데이터 보존 | 통과: run `8ca016f7...`, Spotify `4/4`, TIDAL `121/450`, matched/not_found `91/19`, public `46/36/45/38`, active `39,035→39,099`, 사용자 집계 `1,5,0,1` 동일, desktop·`390x844` overflow·console 오류 0. Web 전체 test는 기존 Auth mock 3건 실패 |
 | 2026-09-28 | `apps/web` GMS focused·full Vitest, 변경 파일 ESLint, build, production audit, Web-only release, 로그인 GMS desktop·`390x844` browser QA | 트랙 목록형, 전체 추천 queue, `+ MMS`·싫어요 아이콘, mobile overflow·action 잘림 0, EMS 보존 | 통과: focused 10개, build·lint·diff check, production audit 취약점 0, release `8822341`, 운영 12행·12개 축약 액션, 카드·rail·mobile overflow·action 잘림·browser 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
 | 2026-09-28 | `apps/web` shuffle/EQ focused·full Vitest, 변경 파일 ESLint, build, Web-only release, 로그인 MMS desktop·`390x844` browser QA | 셔플 큐 즉시 재생·다음 곡 순서, 실제 PCM EQ 변화, 겹침·browser 오류 0, EMS 보존 | 통과: focused 4파일·27개, build·lint·diff check, release `d33d8fb`, 31곡 셔플 첫 곡·다음 곡 일치, `pcm` canvas `418x112`와 시간차 변화, desktop/mobile 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
 | 2026-09-28 | `apps/web` focused/full Vitest·변경 파일 ESLint·build·diff check, Zorin Web-only release, public HTTP·로그인 Search browser QA | 결과와 제시어 동시 표시, 외부 클릭·`Escape` 닫기, 입력창 재진입, 기존 서비스·EMS 보존 | 통과: focused 7개, ESLint 오류·경고 0, build, release `fa3e1ab`, Web healthy, public 5개 경로 HTTP 200, 결과+listbox 1·외부 클릭/`Escape` 뒤 0, EMS ID/image/start 불변. 전체 테스트는 기존 인증 mock 3건 실패, focus 유지 재클릭 browser 자동화 미검증 |
