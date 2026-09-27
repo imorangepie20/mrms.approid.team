@@ -36,11 +36,13 @@
 ## 운영 배포와 브라우저 QA
 
 - 기능 커밋 `58ba65e`를 release `/home/approid/apps/music-pie/releases/58ba65e`와 Web image `music-pie-web:58ba65e`로 배포했다.
+- 막대 분포 보완 커밋 `2226ca9`를 release `/home/approid/apps/music-pie/releases/2226ca9`와 Web image `music-pie-web:2226ca9`로 Web에 추가 배포했다.
 - Web container는 `healthy`이고 local/public readiness, Home, EMS, `/visualizer`가 HTTP 200이다. 비인증 analysis API는 401이다.
 - 공개 desktop 브라우저에서 EMS 트랙 선택 뒤 Next client navigation이 현재 트랙과 12곡 대기열을 보존하는 것을 확인했다.
 - `/visualizer`에서 현재 artwork·제목·아티스트, 이전/재생/다음, 재생 위치, 대기열 전환, 막대/방사형 키보드 전환이 동작했다.
 - 비회원 오류는 `로그인 후 실시간 이퀄라이저를 사용할 수 있습니다.`와 `returnTo=/visualizer` 로그인 링크로 표시되고 브라우저 warning/error는 0건이었다.
 - EMS pipeline과 source-routines의 container ID·image·시작 시각은 배포 전후 동일하다. DB migration과 worker restart는 없었다.
+- 막대 분포 보완 배포 뒤 app browser 연결이 `User unavailable`이라 로그인 live PCM 화면 재확인은 수행하지 못했다. 로그 밴드 분포와 canvas 중앙 정렬은 focused test로 검증했다.
 
 ## 미검증 항목
 
@@ -50,5 +52,6 @@
 ## 롤백
 
 - 기능 전체 롤백 기준은 이전 release `/home/approid/apps/music-pie/releases/c76197b`와 image `music-pie-web:pre-visualizer-ca0ce76`이다.
-- 마지막 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f6392b0`와 image `music-pie-web:pre-visualizer-errors-58ba65e`를 사용한다.
+- 막대 분포 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/91b409e`와 image `music-pie-web:pre-visualizer-bars-2226ca9`를 사용한다.
+- 오류 상태 보완까지 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f6392b0`와 image `music-pie-web:pre-visualizer-errors-58ba65e`를 사용한다.
 - 롤백 시 Web만 재생성하고 EMS·PostgreSQL·embedding·상시 worker는 재시작하지 않는다.
