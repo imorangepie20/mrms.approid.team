@@ -144,10 +144,14 @@ describe("TidalSearch", () => {
     expect(await screen.findByText("Human Behaviour")).toBeInTheDocument();
     expect(screen.getByRole("listbox", { name: "검색어 추천" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("heading", { name: "듣고 싶은 음악을 바로 찾아보세요" }));
-    expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
+    const searchbox = screen.getByRole("searchbox");
+    expect(searchbox).toHaveFocus();
 
-    await user.click(screen.getByRole("searchbox"));
+    fireEvent.pointerDown(screen.getByRole("heading", { name: "듣고 싶은 음악을 바로 찾아보세요" }));
+    expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
+    expect(searchbox).toHaveFocus();
+
+    fireEvent.click(searchbox);
     expect(screen.getByRole("listbox", { name: "검색어 추천" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");

@@ -245,6 +245,10 @@ export function TidalSearch() {
             dismissedSuggestionRequestRef.current = null;
             if (suggestions.length > 0) setIsSuggestionsOpen(true);
           }}
+          onClick={() => {
+            dismissedSuggestionRequestRef.current = null;
+            if (suggestions.length > 0) setIsSuggestionsOpen(true);
+          }}
           onKeyDown={(event) => {
             if (event.key === "Escape") {
               dismissedSuggestionRequestRef.current = requestIdRef.current;
