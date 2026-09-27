@@ -49,3 +49,11 @@
 
 - 이번 확인에서는 Spotify 차트 트랙의 실제 오디오 재생 시작과 codec별 재생은 실행하지 않았다. 재생 버튼은 기존 EMS `TrackList`와 동일한 경로를 사용한다.
 - 새로 활성화된 트랙의 임베딩 backfill은 이번 수집 gate에 포함하지 않았다.
+
+## 관리자 레이아웃 후속 수정
+
+- `6f48993`에서 viewport 기준 `xl` 4열이 256px 관리자 sidebar를 고려하지 않아 1280px 부근에서 본문을 넘기던 문제를 수정했다.
+- 수집 대상과 실행 통계의 4열 전환을 `2xl`로 늦추고, main·카드·통계 값에 축소와 줄바꿈 경계를 추가했다.
+- 관리자 Vitest 4개, lint 오류 0건(기존 template 경고 39개), 관리자와 Web production build를 통과했다.
+- 운영 1280px에서는 수집 대상·통계가 각각 2열이고 `scrollWidth=clientWidth`, 1536px에서는 각각 4열이고 `scrollWidth=clientWidth`임을 확인했다. 두 화면 모두 실행 ID와 액션이 viewport 안에 있으며 console error는 0건이다.
+- Web image `sha256:c898dda68d0a...`를 배포했다. rollback은 `music-pie-web:pre-spotify-layout-6f48993`이며 EMS worker와 상시 source-routines는 재시작하지 않았다.

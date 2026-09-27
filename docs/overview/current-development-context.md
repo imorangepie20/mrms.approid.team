@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `d0632d0`
+최신 기능 기준 커밋: `6f48993`
 
-최신 Zorin Web 배포 기준 커밋: `d0632d0` (Spotify 차트 EMS 수집·관리자 실행)
+최신 Zorin Web 배포 기준 커밋: `6f48993` (Spotify 차트 관리자 1280px 레이아웃 보정)
 
 최신 Zorin EMS 배포 기준 커밋: `d0632d0` (Spotify 차트 admin worker, 상시 source-routines는 `951fb9a` image 유지)
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-28 `6f48993`에서 관리자 Spotify 차트 화면의 4열 전환을 sidebar 폭을 고려한 `2xl`로 늦추고 main·카드·통계 값의 축소·줄바꿈 경계를 보강했다. 운영 1280px는 2열, 1536px는 4열이며 두 크기 모두 `scrollWidth=clientWidth`, 액션·실행 ID 잘림 0건, console error 0건이다. Web만 교체했고 EMS worker와 source-routines는 유지했다.
 - 2026-09-28 `d0632d0`에서 Spotify 추천 차트의 네 playlist를 관리자 `/admin/ems/spotify`에서 bounded 실행하고 public EMS `Spotify 차트`에 전시하도록 추가했다. 운영 run `8ca016f7-dac0-4604-b18b-6b1f49f68536`은 Spotify `4/4`, TIDAL `121/450`, source membership 200, unique 후보 110, matched 91, not_found 19로 완료됐다. playlist별 public 전시는 `46/36/45/38`곡이고 duplicate 0, active snapshot 1이다. 기존 active EMS 39,035곡과 사용자 집계 `1,5,0,1`을 dump 복원으로 대조했으며 배포 후 사용자 집계는 동일하고 active EMS만 39,099곡으로 증가했다. 상세는 `docs/changes/2026-09-28-spotify-chart-import.md`에 기록한다.
 - 2026-09-28 `be3c8e5`에서 GMS 개별 트랙 추천을 카드 rail에서 곡·아티스트·앨범·결정 액션이 구분된 세로 목록으로 전환하고, `8822341`에서 추천 수락을 `+ MMS`, 싫어요를 접근성 이름과 tooltip을 갖춘 Lucide `ThumbsDown` 아이콘으로 축약했다. 트랙 선택 시 GMS 추천 전체를 대기열로 설정하며 desktop과 `390x844`에서 12개 목록 행·축약 액션, 기존 카드·rail 0개, mobile overflow·action 잘림 0건과 browser 오류 0건을 확인했다. 현재 GMS 계약은 `Track[]`만 제공하므로 가짜 앨범·플레이리스트 데이터를 만들지 않았고 실제 컬렉션 엔터티는 카드형으로 표시하는 원칙을 유지한다. 상세는 `docs/changes/2026-09-28-gms-entity-layout.md`에 기록한다.
 - 2026-09-28 `d33d8fb`에서 앨범·플레이리스트의 셔플 큐 생성과 첫 곡 load를 provider의 원자적 `playQueue`로 통합하고, 재생 불가 곡 제외·순서 변화 보장·일반 큐 전환 시 셔플 해제를 적용했다. EQ는 실제 analyser RMS 에너지를 저역 중앙·고역 양쪽의 48개 대칭 막대로 다시 구성했다. 로그인 public MMS 31곡에서 무작위 첫 곡과 섞인 다음 곡 재생, `pcm` canvas 변화, desktop·`390x844`, browser 오류 0건을 확인했다. 상세는 `docs/changes/2026-09-28-shuffle-equalizer-reimplementation.md`에 기록한다.
