@@ -236,6 +236,26 @@ describe("PersistentPlayer", () => {
     expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
   });
 
+  it("offers login without exposing the unauthorized error code", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    renderPlayer(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    act(() => engine.emit({ type: "error", code: "unauthorized" }));
+
+    expect(screen.getByRole("link", { name: "로그인 후 재생" })).toHaveAttribute(
+      "href",
+      "/api/auth/login?returnTo=%2F",
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("로그인 후 재생할 수 있습니다.");
+    expect(screen.queryByText("unauthorized")).not.toBeInTheDocument();
+  });
+
   it("retries the current queue item after device authorization succeeds", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();

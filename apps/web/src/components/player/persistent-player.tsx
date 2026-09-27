@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { LikeButton } from "@/components/music/like-button";
@@ -15,7 +16,16 @@ function formatTime(seconds: number) {
   return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
 }
 
+function playbackErrorMessage(code: string) {
+  if (code === "unauthorized") return "로그인 후 재생할 수 있습니다.";
+  if (code === "tidal_device_authorization_required" || code === "tidal_stream_scope_required") {
+    return "TIDAL 재생 연결이 필요합니다.";
+  }
+  return "트랙을 재생하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+}
+
 export function PersistentPlayer() {
+  const pathname = usePathname();
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const {
@@ -44,8 +54,10 @@ export function PersistentPlayer() {
   const canPrevious = currentIndex !== null && (currentIndex > 0 || repeatMode === "all");
   const canNext = currentIndex !== null && (currentIndex < queue.length - 1 || repeatMode === "all");
   const repeatLabel = repeatMode === "off" ? "반복 끔" : repeatMode === "all" ? "전체 반복" : "한 곡 반복";
+  const needsLogin = playbackError === "unauthorized";
   const needsDeviceAuthorization = playbackError === "tidal_device_authorization_required" ||
     playbackError === "tidal_stream_scope_required";
+  const errorMessage = playbackError ? playbackErrorMessage(playbackError) : null;
 
   return (
     <>
@@ -99,6 +111,14 @@ export function PersistentPlayer() {
                 item={trackLikeItem(currentTrack)}
               />
               <div className="flex shrink-0 items-center gap-1">
+                {needsLogin ? (
+                  <a
+                    className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-md border border-white/20 px-3 text-xs font-bold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+                    href={`/api/auth/login?returnTo=${encodeURIComponent(pathname)}`}
+                  >
+                    로그인 후 재생
+                  </a>
+                ) : null}
                 {needsDeviceAuthorization ? (
                   <TidalDeviceAuthorization
                     onConnected={() => {
@@ -174,7 +194,7 @@ export function PersistentPlayer() {
                   {playbackStatus === "loading" ? "트랙을 불러오는 중" : "재생을 버퍼링하는 중"}
                 </span>
               ) : null}
-              {playbackError ? <span role="alert" className="sr-only">{playbackError}</span> : null}
+              {errorMessage ? <span role="alert" className="sr-only">{errorMessage}</span> : null}
             </>
           ) : (
             <p className="text-sm text-slate-400">트랙을 선택하면 여기에서 계속 재생할 수 있어요.</p>
