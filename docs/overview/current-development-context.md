@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `94657c3`
+최신 기능 기준 커밋: `fa3e1ab`
 
-최신 Zorin Web 배포 기준 커밋: `94657c3` (검색 완료 후 제시어 닫기)
+최신 Zorin Web 배포 기준 커밋: `fa3e1ab` (검색 제시어 외부 클릭 닫기)
 
 최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-28 `94657c3`의 검색 완료 즉시 제시어 닫기는 후속 사용자 검토에서 부자연스러운 것으로 확인됐다. 현재 최종 동작은 검색 결과와 제시어를 함께 유지하고, 검색창·제시어 이외 영역 클릭 또는 `Escape`에서 닫으며, 검색창을 다시 누르거나 focus하면 보존한 제시어를 다시 여는 방식이다. 오래된 응답 차단·새 입력·탭 선택·검색 실패 fallback은 유지한다. 상세는 `docs/changes/2026-09-28-search-suggestion-outside-dismissal.md`에 기록한다.
+- 2026-09-28 `fa3e1ab`에서 검색 완료 즉시 제시어를 닫던 `94657c3`의 부자연스러운 동작을 교체했다. 현재는 검색 결과와 제시어를 함께 유지하고, 검색창·제시어 이외 영역 클릭 또는 `Escape`에서 닫으며, 검색창을 다시 누르거나 focus하면 보존한 제시어를 다시 연다. public Search의 결과·제시어 동시 표시, 외부 클릭·`Escape` 닫기와 Web health를 확인했고 오래된 응답 차단·새 입력·탭 선택·검색 실패 fallback은 유지한다. 상세는 `docs/changes/2026-09-28-search-suggestion-outside-dismissal.md`에 기록한다.
 - 2026-09-28 `78d028b`에서 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. Web만 배포했고 local/public Home·MMS·EMS·readiness와 로그인 MMS 렌더링을 확인했다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
 - 2026-09-27 `211a97f`에서 Home 상단을 `21st.dev`의 셰이더 히어로 방향으로 재구성했다. 잠긴 예제 소스 대신 공식 `@paper-design/shaders-react@0.0.67`의 `MeshGradient`를 사용하고 관리자 hero 콘텐츠, 실제 EMS 선곡과 이하 Home 흐름은 유지했다. `72e7677`, `45e0a6c`에서는 `390x844` 운영 확인으로 찾은 기존 검색·인증·페이지 제목 겹침을 기능 손실 없이 보정했다. desktop/mobile 셰이더, 다음 영역 노출과 console error 0건을 확인했고 WebGL fallback, 감속 모드, 긴 문구 줄바꿈을 포함한다. 상세는 `docs/changes/2026-09-27-home-shader-hero.md`에 기록한다.
 - 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 줄였고, `968cff2`에서는 늦은 HLS 구독에 마지막 media segment 1개를 즉시 재전달하면서 임시 timing advance를 제거했다. `77e7dda`에서는 재생 음질은 유지하고 direct 분석 요청만 `LOW`로 고정해 첫 반응 대기량을 줄였다. `102ffb5`에서는 독립 EQ 화면과 compact player 링크를 제거하고 전체 플레이어 앨범 아트 하단에 반투명 막대 overlay를 배치했으며 `/visualizer`는 Home으로 전환한다. `54a5988`에서는 전체 파일 decode 대기를 없앤 same-origin live streaming analyser를 적용했고, 운영 캡처를 기준으로 overlay를 27%로 줄이고 포화되던 고역 gain을 낮춘다. 분석 API는 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
@@ -97,6 +97,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-28 | `apps/web` focused/full Vitest·변경 파일 ESLint·build·diff check, Zorin Web-only release, public HTTP·로그인 Search browser QA | 결과와 제시어 동시 표시, 외부 클릭·`Escape` 닫기, 입력창 재진입, 기존 서비스·EMS 보존 | 통과: focused 7개, ESLint 오류·경고 0, build, release `fa3e1ab`, Web healthy, public 5개 경로 HTTP 200, 결과+listbox 1·외부 클릭/`Escape` 뒤 0, EMS ID/image/start 불변. 전체 테스트는 기존 인증 mock 3건 실패, focus 유지 재클릭 browser 자동화 미검증 |
 | 2026-09-27 | `apps/web` PCM·DFT·capture·player·visualizer·analysis route focused/full Vitest, lint, build, Web-only release, public desktop browser QA | 실제 신호만 사용, TIDAL 트랙 진입 경계, 48MiB hard cap, 세션·대기열 보존, 오류 경로, 기존 서비스 유지 | 통과: focused 27개·연결 회귀 24개·보완 13개, lint 오류 0, build·diff check, release `58ba65e`, Web healthy, local/public 200, analysis 비인증 401, desktop 대기열·모드·오류 경로와 console 오류 0. 전체 기존 실패 4건, mobile 실제 viewport·로그인 PCM 미검증 |
 | 2026-09-27 | 1k 결과·migration·Python worker/source routine·TypeScript 관리자 계약 정적 검토 | 10k 진입/중단 기준과 hard cap, 중복·pause/resume·429·disk·embedding 시나리오, 승인 결정 기록 | 보류: `HOLD_10K`, 1k 종료 `846/36/1,800`, 10k 확대 신규 `9,000/375/18,000`, 외부 실행·DB write·scheduler 변경 0건 |
 | 2026-09-27 | pipeline TDD·전체 pytest, bounded resolver·embedding, 격리 PostgreSQL restore, 전수 match audit, 20곡 playback media probe, local/public smoke | 24/50/1 이내, false match 1% 미만, embedding·rollback·보존 통과, run paused | 통과: pipeline 58개·Web focused 32개, 24/24 matched·GET 24, 최종 `154/806/40`, false match 0/154, target embedding 154/154·전체 미완료 0, playback media 20/20, 기존 active 38,861/38,861·사용자 fingerprint 보존 |
