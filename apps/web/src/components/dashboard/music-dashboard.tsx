@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+import { HomeShaderHero } from "@/components/dashboard/home-shader-hero";
 import { EditorialSectionRail } from "@/components/ems/editorial-section-rail";
 import { TrackList } from "@/components/music/track-list";
 import { LikeButton } from "@/components/music/like-button";
@@ -107,15 +108,7 @@ function Home() {
   return (
     <section className="dashboard-page">
       <header className="space-title">Home<small>DISCOVER</small></header>
-      {hero ? <section className="home-feature" aria-labelledby="home-feature-title">
-        <div className="home-feature-copy">
-          <p className="home-wordmark">MUSIC PIE</p>
-          <h1 id="home-feature-title">{hero.title}</h1>
-          <p>{hero.body}</p>
-          {hero.linkHref ? <Link className="home-action" href={hero.linkHref}>{hero.linkLabel}</Link> : null}
-        </div>
-        <div className="home-feature-art" aria-hidden="true"><div className="home-disc"><div /></div><span>DISCOVER<br />YOUR SOUND</span></div>
-      </section> : null}
+      {hero ? <HomeShaderHero hero={hero} /> : null}
       {concept ? <section className="home-concept" aria-labelledby="home-concept-title">
         <div><h2 id="home-concept-title">{concept.title}</h2><p>{concept.body}</p></div>
         {concept.linkHref ? <Link href={concept.linkHref}>{concept.linkLabel} <span aria-hidden="true">↗</span></Link> : null}

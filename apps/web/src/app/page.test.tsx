@@ -24,29 +24,45 @@ const track = {
 };
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
-    totalCount: 54,
-    sections: [
-      {
-        slug: "new-releases",
-        title: "신곡 퍼레이드",
-        description: "지금 막 도착한 새로운 음악",
-        tracks: [track],
-      },
-      {
-        slug: "seasonal-jazz",
-        title: "시원한 가을 바람과 함께, 재즈",
-        description: "여유로운 재즈 셀렉션",
-        tracks: [],
-      },
-      {
-        slug: "night-rnb",
-        title: "도시의 밤을 채우는 R&B",
-        description: "늦은 시간에 어울리는 부드러운 트랙",
-        tracks: [],
-      },
-    ],
-  })));
+  vi.stubGlobal("fetch", vi.fn().mockImplementation((input: RequestInfo | URL) => {
+    if (String(input).includes("/api/home/content")) {
+      return Promise.resolve(Response.json([{
+        active: true,
+        body: "플레이리스트에서 시작해 새로운 음악을 발견하세요.",
+        id: "hero-main",
+        kind: "hero",
+        linkHref: "/ems",
+        linkLabel: "카탈로그 둘러보기",
+        sortOrder: 0,
+        title: "당신의 다음 장면",
+        updatedAt: "2026-09-27T00:00:00.000Z",
+      }]));
+    }
+
+    return Promise.resolve(Response.json({
+      totalCount: 54,
+      sections: [
+        {
+          slug: "new-releases",
+          title: "신곡 퍼레이드",
+          description: "지금 막 도착한 새로운 음악",
+          tracks: [track],
+        },
+        {
+          slug: "seasonal-jazz",
+          title: "시원한 가을 바람과 함께, 재즈",
+          description: "여유로운 재즈 셀렉션",
+          tracks: [],
+        },
+        {
+          slug: "night-rnb",
+          title: "도시의 밤을 채우는 R&B",
+          description: "늦은 시간에 어울리는 부드러운 트랙",
+          tracks: [],
+        },
+      ],
+    }));
+  }));
 });
 
 function renderPage() {
@@ -60,9 +76,10 @@ function renderPage() {
   );
 }
 
-it("renders the dashboard discovery hero and catalog entry", () => {
+it("renders the dashboard discovery hero and catalog entry", async () => {
   renderPage();
-  expect(screen.getByRole("heading", { name: "당신의 다음 장면" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "당신의 다음 장면" })).toBeInTheDocument();
+  expect(screen.getByText("PERSONAL MUSIC DISCOVERY")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "카탈로그 둘러보기" })).toHaveAttribute("href", "/ems");
 });
 
