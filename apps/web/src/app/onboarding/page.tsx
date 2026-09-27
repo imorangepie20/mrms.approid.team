@@ -22,7 +22,7 @@ export default function OnboardingPage() {
           </ol>
         </section>
         <div className="onboarding-form">
-          <TidalOnboarding connectHref="/api/tidal/connect" />
+          <TidalOnboarding connectHref="/tidal-connection?returnTo=%2Fonboarding%3Ftidal%3Dconnected" />
         </div>
       </div>
     </main>

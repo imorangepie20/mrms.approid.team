@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { TidalConnectionAuthorization } from "@/components/account/tidal-connection-authorization";
 import { auth0 } from "@/lib/auth/auth0";
 import { getUserConnection } from "@/lib/db/user-connections";
+import { hasTidalDeviceSessionScopes } from "@/lib/tidal/oauth";
 
 function safeReturnTo(value: string | string[] | undefined) {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return "/";
@@ -21,6 +23,7 @@ export default async function TidalConnectionPage({
 
   const connection = await getUserConnection(session.user.sub);
   const connected = connection?.status === "connected";
+  const playbackConnected = connected && hasTidalDeviceSessionScopes(connection.scope);
   const returnTo = safeReturnTo((await searchParams).returnTo);
 
   return (
@@ -31,23 +34,23 @@ export default async function TidalConnectionPage({
         <h1 className="onboarding-title mt-3">TIDAL 연결 확인</h1>
         <p className="mt-4 leading-7 text-slate-300">
           {connected
-            ? "TIDAL 계정이 연결되어 있습니다. 음악 화면으로 계속할 수 있습니다."
-            : "TIDAL을 연결하면 플레이리스트를 가져와 개인 음악 공간과 추천에 사용할 수 있습니다."}
+            ? playbackConnected
+              ? "TIDAL 계정과 전체 재생이 연결되어 있습니다. 음악 화면으로 계속할 수 있습니다."
+              : "기존 연결을 한 번 승인하면 플레이리스트와 전체 재생을 함께 사용할 수 있습니다."
+            : "한 번의 승인으로 TIDAL 플레이리스트 가져오기와 전체 재생을 함께 연결합니다."}
         </p>
         <strong className="mt-6 block text-lg text-white" role="status">
-          {connected ? "TIDAL 연결됨" : connection?.status === "reauthentication_required" ? "TIDAL 재연결 필요" : "TIDAL 연결 필요"}
+          {playbackConnected ? "TIDAL 연결됨" : connected ? "TIDAL 연결 마무리 필요" : connection?.status === "reauthentication_required" ? "TIDAL 재연결 필요" : "TIDAL 연결 필요"}
         </strong>
         <div className="mt-8 flex flex-wrap gap-3">
-          {connected ? (
+          {playbackConnected ? (
             <Link className="onboarding-primary-action inline-flex min-h-11 items-center rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118]" href={returnTo}>
               음악 화면으로 계속
             </Link>
           ) : (
-            <a className="onboarding-primary-action inline-flex min-h-11 items-center rounded-xl bg-[var(--brand)] px-5 font-bold text-[#111118]" href="/api/tidal/connect">
-              TIDAL 연결하기
-            </a>
+            <TidalConnectionAuthorization returnTo={returnTo} />
           )}
-          {connected ? (
+          {playbackConnected ? (
             <Link className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-5" href="/onboarding">플레이리스트 가져오기</Link>
           ) : (
             <Link className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-5" href={returnTo}>나중에 연결하고 계속</Link>

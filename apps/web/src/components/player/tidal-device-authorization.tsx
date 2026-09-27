@@ -13,10 +13,14 @@ type Authorization = {
 };
 
 export function TidalDeviceAuthorization({
+  className = "min-h-10 rounded-full border border-cyan-300/30 px-3 text-xs font-bold text-cyan-100",
   fetcher = fetch,
+  intent = "playback",
   onConnected,
 }: {
+  className?: string;
   fetcher?: typeof fetch;
+  intent?: "connection" | "playback";
   onConnected?: () => void;
 }) {
   const [authorization, setAuthorization] = useState<Authorization | null>(null);
@@ -24,6 +28,8 @@ export function TidalDeviceAuthorization({
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "starting" | "pending" | "connected">("idle");
   const timeoutRef = useRef<number | null>(null);
+  const isInitialConnection = intent === "connection";
+  const dialogLabel = isInitialConnection ? "TIDAL 연결" : "TIDAL 재생 연결";
 
   useEffect(() => () => {
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
@@ -51,7 +57,7 @@ export function TidalDeviceAuthorization({
         }
         throw new Error(body.code || "tidal_device_authorization_failed");
       } catch {
-        setError("TIDAL 재생 연결에 실패했습니다.");
+        setError(isInitialConnection ? "TIDAL 연결에 실패했습니다." : "TIDAL 재생 연결에 실패했습니다.");
         setStatus("idle");
       }
     }, Math.max(0, delaySeconds) * 1000);
@@ -79,7 +85,7 @@ export function TidalDeviceAuthorization({
       setStatus("pending");
       void poll(next, next.intervalSeconds);
     } catch {
-      setError("TIDAL 재생 연결을 시작하지 못했습니다.");
+      setError(isInitialConnection ? "TIDAL 연결을 시작하지 못했습니다." : "TIDAL 재생 연결을 시작하지 못했습니다.");
       setStatus("idle");
     }
   };
@@ -92,19 +98,23 @@ export function TidalDeviceAuthorization({
 
   return (
     <>
-      <button className="min-h-10 rounded-full border border-cyan-300/30 px-3 text-xs font-bold text-cyan-100" type="button" onClick={() => void start()}>
-        TIDAL 재생 연결
+      <button className={className} type="button" onClick={() => void start()}>
+        {isInitialConnection ? "TIDAL 연결하기" : "TIDAL 재생 연결"}
       </button>
       {isOpen ? createPortal(
-        <div aria-label="TIDAL 재생 연결" aria-modal="true" className="fixed inset-0 z-60 grid place-items-center bg-black/75 p-4" role="dialog">
+        <div aria-label={dialogLabel} aria-modal="true" className="fixed inset-0 z-60 grid place-items-center bg-black/75 p-4" role="dialog">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111118] p-6 text-white">
             <div className="flex items-start justify-between gap-4">
-              <div><p className="text-xs font-semibold tracking-[0.16em] text-cyan-300">TIDAL</p><h2 className="mt-2 text-xl font-semibold">전체 재생 연결</h2></div>
-              <button aria-label="TIDAL 재생 연결 닫기" className="size-10 rounded-full hover:bg-white/10" type="button" onClick={close}>×</button>
+              <div><p className="text-xs font-semibold tracking-[0.16em] text-cyan-300">TIDAL</p><h2 className="mt-2 text-xl font-semibold">{isInitialConnection ? "계정과 재생 연결" : "전체 재생 연결"}</h2></div>
+              <button aria-label={`${dialogLabel} 닫기`} className="size-10 rounded-full hover:bg-white/10" type="button" onClick={close}>×</button>
             </div>
             {authorization ? (
               <div className="mt-6 space-y-4">
-                <p className="text-sm text-slate-300">아래 코드를 TIDAL 인증 화면에서 승인하세요.</p>
+                <p className="text-sm text-slate-300">
+                  {isInitialConnection
+                    ? "아래 코드를 한 번 승인하면 플레이리스트와 전체 재생이 함께 연결됩니다."
+                    : "아래 코드를 TIDAL 인증 화면에서 승인하세요."}
+                </p>
                 <strong className="block text-center text-3xl tracking-[0.25em]">{authorization.userCode}</strong>
                 <a className="block min-h-11 rounded-lg bg-cyan-300 px-4 py-3 text-center text-sm font-bold text-[#07151a]" href={authorization.verificationUriComplete || authorization.verificationUri} rel="noreferrer" target="_blank">TIDAL 인증 열기</a>
                 <p aria-live="polite" className="text-center text-sm text-slate-400">{status === "connected" ? "연결 완료" : "승인 대기 중"}</p>

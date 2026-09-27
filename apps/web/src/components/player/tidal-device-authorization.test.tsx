@@ -34,6 +34,25 @@ it("shows a device code and reports a connected token", async () => {
   expect(screen.queryByRole("dialog", { name: "TIDAL 재생 연결" })).not.toBeInTheDocument();
 });
 
+it("presents initial connection as one approval for playlists and playback", async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({
+    deviceCode: "device-1",
+    expiresAt: "2026-09-22T00:00:00.000Z",
+    intervalSeconds: 30,
+    userCode: "ABCD",
+    verificationUri: "https://link.tidal.com",
+    verificationUriComplete: null,
+  }));
+  const user = userEvent.setup();
+
+  render(<TidalDeviceAuthorization fetcher={fetcher} intent="connection" />);
+  await user.click(screen.getByRole("button", { name: "TIDAL 연결하기" }));
+
+  expect(await screen.findByRole("dialog", { name: "TIDAL 연결" })).toBeInTheDocument();
+  expect(screen.getByText(/플레이리스트와 전체 재생이 함께 연결/)).toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledWith("/api/tidal/device-authorization/start", { method: "POST" });
+});
+
 it("explains when the configured client cannot use device authorization", async () => {
   const fetcher = vi.fn().mockResolvedValue(Response.json({
     code: "tidal_device_client_unsupported",

@@ -10,6 +10,6 @@ it("presents the dashboard onboarding context alongside the TIDAL connection flo
   expect(screen.getByText("플레이리스트 선택")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "TIDAL 연결하기" })).toHaveAttribute(
     "href",
-    "/api/tidal/connect",
+    "/tidal-connection?returnTo=%2Fonboarding%3Ftidal%3Dconnected",
   );
 });
