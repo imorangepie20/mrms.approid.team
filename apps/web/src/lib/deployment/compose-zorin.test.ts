@@ -21,6 +21,7 @@ const composePath = resolve(process.cwd(), "../../infra/compose.zorin.yml");
 const compose = parse(readFileSync(composePath, "utf8")) as {
   services: Record<string, Service>;
 };
+const dockerignore = readFileSync(resolve(process.cwd(), "../../.dockerignore"), "utf8");
 
 describe("Zorin Compose", () => {
   it("keeps the embedding model private and health checked", () => {
@@ -47,6 +48,10 @@ describe("Zorin Compose", () => {
       EMBEDDING_SERVICE_URL: "http://embedding:8000",
     });
     expect(web.depends_on).not.toHaveProperty("embedding");
+  });
+
+  it("copies only freshly built admin assets into the Web image", () => {
+    expect(dockerignore.split(/\r?\n/)).toContain("apps/web/public/admin");
   });
 
   it("keeps EMS pipeline private with backend access and a readiness check", () => {

@@ -6,6 +6,7 @@
 **/.env.*
 **/.next
 **/node_modules
+apps/web/public/admin
 **/.venv
 coverage
 infra/runtime

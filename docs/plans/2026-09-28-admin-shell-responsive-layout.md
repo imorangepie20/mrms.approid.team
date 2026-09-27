@@ -12,6 +12,7 @@
 - 1536px 이상에서만 sidebar가 본문 폭을 점유하고 desktop 접기 상태를 적용한다.
 - 닫힌 drawer는 `aria-hidden`을 적용하고 내부 탐색 요소를 렌더하지 않아 focus 대상에서 제외한다.
 - main·header에 공통 축소 경계를 두고 page-level overflow를 차단하되 표의 내부 스크롤은 유지한다.
+- Docker context에서 커밋된 관리자 산출물을 제외해 container build의 최신 자산만 복사하고, Next 진입 페이지는 JS·CSS가 각각 정확히 1개인지 검증한다.
 
 ## 검증
 
