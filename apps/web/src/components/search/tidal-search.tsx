@@ -70,7 +70,14 @@ export function TidalSearch() {
   useEffect(() => {
     const closeSuggestionsFromOutside = (event: PointerEvent) => {
       const container = searchContainerRef.current;
-      if (!container || !(event.target instanceof Node) || container.contains(event.target)) {
+      if (!container || !(event.target instanceof Node)) {
+        return;
+      }
+      if (container.contains(event.target)) {
+        if (event.target === container.querySelector("#tidal-search")) {
+          dismissedSuggestionRequestRef.current = null;
+          if (suggestions.length > 0) setIsSuggestionsOpen(true);
+        }
         return;
       }
       dismissedSuggestionRequestRef.current = requestIdRef.current;
@@ -79,7 +86,7 @@ export function TidalSearch() {
 
     document.addEventListener("pointerdown", closeSuggestionsFromOutside);
     return () => document.removeEventListener("pointerdown", closeSuggestionsFromOutside);
-  }, []);
+  }, [suggestions.length]);
 
   useEffect(() => {
     const normalized = query.trim();
@@ -242,10 +249,6 @@ export function TidalSearch() {
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
           onFocus={() => {
-            dismissedSuggestionRequestRef.current = null;
-            if (suggestions.length > 0) setIsSuggestionsOpen(true);
-          }}
-          onPointerDown={() => {
             dismissedSuggestionRequestRef.current = null;
             if (suggestions.length > 0) setIsSuggestionsOpen(true);
           }}
