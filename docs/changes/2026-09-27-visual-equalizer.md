@@ -34,7 +34,7 @@
 - 위치·높이·시작 지연 focused Vitest: 4개 파일, 12개 테스트 통과. 오른쪽 2.5% 오프셋, 높이 상한과 늦은 HLS 구독자의 최신 media segment 즉시 수신을 고정했다.
 - direct 분석 경량화 포함 focused Vitest: 5개 파일, 13개 테스트 통과. 재생 품질과 무관하게 분석 요청이 `quality=LOW`를 사용함을 고정했다.
 - 전체 플레이어 overlay 전환 focused Vitest: 4개 파일, 15개 테스트 통과. TIDAL 트랙 overlay, 로컬 트랙 미표시, compact EQ 링크 제거와 `/visualizer` Home 전환을 고정했다.
-- analyser 수명 회귀 focused Vitest: 전체 플레이어를 열기 전부터 analyser가 1개만 마운트되고 dialog를 열어도 재마운트되지 않는 조건을 고정했다.
+- analyser 수명 회귀 focused Vitest: 4개 파일, 19개 테스트 통과. 전체 플레이어를 열기 전부터 analyser가 1개만 마운트되고 dialog를 열어도 재마운트되지 않는 조건을 고정했다.
 - overlay 전환 focused ESLint는 오류 0개, 기존 전체 플레이어 `aria-description` 경고 1개이며 Next.js production build와 TypeScript가 통과했다.
 - layout·player·visualizer·analysis route 재검증: 5개 파일, 24개 테스트 통과.
 - 전체 Vitest: 98개 파일 중 95개, 385개 중 381개 통과. 이번 diff 밖에서 이미 문서화된 Home 기대값 1건과 likes·recommendations API의 HTTP 503 기대 불일치 3건만 실패했다.
@@ -50,6 +50,7 @@
 - 시작 지연 보완 커밋 `968cff2`를 release `/home/approid/apps/music-pie/releases/968cff2`와 Web image `music-pie-web:968cff2`로 Web에 추가 배포했다. 앞선 timing advance는 이 배포에서 제거했다.
 - direct 분석 경량화 커밋 `77e7dda`를 release `/home/approid/apps/music-pie/releases/77e7dda`와 Web image `music-pie-web:77e7dda`로 Web에 추가 배포했다.
 - 전체 플레이어 overlay 전환 커밋 `102ffb5`를 release `/home/approid/apps/music-pie/releases/102ffb5`와 Web image `music-pie-web:102ffb5`로 Web에 추가 배포했다. local/public Home·MMS·readiness는 200이고 `/visualizer`는 Home으로 307 전환한다.
+- analyser 사전 준비 수정 커밋 `af30576`을 release `/home/approid/apps/music-pie/releases/af30576`과 Web image `music-pie-web:af30576`으로 Web에 추가 배포했다. local/public readiness·Home·MMS·EMS는 200이고 `/visualizer`는 Home으로 307 전환한다.
 - Web container는 `healthy`이고 local/public readiness, Home, EMS, `/visualizer`가 HTTP 200이다. 비인증 analysis API는 401이다.
 - 공개 desktop 브라우저에서 EMS 트랙 선택 뒤 Next client navigation이 현재 트랙과 12곡 대기열을 보존하는 것을 확인했다.
 - `/visualizer`에서 현재 artwork·제목·아티스트, 이전/재생/다음, 재생 위치, 대기열 전환, 막대/방사형 키보드 전환이 동작했다.
@@ -71,5 +72,6 @@
 - 시작 지연 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f922cfe`와 image `music-pie-web:pre-visualizer-start-968cff2`를 사용한다.
 - direct 분석 경량화만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/9ec49ca`와 image `music-pie-web:pre-visualizer-analysis-77e7dda`를 사용한다.
 - 전체 플레이어 overlay 전환만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/b616ddb`와 image `music-pie-web:pre-embedded-eq-102ffb5`를 사용한다.
+- analyser 사전 준비 수정만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/14139e3`와 image `music-pie-web:pre-eq-warm-af30576`을 사용한다.
 - 오류 상태 보완까지 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f6392b0`와 image `music-pie-web:pre-visualizer-errors-58ba65e`를 사용한다.
 - 롤백 시 Web만 재생성하고 EMS·PostgreSQL·embedding·상시 worker는 재시작하지 않는다.
