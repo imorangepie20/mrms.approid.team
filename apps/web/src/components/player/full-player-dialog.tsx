@@ -4,9 +4,12 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { LikeButton } from "@/components/music/like-button";
+import { useTidalAudioAnalyser } from "@/hooks/use-tidal-audio-analyser";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import type { Track } from "@/lib/music/types";
 import type { QueueItem, RepeatMode } from "@/providers/music-session-provider";
+
+import { VisualEqualizerCanvas } from "./visual-equalizer-canvas";
 
 function formatTime(seconds: number) {
   const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
@@ -79,6 +82,8 @@ export function FullPlayerDialog({
 }: FullPlayerDialogProps) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const hasArtwork = Boolean(currentTrack.artworkUrl) && failedArtworkUrl !== currentTrack.artworkUrl;
+  const analyser = useTidalAudioAnalyser(isPlaying);
+  const hasLiveEqualizer = Boolean(currentTrack.tidalTrackId);
 
   return (
     <div
@@ -118,6 +123,19 @@ export function FullPlayerDialog({
               ) : (
                 <p className="full-player-artwork-fallback">MUSIC PIE</p>
               )}
+              {hasLiveEqualizer ? (
+                <div
+                  className="full-player-eq-overlay"
+                  data-analyser-mode={analyser.mode}
+                  data-testid="full-player-eq-overlay"
+                >
+                  <VisualEqualizerCanvas
+                    analyser={analyser}
+                    className="full-player-eq-canvas"
+                    mode="bars"
+                  />
+                </div>
+              ) : null}
             </div>
             <div className="full-player-artwork-caption">
               <span>지금 듣는 음악</span>

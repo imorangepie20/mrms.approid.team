@@ -8,6 +8,16 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
+vi.mock("@/hooks/use-tidal-audio-analyser", () => ({
+  useTidalAudioAnalyser: () => ({ binCount: 128, mode: "pcm", read: vi.fn() }),
+}));
+
+vi.mock("./visual-equalizer-canvas", () => ({
+  VisualEqualizerCanvas: ({ className }: { className?: string }) => (
+    <canvas className={className} data-testid="embedded-equalizer" />
+  ),
+}));
+
 import type {
   PlaybackEngine,
   PlaybackEvent,
@@ -94,7 +104,7 @@ describe("PersistentPlayer", () => {
     vi.unstubAllGlobals();
   });
 
-  it("opens the visual equalizer for a TIDAL track", async () => {
+  it("shows the visual equalizer over the full-player artwork", async () => {
     const engine = fakeEngine();
     const user = userEvent.setup();
     renderPlayer(
@@ -104,10 +114,11 @@ describe("PersistentPlayer", () => {
       </MusicSessionProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Start playback" }));
-    expect(screen.getByRole("link", { name: "비주얼 이퀄라이저 열기" })).toHaveAttribute(
-      "href",
-      "/visualizer",
-    );
+    expect(screen.queryByRole("link", { name: "비주얼 이퀄라이저 열기" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /now playing track a/i }));
+    const artwork = screen.getByTestId("full-player-eq-overlay");
+    expect(artwork).toHaveAttribute("data-analyser-mode", "pcm");
+    expect(within(artwork).getByTestId("embedded-equalizer")).toHaveClass("full-player-eq-canvas");
   });
 
   it("shows the current track artwork with a gradient fallback", async () => {
@@ -316,5 +327,7 @@ describe("PersistentPlayer", () => {
 
     expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "비주얼 이퀄라이저 열기" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /now playing local track/i }));
+    expect(screen.queryByTestId("full-player-eq-overlay")).not.toBeInTheDocument();
   });
 });

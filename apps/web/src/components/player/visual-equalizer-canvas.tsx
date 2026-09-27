@@ -8,6 +8,7 @@ export type VisualizerMode = "bars" | "radial";
 
 type Props = {
   analyser: TidalAudioAnalyser;
+  className?: string;
   mode: VisualizerMode;
 };
 
@@ -136,7 +137,7 @@ function drawRadial(
   }
 }
 
-export function VisualEqualizerCanvas({ analyser, mode }: Props) {
+export function VisualEqualizerCanvas({ analyser, className = "visualizer-canvas", mode }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -165,5 +166,5 @@ export function VisualEqualizerCanvas({ analyser, mode }: Props) {
     return () => window.cancelAnimationFrame(frame);
   }, [analyser, mode]);
 
-  return <canvas aria-hidden="true" className="visualizer-canvas" ref={canvasRef} />;
+  return <canvas aria-hidden="true" className={className} ref={canvasRef} />;
 }
