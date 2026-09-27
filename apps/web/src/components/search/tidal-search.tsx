@@ -47,12 +47,15 @@ export function TidalSearch() {
   const [detail, setDetail] = useState<CatalogDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(emptyResults);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const requestIdRef = useRef(0);
+  const dismissedSuggestionRequestRef = useRef<number | null>(null);
   const detailRequestIdRef = useRef(0);
   const detailHistoryEntryRef = useRef(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const closeFromHistory = () => {
@@ -65,6 +68,20 @@ export function TidalSearch() {
   }, []);
 
   useEffect(() => {
+    const closeSuggestionsFromOutside = (event: PointerEvent) => {
+      const container = searchContainerRef.current;
+      if (!container || !(event.target instanceof Node) || container.contains(event.target)) {
+        return;
+      }
+      dismissedSuggestionRequestRef.current = requestIdRef.current;
+      setIsSuggestionsOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeSuggestionsFromOutside);
+    return () => document.removeEventListener("pointerdown", closeSuggestionsFromOutside);
+  }, []);
+
+  useEffect(() => {
     const normalized = query.trim();
     if (!normalized) return;
     const controller = new AbortController();
@@ -72,7 +89,6 @@ export function TidalSearch() {
     const timer = window.setTimeout(async () => {
       setIsLoading(true);
       setError(null);
-      let searchCompleted = false;
       if (Array.from(normalized).length >= 2) {
         void (async () => {
           try {
@@ -82,8 +98,15 @@ export function TidalSearch() {
             );
             if (!response.ok) return;
             const body = await response.json() as { suggestions: string[] };
-            if (requestId !== requestIdRef.current || searchCompleted) return;
+            if (
+              controller.signal.aborted ||
+              requestId !== requestIdRef.current ||
+              dismissedSuggestionRequestRef.current === requestId
+            ) {
+              return;
+            }
             setSuggestions(body.suggestions);
+            setIsSuggestionsOpen(body.suggestions.length > 0);
           } catch {
             // Suggestions are optional; catalog results remain usable.
           }
@@ -98,10 +121,8 @@ export function TidalSearch() {
           throw new Error("search_failed");
         }
         const nextResults = await searchResponse.json() as TidalSearchResult;
-        searchCompleted = true;
         if (requestId !== requestIdRef.current) return;
         setResults(nextResults);
-        setSuggestions([]);
       } catch (requestError) {
         if (controller.signal.aborted || requestId !== requestIdRef.current) return;
         setResults(emptyResults);
@@ -122,8 +143,10 @@ export function TidalSearch() {
   }, [query]);
 
   const updateQuery = (value: string) => {
+    dismissedSuggestionRequestRef.current = null;
     setQuery(value);
     setSuggestions([]);
+    setIsSuggestionsOpen(false);
     if (!value.trim()) {
       requestIdRef.current += 1;
       setError(null);
@@ -204,9 +227,11 @@ export function TidalSearch() {
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">트랙, 앨범, 플레이리스트와 아티스트를 검색하고 좋아요할 수 있습니다.</p>
       </header>
 
-      <div className="relative mt-6 max-w-2xl">
+      <div className="relative mt-6 max-w-2xl" ref={searchContainerRef}>
         <label className="sr-only" htmlFor="tidal-search">TIDAL 음악 검색</label>
         <input
+          aria-autocomplete="list"
+          aria-controls="tidal-search-suggestions"
           autoComplete="off"
           className="min-h-12 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] px-4 pr-14 text-sm text-[var(--foreground)] outline-none transition placeholder:text-[var(--subtle)] focus:border-[var(--brand)] focus:ring-3 focus:ring-purple-500/15"
           id="tidal-search"
@@ -216,10 +241,20 @@ export function TidalSearch() {
           type="search"
           value={query}
           onChange={(event) => updateQuery(event.target.value)}
+          onFocus={() => {
+            dismissedSuggestionRequestRef.current = null;
+            if (suggestions.length > 0) setIsSuggestionsOpen(true);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              dismissedSuggestionRequestRef.current = requestIdRef.current;
+              setIsSuggestionsOpen(false);
+            }
+          }}
         />
         <span aria-hidden="true" className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-xl text-slate-400">⌕</span>
-        {suggestions.length > 0 ? (
-          <div aria-label="검색어 추천" className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.34)]" role="listbox">
+        {isSuggestionsOpen && suggestions.length > 0 ? (
+          <div aria-label="검색어 추천" className="absolute z-10 mt-2 w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-raised)] p-1.5 shadow-[0_14px_40px_rgba(0,0,0,0.34)]" id="tidal-search-suggestions" role="listbox">
             {suggestions.map((suggestion) => (
               <button
                 className="block min-h-11 w-full rounded-xl px-3 text-left text-sm text-[var(--muted)] hover:bg-purple-500/15 hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
@@ -249,7 +284,8 @@ export function TidalSearch() {
             type="button"
             onClick={() => {
               setActiveTab(tab);
-              setSuggestions([]);
+              dismissedSuggestionRequestRef.current = requestIdRef.current;
+              setIsSuggestionsOpen(false);
             }}
           >
             {{ topHits: "통합 결과", tracks: "트랙", albums: "앨범", playlists: "플레이리스트", artists: "아티스트" }[tab]}

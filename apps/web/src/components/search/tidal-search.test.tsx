@@ -116,7 +116,7 @@ describe("TidalSearch", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("검색 결과를 불러오지 못했습니다");
   });
 
-  it("dismisses suggestions when the catalog search completes", async () => {
+  it("keeps completed suggestions until the user clicks outside", async () => {
     let resolveSearch: ((response: Response) => void) | undefined;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");
@@ -142,6 +142,15 @@ describe("TidalSearch", () => {
     })));
 
     expect(await screen.findByText("Human Behaviour")).toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "검색어 추천" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("heading", { name: "듣고 싶은 음악을 바로 찾아보세요" }));
+    expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("searchbox"));
+    expect(screen.getByRole("listbox", { name: "검색어 추천" })).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
     expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
   });
 
