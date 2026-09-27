@@ -85,6 +85,8 @@
 .visualizer-track-copy h1 { margin: 0; overflow: hidden; font-size: clamp(24px, 3vw, 42px); font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
 .visualizer-track-copy p { margin: 3px 0 0; color: #ddd8e5; font-size: 15px; }
 .visualizer-track-copy span { display: block; min-height: 18px; margin-top: 6px; color: #a9a3b4; font-size: 12px; }
+.visualizer-login-link { display: inline-flex; min-height: 36px; align-items: center; margin-top: 8px; padding: 0 13px; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 6px; background: #101018; color: #f7f5ff; font-size: 12px; font-weight: 700; text-decoration: none; text-shadow: none; }
+.visualizer-login-link:hover { background: #1a1923; }
 
 .visualizer-controls { padding: 8px 24px 18px; background: rgba(5, 5, 7, 0.82); }
 .visualizer-progress { display: grid; grid-template-columns: 42px minmax(0, 1fr) 42px; align-items: center; gap: 10px; max-width: 700px; margin: 0 auto; color: #aaa4b5; font-size: 11px; font-variant-numeric: tabular-nums; }

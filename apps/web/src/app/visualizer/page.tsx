@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -21,7 +22,16 @@ function hasTidalTrackId(track: Track): track is Track & { tidalTrackId: string 
   return "tidalTrackId" in track && typeof track.tidalTrackId === "string" && track.tidalTrackId.length > 0;
 }
 
-function analyserStatus(mode: ReturnType<typeof useTidalAudioAnalyser>["mode"], isPlaying: boolean) {
+function analyserStatus(
+  mode: ReturnType<typeof useTidalAudioAnalyser>["mode"],
+  isPlaying: boolean,
+  playbackError: string | null,
+) {
+  if (playbackError === "unauthorized") return "로그인 후 실시간 이퀄라이저를 사용할 수 있습니다.";
+  if (playbackError === "tidal_device_authorization_required" || playbackError === "tidal_stream_scope_required") {
+    return "TIDAL 재생 연결이 필요합니다.";
+  }
+  if (playbackError) return "현재 트랙을 재생하지 못했습니다.";
   if (mode === "unsupported") return "이 브라우저에서는 실시간 신호 분석을 지원하지 않습니다.";
   if (mode === "error") return "이 스트림의 오디오 신호를 분석하지 못했습니다.";
   if (mode === "waiting") return "오디오 신호를 준비하고 있습니다.";
@@ -40,6 +50,7 @@ export default function VisualizerPage() {
     durationSeconds,
     isPlaying,
     nextTrack,
+    playbackError,
     playbackPosition,
     playQueueIndex,
     previousTrack,
@@ -126,7 +137,12 @@ export default function VisualizerPage() {
           <div className="visualizer-track-copy">
             <h1 id="visualizer-track-title">{currentTrack.title}</h1>
             <p>{currentTrack.artist}</p>
-            <span role="status">{analyserStatus(analyser.mode, isPlaying)}</span>
+            <span role="status">{analyserStatus(analyser.mode, isPlaying, playbackError)}</span>
+            {playbackError === "unauthorized" ? (
+              <Link className="visualizer-login-link" href="/api/auth/login?returnTo=%2Fvisualizer">
+                로그인 후 재생
+              </Link>
+            ) : null}
           </div>
         </section>
 

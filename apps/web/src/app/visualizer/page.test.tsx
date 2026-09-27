@@ -41,6 +41,7 @@ function session(currentTrack: typeof track | null = track) {
     durationSeconds: 185,
     isPlaying: true,
     nextTrack: vi.fn(),
+    playbackError: null,
     playbackPosition: 42,
     playQueueIndex: vi.fn(),
     previousTrack: vi.fn(),
@@ -75,5 +76,15 @@ describe("VisualizerPage", () => {
     mocks.session = session(null);
     render(<VisualizerPage />);
     await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/"));
+  });
+
+  it("shows a login action instead of a perpetual analysis loading state", () => {
+    mocks.session = { ...session(), playbackError: "unauthorized" };
+    render(<VisualizerPage />);
+    expect(screen.getByRole("status")).toHaveTextContent("로그인 후 실시간 이퀄라이저를 사용할 수 있습니다.");
+    expect(screen.getByRole("link", { name: "로그인 후 재생" })).toHaveAttribute(
+      "href",
+      "/api/auth/login?returnTo=%2Fvisualizer",
+    );
   });
 });
