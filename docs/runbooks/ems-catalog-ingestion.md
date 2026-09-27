@@ -37,6 +37,22 @@ docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compos
 6. matched/ambiguous/not_found/unavailable/retryable, duplicate, embedding completion을 기록한다.
 7. false-match가 1% 미만이고 playback sample 20개 및 rollback rehearsal가 통과할 때만 EMS API를 공개한다.
 
+## 10k 확대 승인 gate
+
+현재 1,000곡 run이 완료되고 사용자가 CP-1을 승인하기 전에는 10k staging/live와 MusicBrainz scheduler live를 실행하지 않는다. 수치는 `docs/plans/2026-09-27-ems-10k-snapshot-diff-gate.md`를 단일 기준으로 사용한다.
+
+1. CP-1은 잔여 `846곡`, batch `24`, 최대 `36 batch`, batch GET `50`, aggregate GET `1,800`, UTC 일일 GET `1,000` 이내에서 별도 승인한다.
+2. CP-2는 manifest 총 `10,000곡`, 기존 1k 제외 신규 `9,000곡`까지만 report-only staging한다. 이 단계의 TIDAL GET과 active promotion은 `0`이다.
+3. CP-3은 `240곡/10 batch/GET 500` live pilot이다. 이후 terminal 누적 `2,500/5,000/7,500/10,000`마다 승인을 다시 받는다.
+4. 10k 확대 전체 hard cap은 신규 `9,000곡`, `375 batch`, aggregate GET `18,000`이다. pause/resume은 같은 run의 누적 counter를 사용하고 초기화하지 않는다.
+5. 첫 429, 중복·상태 합계 불일치, false match `>=1%`, health·fingerprint 변화에서 즉시 pause한다.
+6. disk 시작 `>=60%`면 작업을 시작하지 않고, 실행 중 `>=65%`면 soft pause, `>=70%`면 hard stop한다. cohort embedding failed `>=1`, backlog `>24`, oldest `>15분`도 pause 조건이다.
+7. 최종 승인은 false match 자동 전수와 수동 `0/300`, embedding `100%`, 실제 playback `99/100`, EMS API p95 `<=300ms`, rollback·사용자·기존 active 보존을 모두 요구한다.
+
+기존 MusicBrainz core/canonical 루틴은 이미 12시간/24시간 확인을 수행하는 default-enabled 상시 서비스다. 별도 scheduler를 추가하지 않고 기존 경로를 default-disabled report-only staging과 승인된 live로 분리한다. 동일 snapshot 재실행에서 신규 candidate `0`을 연속 2회 확인하기 전에는 report-only도 승인하지 않으며, removal은 자동으로 inactive 처리하지 않는다.
+
+운영 전 필수 구현은 영속 `requests_used`·candidate cap·승인 ID, open run unique, pause reason과 승인 전용 resume, 상태별 독립 count, 429/disk/run별 embedding 관측, run별 rollback journal이다. 현재 상시 worker와 `enable`/`check_now`가 paused run을 재개하는 계약, snapshot resolver의 `request_budget=None`, mounted volume이 아닌 `/` disk 확인을 해소하기 전에는 10k 또는 scheduler live를 실행하지 않는다.
+
 ## 에디토리얼 섹션 동기화 gate
 
 `009_ems_editorial_sections.sql` 적용과 rollback dump 검증 뒤, 실제 write 전에 반드시 dry-run을 실행한다. Web 컨테이너의 network namespace를 공유해야 Zorin의 DB DNS와 TIDAL egress를 함께 사용할 수 있다.
