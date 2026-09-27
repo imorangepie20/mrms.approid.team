@@ -15,12 +15,12 @@ const MainLayout = () => {
             />
 
             {/* Main Content */}
-            <div className={`transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+            <div className={`min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
                 {/* Header */}
                 <Header onMenuToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
                 {/* Page Content */}
-                <main className="p-6">
+                <main className="min-w-0 p-6">
                     <Outlet />
                 </main>
             </div>

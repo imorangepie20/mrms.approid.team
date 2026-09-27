@@ -96,9 +96,9 @@ export default function SpotifyCharts() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.28em] text-hud-accent-primary">EMS / Spotify charts</p>
           <h1 className="mt-2 text-3xl font-semibold">Spotify 차트 가져오기</h1>
           <p className="mt-2 max-w-3xl text-sm text-hud-text-secondary">
@@ -121,16 +121,16 @@ export default function SpotifyCharts() {
         </p>
       ) : null}
 
-      <section className="border-y border-hud-border-secondary py-5" aria-labelledby="spotify-targets-heading">
+      <section className="min-w-0 border-y border-hud-border-secondary py-5" aria-labelledby="spotify-targets-heading">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold" id="spotify-targets-heading">수집 대상</h2>
             <p className="mt-1 text-sm text-hud-text-secondary">
               Spotify {data?.limits.spotifyRequests ?? 4}회 · playlist당 {data?.limits.tracksPerPlaylist ?? 50}곡 · TIDAL 최대 {data?.limits.tidalRequests ?? 450}회
             </p>
           </div>
           <button
-            className="rounded-lg bg-hud-accent-primary px-4 py-2 text-sm font-semibold text-hud-bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-hud-accent-primary px-4 py-2 text-sm font-semibold text-hud-bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!data || Boolean(openRun) || busy !== null}
             type="button"
             onClick={() => void start()}
@@ -138,18 +138,18 @@ export default function SpotifyCharts() {
             {busy === "start" ? "등록 중…" : "4개 차트 가져오기"}
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
           {(data?.targets ?? []).map((target, index) => (
-            <article className="rounded-lg border border-hud-border-secondary p-4" key={target.id}>
+            <article className="min-w-0 rounded-lg border border-hud-border-secondary p-4" key={target.id}>
               <p className="text-xs text-hud-text-muted">{String(index + 1).padStart(2, "0")}</p>
-              <h3 className="mt-2 font-semibold">{target.title}</h3>
-              <p className="mt-1 text-sm leading-6 text-hud-text-secondary">{target.description}</p>
+              <h3 className="mt-2 break-words font-semibold">{target.title}</h3>
+              <p className="mt-1 break-words text-sm leading-6 text-hud-text-secondary">{target.description}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section aria-labelledby="spotify-runs-heading">
+      <section className="min-w-0" aria-labelledby="spotify-runs-heading">
         <h2 className="text-lg font-semibold" id="spotify-runs-heading">실행 내역</h2>
         <div className="mt-4 space-y-4">
           {data?.runs.length ? data.runs.map((run) => (
@@ -173,15 +173,15 @@ function RunRow({
   onTransition: (run: SpotifyChartRun, action: "pause" | "resume") => Promise<void>;
 }) {
   return (
-    <article className="rounded-lg border border-hud-border-secondary bg-hud-bg-secondary p-5">
+    <article className="min-w-0 overflow-hidden rounded-lg border border-hud-border-secondary bg-hud-bg-secondary p-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md border border-hud-border-secondary px-2 py-1 text-xs">{statusLabel[run.status]}</span>
             {run.active ? <span className="text-xs font-medium text-hud-accent-primary">EMS 전시 중</span> : null}
           </div>
           <p className="mt-2 text-sm font-medium">{phaseLabel[run.phase] ?? run.phase}</p>
-          <p className="mt-1 font-mono text-xs text-hud-text-muted">{run.id}</p>
+          <p className="mt-1 break-all font-mono text-xs text-hud-text-muted">{run.id}</p>
         </div>
         {run.status === "running" || run.status === "pending" ? (
           <button
@@ -208,7 +208,7 @@ function RunRow({
         ) : null}
       </header>
 
-      <dl className="mt-5 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="mt-5 grid min-w-0 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 2xl:grid-cols-4">
         <Stat label="playlist" value={`${run.playlistCount} / 4`} />
         <Stat label="membership" value={`${run.membershipCount} / 200`} />
         <Stat label="matched" value={`${run.matchedCount} / ${run.requestedCount}`} />
@@ -222,7 +222,7 @@ function RunRow({
       {run.playlists.length ? (
         <ul className="mt-5 divide-y divide-hud-border-secondary border-y border-hud-border-secondary">
           {run.playlists.map((playlist) => (
-            <li className="flex items-center justify-between gap-4 py-3 text-sm" key={playlist.spotifyId}>
+            <li className="flex min-w-0 items-center justify-between gap-4 py-3 text-sm" key={playlist.spotifyId}>
               <span className="min-w-0">
                 <strong className="block truncate font-medium">{playlist.title}</strong>
                 <span className="text-xs text-hud-text-muted">{playlist.matchedCount} / {playlist.sourceTrackCount}곡</span>
@@ -253,9 +253,9 @@ function RunRow({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-hud-border-secondary/70 pb-2">
-      <dt className="text-hud-text-muted">{label}</dt>
-      <dd className="text-right font-medium tabular-nums">{value}</dd>
+    <div className="flex min-w-0 items-baseline justify-between gap-3 border-b border-hud-border-secondary/70 pb-2">
+      <dt className="shrink-0 text-hud-text-muted">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-medium tabular-nums">{value}</dd>
     </div>
   );
 }
