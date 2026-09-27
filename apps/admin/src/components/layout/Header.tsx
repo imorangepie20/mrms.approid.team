@@ -32,10 +32,11 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
     const { isDark, toggleTheme } = useTheme()
 
     return (
-        <header className="h-16 bg-hud-bg-secondary/80 backdrop-blur-md border-b border-hud-border-secondary px-6 flex items-center justify-between sticky top-0 z-40">
+        <header className="sticky top-0 z-40 flex h-16 min-w-0 items-center justify-between border-b border-hud-border-secondary bg-hud-bg-secondary/80 px-4 backdrop-blur-md sm:px-6">
             {/* Left Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                 <button
+                    aria-label="관리자 메뉴 열기"
                     onClick={onMenuToggle}
                     className="p-2 rounded-lg hover:bg-hud-bg-hover transition-hud text-hud-text-secondary hover:text-hud-text-primary"
                 >
@@ -43,20 +44,20 @@ const Header = ({ onMenuToggle }: HeaderProps) => {
                 </button>
 
                 {/* Search */}
-                <div className="relative hidden md:block">
+                <div className="relative hidden min-w-0 md:block">
                     <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
                         <Search className="text-hud-text-muted" size={18} />
                     </span>
                     <input
                         type="text"
                         placeholder="Search..."
-                        className="w-64 pl-4 pr-10 py-2 bg-hud-bg-primary border border-hud-border-secondary rounded-lg text-sm text-hud-text-primary placeholder-hud-text-muted focus:outline-none focus:border-hud-accent-primary transition-hud"
+                        className="w-48 rounded-lg border border-hud-border-secondary bg-hud-bg-primary py-2 pl-4 pr-10 text-sm text-hud-text-primary placeholder-hud-text-muted transition-hud focus:border-hud-accent-primary focus:outline-none xl:w-64"
                     />
                 </div>
             </div>
 
             {/* Right Section */}
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 {/* Quick Links */}
                 <div className="hidden lg:flex items-center gap-1">
                     <Link

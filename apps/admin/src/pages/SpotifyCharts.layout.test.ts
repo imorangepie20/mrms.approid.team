@@ -14,7 +14,7 @@ describe("Spotify chart admin layout", () => {
   });
 
   it("allows the page, run id, and statistics to shrink without page overflow", () => {
-    expect(layout).toContain('className={`min-w-0 transition-all');
+    expect(layout).toContain('className={`min-w-0 max-w-full transition-[margin]');
     expect(page).toContain('className="min-w-0 space-y-6"');
     expect(page).toContain("break-all font-mono");
     expect(page).toContain("min-w-0 break-words text-right");

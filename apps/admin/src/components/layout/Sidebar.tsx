@@ -27,7 +27,8 @@ import {
 
 interface SidebarProps {
     collapsed: boolean
-    onToggle: () => void
+    open: boolean
+    onNavigate: () => void
 }
 
 interface MenuItem {
@@ -136,7 +137,7 @@ const menuItems: MenuItem[] = [
     { title: 'Settings', icon: <Settings size={20} />, path: '/settings' },
 ]
 
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const Sidebar = ({ collapsed, open, onNavigate }: SidebarProps) => {
     const location = useLocation()
     const initialPath = location.pathname === '/ems/sections' ? '/screens/ems' : location.pathname
     const [expandedMenus, setExpandedMenus] = useState<string[]>(() =>
@@ -163,12 +164,13 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
     return (
         <aside
-            className={`fixed top-0 left-0 h-full bg-hud-bg-secondary border-r border-hud-border-secondary z-50 transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'
-                }`}
+            aria-hidden={!open}
+            className={`fixed left-0 top-0 z-50 h-full border-r border-hud-border-secondary bg-hud-bg-secondary transition-[width,transform] duration-300 ${collapsed ? 'w-20' : 'w-64'} ${open ? 'translate-x-0' : '-translate-x-full'}`}
         >
+            {open && <>
             {/* Logo */}
             <div className="h-16 flex items-center justify-center border-b border-hud-border-secondary">
-                <Link to="/" className="flex items-center gap-3">
+                <Link to="/" className="flex items-center gap-3" onClick={onNavigate}>
                     <div className="w-10 h-10 bg-gradient-to-br from-hud-accent-primary to-hud-accent-info rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-hud-accent-primary/20">
                         H
                     </div>
@@ -213,6 +215,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                                                 <li key={child.path}>
                                                     <Link
                                                         to={child.path}
+                                                        onClick={onNavigate}
                                                         className={`block px-3 py-2 rounded-lg text-sm transition-hud ${isActive(child.path)
                                                             ? 'text-hud-accent-primary bg-hud-accent-primary/10'
                                                             : 'text-hud-text-secondary hover:text-hud-text-primary hover:bg-hud-bg-hover'
@@ -229,6 +232,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                                 // Single menu item
                                 <Link
                                     to={item.path!}
+                                    onClick={onNavigate}
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-hud ${isActive(item.path)
                                         ? 'menu-active text-hud-accent-primary'
                                         : 'text-hud-text-secondary hover:bg-hud-bg-hover hover:text-hud-text-primary'
@@ -242,6 +246,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
                     ))}
                 </ul>
             </nav>
+            </>}
         </aside>
     )
 }
