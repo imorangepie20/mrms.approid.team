@@ -136,7 +136,7 @@
   }
 
   .dashboard-page {
-    padding: 0 16px 28px;
+    padding: 52px 16px 28px;
   }
 
   .home-feature { min-height: 430px; margin-top: 20px; padding: 28px 22px 30px; border-radius: 14px; }
@@ -157,7 +157,6 @@
 
   .space-title {
     height: 58px;
-    margin-top: 52px;
     padding-right: 0;
     font-size: 21px;
   }
