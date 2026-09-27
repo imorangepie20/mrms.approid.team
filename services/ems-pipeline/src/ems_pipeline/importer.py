@@ -63,20 +63,26 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                 INSERT INTO ems_tracks
                   (recording_mbid, isrc, tidal_id, title, artist, album, artwork_url, duration_ms,
                    release_date, tidal_album_release_date, status, match_confidence, catalog_priority, last_verified_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'active', %s, 0, now(), now())
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                        CASE WHEN EXISTS (
+                          SELECT 1 FROM ems_ingest_candidates
+                           WHERE id = %s AND candidate_key LIKE 'spotify:%%'
+                        ) THEN 'candidate' ELSE 'active' END,
+                        %s, 0, now(), now())
                 ON CONFLICT (tidal_id) DO UPDATE SET
                   recording_mbid = COALESCE(ems_tracks.recording_mbid, EXCLUDED.recording_mbid),
                   isrc = COALESCE(ems_tracks.isrc, EXCLUDED.isrc),
                   title = EXCLUDED.title, artist = EXCLUDED.artist, album = EXCLUDED.album,
                   artwork_url = COALESCE(EXCLUDED.artwork_url, ems_tracks.artwork_url),
-                  duration_ms = EXCLUDED.duration_ms, status = 'active',
+                  duration_ms = EXCLUDED.duration_ms,
+                  status = CASE WHEN ems_tracks.status = 'active' THEN 'active' ELSE EXCLUDED.status END,
                   release_date = COALESCE(ems_tracks.release_date, EXCLUDED.release_date),
                   tidal_album_release_date = COALESCE(EXCLUDED.tidal_album_release_date, ems_tracks.tidal_album_release_date),
                   match_confidence = GREATEST(ems_tracks.match_confidence, EXCLUDED.match_confidence),
                   last_verified_at = now(), updated_at = now()
                 RETURNING id
                 """,
-                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.artwork_url, match.duration_ms, match.release_date, match.release_date, match.match_confidence],
+                [match.recording_mbid, match.isrc, match.tidal_id, match.title, match.artist, match.album, match.artwork_url, match.duration_ms, match.release_date, match.release_date, candidate_id, match.match_confidence],
             )
             track_row = cursor.fetchone()
             track_id = track_row["id"] if track_row else None
@@ -106,6 +112,39 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
                        ON c.candidate_key = 'urlimport:' || i.id::text AND c.run_id = i.ingest_run_id
                      JOIN ems_manual_url_import_jobs j ON j.id = i.job_id
                     WHERE c.id = %s
+                   ON CONFLICT (source_type, source_id) DO UPDATE
+                     SET track_id = EXCLUDED.track_id, metadata = EXCLUDED.metadata, last_seen_at = now()""",
+                [track_id, candidate_id],
+            )
+            cursor.execute(
+                """INSERT INTO ems_track_sources
+                     (track_id, source_type, source_id, source_license, metadata, last_seen_at)
+                   SELECT %s, 'user_import', c.candidate_key, 'spotify-public-page-reference',
+                          jsonb_build_object(
+                            'source_type', 'spotify',
+                            'spotify_track_id', item.spotify_track_id,
+                            'title', item.title,
+                            'artist', item.artist,
+                            'collected_at', item.collected_at,
+                            'playlists', (
+                              SELECT jsonb_agg(jsonb_build_object(
+                                'spotify_id', related.spotify_id,
+                                'title', related.title,
+                                'source_url', related.source_url
+                              ) ORDER BY related.display_order)
+                              FROM ems_spotify_chart_items related_item
+                              JOIN ems_spotify_chart_playlists related
+                                ON related.id = related_item.playlist_id
+                              WHERE related.run_id = c.run_id
+                                AND related_item.candidate_key = c.candidate_key
+                            )
+                          ), now()
+                     FROM ems_ingest_candidates c
+                     JOIN ems_spotify_chart_items item ON item.candidate_key = c.candidate_key
+                     JOIN ems_spotify_chart_playlists playlist
+                       ON playlist.id = item.playlist_id AND playlist.run_id = c.run_id
+                    WHERE c.id = %s AND c.candidate_key LIKE 'spotify:%%'
+                    LIMIT 1
                    ON CONFLICT (source_type, source_id) DO UPDATE
                      SET track_id = EXCLUDED.track_id, metadata = EXCLUDED.metadata, last_seen_at = now()""",
                 [track_id, candidate_id],

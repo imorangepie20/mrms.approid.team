@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "resources.tidal.com" },
+      { protocol: "https", hostname: "charts-images.scdn.co" },
+      { protocol: "https", hostname: "i.scdn.co" },
       { protocol: "https", hostname: "coverartarchive.org" },
       { protocol: "https", hostname: "archive.org" },
       { protocol: "https", hostname: "**.archive.org" },

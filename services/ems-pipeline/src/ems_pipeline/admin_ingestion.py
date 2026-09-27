@@ -498,6 +498,33 @@ def serve_admin_jobs() -> None:
                     continue
                 prefer_melon = True
                 while True:
+                    spotify_chart = connection.execute(
+                        """SELECT run_id FROM ems_spotify_chart_runs
+                            WHERE status IN ('pending', 'running')
+                            ORDER BY created_at LIMIT 1"""
+                    ).fetchone()
+                    if spotify_chart is not None:
+                        from .spotify_charts import (
+                            fail_spotify_chart_run,
+                            process_spotify_chart_run,
+                        )
+
+                        spotify_run_id = str(spotify_chart["run_id"])
+                        try:
+                            process_spotify_chart_run(connection, spotify_run_id)
+                        except CatalogRequestPaused:
+                            pass
+                        except psycopg.Error:
+                            raise
+                        except Exception as error:
+                            fail_spotify_chart_run(connection, spotify_run_id, error)
+                            print(json.dumps({
+                                "run_id": spotify_run_id,
+                                "status": "failed",
+                                "error_code": type(error).__name__.lower(),
+                            }), flush=True)
+                        time.sleep(1)
+                        continue
                     manual_import = connection.execute(
                         "SELECT id FROM ems_manual_url_import_jobs WHERE status = 'pending' ORDER BY created_at LIMIT 1"
                     ).fetchone()

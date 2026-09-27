@@ -47,13 +47,35 @@ const sections = [
     tracks: [track],
   },
 ];
+const spotifyPlaylists = [
+  {
+    spotifyId: "37i9dQZEVXbNG2KDcFcKOF",
+    title: "인기 곡 - 글로벌",
+    description: "주간 글로벌 차트",
+    artworkUrl: "",
+    sourceUrl: "https://open.spotify.com/playlist/37i9dQZEVXbNG2KDcFcKOF",
+    sourceTrackCount: 50,
+    matchedCount: 1,
+    tracks: [track],
+  },
+  {
+    spotifyId: "37i9dQZEVXbJZGli0rRP3r",
+    title: "인기 곡 - 대한민국",
+    description: "주간 대한민국 차트",
+    artworkUrl: "",
+    sourceUrl: "https://open.spotify.com/playlist/37i9dQZEVXbJZGli0rRP3r",
+    sourceTrackCount: 50,
+    matchedCount: 0,
+    tracks: [],
+  },
+];
 
 describe("EmsBrowser", () => {
   beforeEach(() => {
     fetchMock.mockReset();
     fetchMock.mockImplementation((url: string) => {
       if (url.includes("/api/ems/sections")) {
-        return Promise.resolve(Response.json({ totalCount: 54, sections }));
+        return Promise.resolve(Response.json({ totalCount: 54, sections, spotifyPlaylists }));
       }
       return Promise.resolve(Response.json({ tracks: [track], nextCursor: null }));
     });
@@ -69,6 +91,18 @@ describe("EmsBrowser", () => {
     expect(screen.getByText("54")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spotify" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Apple Music" })).not.toBeInTheDocument();
+  });
+
+  it("shows Spotify playlists as cards and switches the selected track list", async () => {
+    const user = userEvent.setup();
+    render(<EmsBrowser />);
+
+    expect(await screen.findByRole("heading", { name: "Spotify 차트" })).toBeInTheDocument();
+    const korea = screen.getByRole("button", { name: /인기 곡 - 대한민국/ });
+    await user.click(korea);
+
+    expect(korea).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("TIDAL에서 재생 가능한 곡을 확인하고 있습니다.")).toBeInTheDocument();
   });
 
   it("switches to debounced search and restores cached sections when cleared", async () => {
@@ -99,7 +133,7 @@ describe("EmsBrowser", () => {
     ).toBeInTheDocument();
     unmount();
 
-    fetchMock.mockResolvedValueOnce(Response.json({ totalCount: 0, sections: [] }));
+    fetchMock.mockResolvedValueOnce(Response.json({ totalCount: 0, sections: [], spotifyPlaylists: [] }));
     render(<EmsBrowser />);
     expect(
       await screen.findByText("새로운 편집 선곡을 준비하고 있습니다."),
@@ -110,7 +144,7 @@ describe("EmsBrowser", () => {
     fetchMock.mockImplementation((url: string) =>
       Promise.resolve(
         url.includes("/api/ems/sections")
-          ? Response.json({ totalCount: 54, sections })
+          ? Response.json({ totalCount: 54, sections, spotifyPlaylists })
           : Response.json({ tracks: [], nextCursor: null }),
       ),
     );
@@ -131,7 +165,7 @@ describe("EmsBrowser", () => {
     fetchMock.mockImplementation((url: string) =>
       Promise.resolve(
         url.includes("/api/ems/sections")
-          ? Response.json({ totalCount: 54, sections })
+          ? Response.json({ totalCount: 54, sections, spotifyPlaylists })
           : new Response(null, { status: 503 }),
       ),
     );
@@ -153,7 +187,7 @@ describe("EmsBrowser", () => {
   it("keeps cached sections when an in-flight search is aborted", async () => {
     fetchMock.mockImplementation((url: string, options?: RequestInit) => {
       if (url.includes("/api/ems/sections")) {
-        return Promise.resolve(Response.json({ totalCount: 54, sections }));
+        return Promise.resolve(Response.json({ totalCount: 54, sections, spotifyPlaylists }));
       }
       return new Promise((_resolve, reject) => {
         options?.signal?.addEventListener("abort", () => {

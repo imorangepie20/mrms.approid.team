@@ -48,6 +48,7 @@ const menuItems: MenuItem[] = [
             { title: 'Ingestion', path: '/ems/ingestion' },
             { title: '멜론 K-pop 수집', path: '/ems/melon' },
             { title: '공개 URL 수집', path: '/ems/url-imports' },
+            { title: 'Spotify 차트', path: '/ems/spotify' },
             { title: '정기 수집', path: '/ems/routines' },
         ],
     },

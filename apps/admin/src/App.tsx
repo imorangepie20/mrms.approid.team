@@ -45,6 +45,7 @@ import MelonIngestion from "./pages/MelonIngestion";
 import SourceRoutines from "./pages/SourceRoutines";
 import EmsStatistics from "./pages/Statistics";
 import UrlImports from "./pages/UrlImports";
+import SpotifyCharts from "./pages/SpotifyCharts";
 
 function TemplateRoutes() {
   return (
@@ -93,6 +94,7 @@ function TemplateRoutes() {
         <Route path="ems/ingestion" element={<EmsIngestion />} />
         <Route path="ems/melon" element={<MelonIngestion />} />
         <Route path="ems/url-imports" element={<UrlImports />} />
+        <Route path="ems/spotify" element={<SpotifyCharts />} />
         <Route path="ems/routines" element={<SourceRoutines />} />
         <Route path="*" element={<Error404 />} />
       </Route>

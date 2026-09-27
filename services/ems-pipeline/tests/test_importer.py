@@ -108,5 +108,7 @@ def test_promote_match_writes_artwork_track_source_and_availability_atomically()
     assert "UPDATE ems_ingest_candidates" in sql
     assert "resolver_error_code = NULL" in connection.cursor_value.statements[-1]
     assert "artwork_url" in connection.cursor_value.statements[0]
+    assert "candidate_key LIKE 'spotify:%%'" in connection.cursor_value.statements[0]
+    assert "THEN 'candidate' ELSE 'active'" in connection.cursor_value.statements[0]
     assert "https://resources.tidal.com/cover.jpg" in connection.cursor_value.values[0]
     assert connection.cursor_value.values[-1] == ["tidal-a", "isrc_exact_tiebreak", "candidate-a"]

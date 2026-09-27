@@ -1,11 +1,14 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { EditorialSectionRail } from "@/components/ems/editorial-section-rail";
 import { TrackList } from "@/components/music/track-list";
 import { fetchEmsSections } from "@/lib/ems/client";
 import type { EmsSectionsResponse } from "@/lib/ems/sections";
+import type { EmsSpotifyPlaylist } from "@/lib/ems/sections";
 import type { Track } from "@/lib/music/types";
 
 type LoadState = "loading" | "ready" | "error";
@@ -139,15 +142,98 @@ function EditorialSections({
     );
   }
   if (state === "loading") return <SectionSkeleton />;
-  if (!response?.sections.length) {
+  const editorialSections = response?.sections ?? [];
+  const spotifyPlaylists = response?.spotifyPlaylists ?? [];
+  if (!editorialSections.length && !spotifyPlaylists.length) {
     return <p className="empty-state">새로운 편집 선곡을 준비하고 있습니다.</p>;
   }
   return (
     <div>
-      {response.sections.map((section) => (
+      {spotifyPlaylists.length ? (
+        <SpotifyChartSection playlists={spotifyPlaylists} />
+      ) : null}
+      {editorialSections.map((section) => (
         <EditorialSectionRail key={section.slug} section={section} />
       ))}
     </div>
+  );
+}
+
+function SpotifyChartSection({ playlists }: { playlists: EmsSpotifyPlaylist[] }) {
+  const [selectedId, setSelectedId] = useState(playlists[0]?.spotifyId ?? "");
+  const selected = playlists.find((playlist) => playlist.spotifyId === selectedId) ?? playlists[0];
+
+  return (
+    <section aria-labelledby="spotify-chart-heading" className="mb-14">
+      <div className="mb-5 flex items-end justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-[650] text-[var(--foreground)] sm:text-2xl" id="spotify-chart-heading">
+            Spotify 차트
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
+            Spotify 공개 차트에서 수집해 TIDAL 재생 가능 여부를 확인한 곡입니다.
+          </p>
+        </div>
+        <a
+          aria-label="Spotify 추천 차트 원문 열기"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--muted)] transition hover:border-[var(--brand)] hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
+          href="https://open.spotify.com/section/0JQ5DAzQHECxDlYNI6xD1g"
+          rel="noopener noreferrer"
+          target="_blank"
+          title="Spotify 추천 차트 원문"
+        >
+          <ExternalLink aria-hidden="true" size={18} />
+        </a>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {playlists.map((playlist) => {
+          const selected = playlist.spotifyId === selectedId;
+          return (
+            <button
+              aria-pressed={selected}
+              className={`group flex min-w-0 items-center gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] ${
+                selected
+                  ? "border-[var(--brand)] bg-purple-500/10"
+                  : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--brand)]"
+              }`}
+              key={playlist.spotifyId}
+              type="button"
+              onClick={() => setSelectedId(playlist.spotifyId)}
+            >
+              <span className="relative aspect-square w-20 shrink-0 overflow-hidden rounded-md bg-[var(--surface-raised)]">
+                {playlist.artworkUrl ? (
+                  <Image
+                    alt=""
+                    className="object-cover"
+                    fill
+                    sizes="80px"
+                    src={playlist.artworkUrl}
+                  />
+                ) : null}
+              </span>
+              <span className="min-w-0">
+                <strong className="block text-sm font-semibold text-[var(--foreground)]">
+                  {playlist.title}
+                </strong>
+                <span className="mt-1 block text-xs text-[var(--muted)]">
+                  {playlist.matchedCount} / {playlist.sourceTrackCount}곡
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {selected ? (
+        <div className="mt-8">
+          <TrackList
+            emptyMessage="TIDAL에서 재생 가능한 곡을 확인하고 있습니다."
+            heading={selected.title}
+            source={{ id: `spotify:${selected.spotifyId}`, type: "ems" }}
+            tracks={selected.tracks}
+          />
+        </div>
+      ) : null}
+    </section>
   );
 }
 

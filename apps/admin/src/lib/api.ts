@@ -203,6 +203,60 @@ export type ManualUrlImportJob = {
   items: ManualUrlImportItem[];
 };
 
+export type SpotifyChartTarget = {
+  id: string;
+  title: string;
+  description: string;
+};
+
+export type SpotifyChartRun = {
+  id: string;
+  status: "pending" | "running" | "paused" | "completed" | "failed";
+  phase: string;
+  spotifyRequestBudget: number;
+  spotifyRequestCount: number;
+  tidalRequestBudget: number;
+  tidalRequestCount: number;
+  requestedCount: number;
+  matchedCount: number;
+  pendingCount: number;
+  ambiguousCount: number;
+  notFoundCount: number;
+  unavailableCount: number;
+  retryableCount: number;
+  budgetExhaustedCount: number;
+  playlistCount: number;
+  membershipCount: number;
+  active: boolean;
+  errorCode: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  activatedAt: string | null;
+  finishedAt: string | null;
+  playlists: Array<{
+    spotifyId: string;
+    title: string;
+    description: string;
+    artworkUrl: string | null;
+    sourceUrl: string;
+    displayOrder: number;
+    sourceTrackCount: number;
+    matchedCount: number;
+  }>;
+};
+
+export type SpotifyChartAdminData = {
+  targets: SpotifyChartTarget[];
+  limits: {
+    playlists: number;
+    tracksPerPlaylist: number;
+    spotifyRequests: number;
+    tidalRequests: number;
+  };
+  runs: SpotifyChartRun[];
+};
+
 export type EmsTrackPage = { totalCount: number; page: number; limit: number; nextPage: number | null; nextCursor: string | null; tracks: EmsTrack[] };
 
 export class AdminApiError extends Error {
@@ -352,4 +406,25 @@ export function startApprovedManualUrlImport(id: string) {
   return requestJson<{ id: string; status: string }>(`/api/admin/ems/url-imports/${encodeURIComponent(id)}`, {
     method: "POST",
   });
+}
+
+export function getSpotifyChartRuns() {
+  return requestJson<SpotifyChartAdminData>("/api/admin/ems/spotify-charts");
+}
+
+export function startSpotifyChartRun() {
+  return requestJson<{ id: string; status: string }>("/api/admin/ems/spotify-charts", {
+    method: "POST",
+  });
+}
+
+export function changeSpotifyChartRun(id: string, action: "pause" | "resume") {
+  return requestJson<{ id: string; status: string }>(
+    `/api/admin/ems/spotify-charts/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action }),
+    },
+  );
 }

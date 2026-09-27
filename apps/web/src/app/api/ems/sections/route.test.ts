@@ -10,7 +10,7 @@ import { GET } from "./route";
 describe("GET /api/ems/sections", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.list.mockResolvedValue({ totalCount: 54, sections: [] });
+    mocks.list.mockResolvedValue({ totalCount: 54, sections: [], spotifyPlaylists: [] });
   });
 
   it("returns bounded editorial sections", async () => {

@@ -37,13 +37,21 @@ function row(slug: string, sortOrder: number, trackId: string, rank: number): Se
 function fakeExecutor(fixtures: {
   count: Array<{ total_count: number }>;
   sectionRows: SectionRow[];
+  spotifyPlaylists?: Array<Record<string, unknown>>;
+  spotifyTracks?: Array<Record<string, unknown>>;
 }) {
   const sql: string[] = [];
   return {
     sql,
     async query(statement: string, values: unknown[] = []) {
       sql.push(statement);
-      if (statement.includes("count(*)")) return { rows: fixtures.count };
+      if (statement.includes("FROM ems_tracks AS e")) return { rows: fixtures.count };
+      if (statement.includes("SELECT playlist.spotify_id, item.sequence_no")) {
+        return { rows: fixtures.spotifyTracks ?? [] };
+      }
+      if (statement.includes("SELECT playlist.spotify_id")) {
+        return { rows: fixtures.spotifyPlaylists ?? [] };
+      }
       const candidateLimit = Number(values.at(-1));
       let rows = fixtures.sectionRows.filter((item) => item.rank < candidateLimit);
       if (statement.includes("LIMIT $2")) {
@@ -139,5 +147,49 @@ describe("EMS editorial section repository", () => {
       "night-rnb",
       "feel-good",
     ]);
+  });
+
+  it("returns only the active completed Spotify chart snapshot", async () => {
+    const executor = fakeExecutor({
+      count: [{ total_count: 54 }],
+      sectionRows: [],
+      spotifyPlaylists: [{
+        spotify_id: "37i9dQZEVXbNG2KDcFcKOF",
+        title: "인기 곡 - 글로벌",
+        description: "주간 글로벌 차트",
+        artwork_url: "https://charts-images.scdn.co/chart.jpg",
+        source_url: "https://open.spotify.com/playlist/37i9dQZEVXbNG2KDcFcKOF",
+        source_track_count: 50,
+        matched_count: 1,
+      }],
+      spotifyTracks: [{
+        spotify_id: "37i9dQZEVXbNG2KDcFcKOF",
+        sequence_no: 0,
+        track_id: "track-a",
+        tidal_id: "tidal-a",
+        track_title: "Track A",
+        artist: "Artist",
+        album: "Album",
+        duration_ms: 180_000,
+        artwork_url: "https://resources.tidal.com/a.jpg",
+      }],
+    });
+
+    const result = await listEmsSections(
+      { screen: "ems", region: "KR" },
+      executor as never,
+    );
+
+    expect(result.spotifyPlaylists).toEqual([
+      expect.objectContaining({
+        title: "인기 곡 - 글로벌",
+        sourceTrackCount: 50,
+        matchedCount: 1,
+        tracks: [expect.objectContaining({ id: "track-a" })],
+      }),
+    ]);
+    expect(executor.sql.join("\n")).toMatch(
+      /chart\.active = true AND chart\.status = 'completed'/,
+    );
   });
 });
