@@ -1,10 +1,10 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-09-26
+최종 갱신: 2026-09-27
 
-최신 기능 기준 커밋: `4e1fd371e97b`
+최신 기능 기준 커밋: `bc47ed34e971`
 
-최신 Zorin Web 배포 기준 커밋: `4e1fd371e97b` (전체 플레이어 대기열 곡 정보)
+최신 Zorin Web 배포 기준 커밋: `bc47ed34e971` (비회원 재생 오류 안내)
 
 최신 Zorin EMS 배포 기준 커밋: `3ccc0d25f5ed` (멜론 100곡 묶음 자동 이어 수집)
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-27 `bc47ed34e971`에서 비회원 재생 오류의 내부 `unauthorized` 코드를 한국어 안내와 로그인 진입점으로 교체했다. 운영 Web만 재배포했고 공개 Home·EMS·readiness, 컨테이너 health, 실제 EMS 트랙 선택 뒤 `returnTo=/ems` 로그인 링크와 내부 코드 비노출을 확인했다. 이전 `c7a002d` release와 Web 이미지는 롤백용으로 보존했다. 상세는 `docs/changes/2026-09-27-anonymous-playback-error.md`에 기록한다.
 - 2026-09-26 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 개인 취향 프로필에 반영하도록 로컬 구현했다. 좋아요의 완료 EMS 임베딩을 재사용하고 EMS·사용자 라이브러리에 없는 TIDAL 좋아요는 메타데이터 스냅샷으로 계산 중 임베딩한다. 긍정 액션 트랙은 기본 가중치의 2배로 반영하고 거절 이력은 긍정 피드백과 GMS 후보에서 제외한다. Web build·lint와 diff 검사는 통과했다. 2026-09-27 운영 GMS 추천 카드 표시는 확인했으며 액션 재계산 코드는 미배포 상태라 액션 검증은 남았다. 상세는 `docs/changes/2026-09-26-user-action-taste-profile.md`에 기록한다.
 - 2026-09-26 관리자 공개 URL 수집·검토 경로를 로컬 구현했다. 관리자 Melon 장르·TIDAL track/album/playlist URL 제출, 원본·항목 출처와 수집 시각 저장, 곡별 승인·제외, 기존 EMS resolver 연동을 추가했다. 운영 migration·배포와 live URL·관리자 브라우저 검증은 남아 있다. 상세는 `docs/changes/2026-09-26-admin-url-import.md`에 기록한다.
 - 2026-09-26 `4e1fd371e97b`에서 전체 플레이어 대기열에 앨범 아트·앨범명·재생 시간을 추가했다. Web build·TypeScript와 운영 Web healthy·readiness를 확인했다. 실제 로그인 화면의 시각 확인은 남았다. 상세는 `docs/changes/2026-09-26-full-player-queue-details.md`에 기록한다.
@@ -85,6 +86,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-27 | `apps/web` focused Vitest·lint·build, Zorin Web image build·Compose 교체, 공개 HTTP·브라우저 smoke | 비회원 재생 오류 안내, 로그인 복귀 경로, 내부 코드 비노출, 롤백 보존 | 통과: focused 9개 테스트, lint·build, release `bc47ed34e971`, Web healthy, 공개 `/`·`/ems`·readiness 200, 로그인 307, `returnTo=/ems`, 브라우저·Web 로그 오류 0건 |
 | 2026-09-20 | 생성 문서의 경로·링크·템플릿 확인 | `AGENTS.md`가 가리키는 4개 문서와 작업·변경 템플릿이 존재함 | 통과: 7개 필수 문서의 존재, `AGENTS.md` 참조, 템플릿 표식 확인 |
 | 2026-09-20 | 수정된 하네스 안내와 작업·변경 템플릿 대조 | 조사 근거·직접 검증·미정 항목을 기록할 수 있음 | 통과: 필수 문서 7개, `AGENTS.md` 참조, 추가 템플릿 항목 확인 |
 | 2026-09-21 | `apps/web`: `npm test` | 전체 회귀 통과 | 통과: 43개 파일, 132개 테스트 |
