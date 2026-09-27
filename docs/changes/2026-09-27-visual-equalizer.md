@@ -31,12 +31,22 @@
 - `npm run build`: TypeScript와 Next.js production build 통과. 로컬 build의 Auth0 환경 경고는 유지된다.
 - `git diff --check`: 통과.
 
-## 배포 전 미검증 항목
+## 운영 배포와 브라우저 QA
 
-- 공개 서버의 desktop·390x844 화면, canvas pixel, 키보드 focus, 대기열·모드 전환은 Web 배포 뒤 확인한다.
-- 로그인된 실제 TIDAL direct MP4·HLS 재생의 PCM 반응과 브라우저별 codec 지원 범위는 운영 QA 결과를 별도로 기록한다.
+- 기능 커밋 `58ba65e`를 release `/home/approid/apps/music-pie/releases/58ba65e`와 Web image `music-pie-web:58ba65e`로 배포했다.
+- Web container는 `healthy`이고 local/public readiness, Home, EMS, `/visualizer`가 HTTP 200이다. 비인증 analysis API는 401이다.
+- 공개 desktop 브라우저에서 EMS 트랙 선택 뒤 Next client navigation이 현재 트랙과 12곡 대기열을 보존하는 것을 확인했다.
+- `/visualizer`에서 현재 artwork·제목·아티스트, 이전/재생/다음, 재생 위치, 대기열 전환, 막대/방사형 키보드 전환이 동작했다.
+- 비회원 오류는 `로그인 후 실시간 이퀄라이저를 사용할 수 있습니다.`와 `returnTo=/visualizer` 로그인 링크로 표시되고 브라우저 warning/error는 0건이었다.
+- EMS pipeline과 source-routines의 container ID·image·시작 시각은 배포 전후 동일하다. DB migration과 worker restart는 없었다.
+
+## 미검증 항목
+
+- browser viewport override가 실제 390x844로 적용되지 않아 mobile은 responsive CSS와 component test까지만 검증했다.
+- 로그인된 실제 TIDAL direct MP4·HLS 재생의 PCM 반응, canvas pixel과 브라우저별 codec 지원 범위는 남았다.
 
 ## 롤백
 
-- 배포 전 현재 release symlink와 Web image를 확인해 롤백 식별자로 보존한다.
-- 문제 발생 시 이전 Web image와 release symlink로 복원하고 Web만 재생성한다. EMS·PostgreSQL·embedding·상시 worker는 재시작하지 않는다.
+- 기능 전체 롤백 기준은 이전 release `/home/approid/apps/music-pie/releases/c76197b`와 image `music-pie-web:pre-visualizer-ca0ce76`이다.
+- 마지막 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f6392b0`와 image `music-pie-web:pre-visualizer-errors-58ba65e`를 사용한다.
+- 롤백 시 Web만 재생성하고 EMS·PostgreSQL·embedding·상시 worker는 재시작하지 않는다.
