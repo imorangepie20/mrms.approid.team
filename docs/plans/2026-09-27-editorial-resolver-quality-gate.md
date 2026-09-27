@@ -48,3 +48,12 @@
 - 처리 결과와 `matched/ambiguous/not_found/unavailable/retryable/budget_exhausted`, 최종 1,000곡 분류 비율을 기록한다.
 - false match `<1%`, embedding 미완료 `0`, playback `20/20`, 격리 restore rehearsal을 모두 통과한다.
 - 사용자 데이터와 기존 active catalog 보존을 확인하고 run을 `paused`로 남긴다.
+
+## 실행 결과
+
+- resolver `24/24 matched`, catalog GET `24/50`, 다른 결과와 rate-limit은 `0`이며 run은 `paused`다.
+- 최종 분류는 matched `154`, pending `806`, retryable `40`, 나머지 `0`이다.
+- false match는 전수 감사 기준 `0/154`, embedding은 target `154/154`와 전체 active 미완료 `0`이다.
+- rollback dump를 격리 PostgreSQL에 실제 restore했고 사용자·active EMS·section 기준선이 일치했다.
+- 고정 20곡은 `FULL` manifest와 실제 audio range `20/20`을 확인했다. 브라우저 로그인 세션을 사용할 수 없어 `HTMLAudioElement` 재생 위치 증가는 남았다.
+- 상세 운영 결과는 `docs/changes/2026-09-27-editorial-resolver-quality-gate.md`에 기록한다.

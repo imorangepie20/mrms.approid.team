@@ -2,11 +2,11 @@
 
 최종 갱신: 2026-09-27
 
-최신 기능 기준 커밋: `7e79ad2bd9af`
+최신 기능 기준 커밋: `951fb9a`
 
-최신 Zorin Web 배포 기준 커밋: `7e79ad2bd9af` (editorial section sync release)
+최신 Zorin Web 배포 기준 커밋: `66dff7ee37ee` (Home·EMS browser QA)
 
-최신 Zorin EMS 배포 기준 커밋: `3ccc0d25f5ed` (멜론 100곡 묶음 자동 이어 수집)
+최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
 ## 이번 목표
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-27 `951fb9a`에서 matched 승격의 stale 오류 정리, rate-limit·budget 중단 시 미처리 claim 복구, embedding 실제 잔여 집계를 추가했다. 승인된 resolver 24곡은 24/24 matched, catalog GET 24/50이었고 최종 1,000곡 분류는 matched 154, pending 806, retryable 40, 나머지 0으로 run을 `paused`로 남겼다. 전수 false-match 0/154, target embedding 154/154, 전체 미완료 0, playback media 표본 20/20, 격리 restore와 사용자·기존 active 보존을 확인했다. 상세는 `docs/changes/2026-09-27-editorial-resolver-quality-gate.md`에 기록한다.
 - 2026-09-27 배포된 Home·EMS를 desktop과 `390x844` mobile에서 bounded browser QA했다. Home 3개, EMS 5개 section이 각각 12곡이고 API/UI `totalCount=38,762`, section 전역 중복 0을 확인했다. rail keyboard·mobile swipe, focus ring, 비회원 재생 recovery, 검색 전환·빈 상태·복귀, 제거된 platform filter, 문서 overflow와 고정 UI를 검증했으며 blocking 결함은 0건이다. 검색 오류 문구 회귀 테스트를 추가했다. 상세는 `docs/changes/2026-09-27-home-ems-browser-qa.md`에 기록한다.
 - 2026-09-27 `7e79ad2bd9af`에서 editorial sync를 전역 track 중복 제거, section당 최대 12곡, 최소 4개×6곡 fail-closed gate, 전체 section 단일 transaction으로 강화했다. 운영 dry-run과 actual sync 모두 5개 section×12곡이었고 DB/API 중복 0, local/public health·sections API·Home·EMS 200을 확인했다. Web만 새 release로 교체했으며 상시 EMS worker와 source-routines container는 이전 image에서 중단 없이 유지했다. 상세는 `docs/changes/2026-09-27-editorial-section-sync-release.md`에 기록한다.
 - 2026-09-27 resolver 확장 뒤 editorial section dry-run을 `playlist-limit=2`, request budget `24`, timeout `8초`로 다시 실행했다. `new-releases 39/25/0`, `seasonal-jazz 38/38/0`, `night-rnb 39/28/0`, `feel-good 34/30/0`, `focus 26/26/0`(`discovered/joined/stored`)으로 projected stored 기준 `5/5` section이 6곡 이상이라 gate를 통과했다. 기존 section `10`·membership `113`의 전후 fingerprint, release와 서비스 상태는 동일하며 실제 membership write와 release 전환은 하지 않았다. 상세는 `docs/changes/2026-09-27-editorial-dry-run-after-resolver.md`에 기록한다.
@@ -90,6 +91,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-27 | pipeline TDD·전체 pytest, bounded resolver·embedding, 격리 PostgreSQL restore, 전수 match audit, 20곡 playback media probe, local/public smoke | 24/50/1 이내, false match 1% 미만, embedding·rollback·보존 통과, run paused | 통과: pipeline 58개·Web focused 32개, 24/24 matched·GET 24, 최종 `154/806/40`, false match 0/154, target embedding 154/154·전체 미완료 0, playback media 20/20, 기존 active 38,861/38,861·사용자 fingerprint 보존 |
 | 2026-09-27 | 공개 Home·EMS desktop/`390x844` browser QA, sections API 대조, focused Vitest·lint·build | Home top 3, EMS 5개 section, rail 입력·재생 recovery·검색·빈/오류 문구, count/filter, blocking 결함 0 | 통과: 5개×12곡, `totalCount=38,762`, 중복·문서 overflow·console 오류·blocking 결함 0, focused 26개 테스트, lint 오류 0, build 통과 |
 | 2026-09-27 | pipeline TDD·전체 pytest, Web focused/full test·lint·build, Zorin backup·dry-run·actual sync·Web-only release, local/public smoke | 4개 이상 section 각 6~12곡, 중복 0, 상시 worker 불변, health·sections API·Home·EMS 성공 | 통과: pipeline 56개·focused Web 24개, 5개 section×12곡, pair·전역 중복 0, 8개 local/public HTTP 200, worker ID/image/start 불변. Web 전체 test는 기존 불일치 4건 실패 |
 | 2026-09-27 | editorial focused pytest·Vitest, Zorin one-off `sync-editorial-sections --dry-run`, DB fingerprint·release·HTTP 대조 | 5 slug 집계, 최소 4개 joined 6 이상, stored 0, 기존 DB·서비스 불변 | 통과: pipeline 12개·Web 24개 테스트, joined `25/38/28/30/26`, stored 모두 0, section 10·membership 113 fingerprint 불변, 세 container healthy, Home·EMS·readiness 200 |
@@ -147,8 +149,8 @@
 
 ## 미검증·제약
 
-- Home top 3·EMS 5개 rail의 desktop/mobile 시각, 키보드, 비회원 재생 recovery는 확인했다. 로그인 TIDAL 실제 codec 재생은 아직 확인하지 않았고 Web 전체 Vitest의 기존 Home copy 기대 1건과 recommendations/likes mock 3건도 별도 정리가 필요하다.
-- resolver 재시도 후 matched가 된 3건은 과거 `rate_limited` 오류 코드가 남아 있다. 상태·집계에는 영향이 없지만 다음 batch 전 matched 승격 시 오류 메타데이터를 지우는 회귀 수정이 필요하다.
+- Home top 3·EMS 5개 rail의 desktop/mobile 시각, 키보드, 비회원 재생 recovery와 20곡의 production `FULL` manifest·실제 audio range 수신은 확인했다. 로그인 Chrome 세션을 사용할 수 없어 같은 20곡의 `HTMLAudioElement` decode·재생 위치 증가는 아직 확인하지 않았다. Web 전체 Vitest의 기존 Home copy 기대 1건과 recommendations/likes mock 3건도 별도 정리가 필요하다.
+- matched 승격 시 과거 오류 메타데이터를 지우도록 수정했고 target run의 누적 stale 오류 19건도 0으로 정리했다. run은 matched 154, pending 806, retryable 40으로 아직 완료 상태가 아니다.
 - 관리자 URL 수집은 코드·로컬 build까지만 확인했다. 운영 migration·배포, Melon/TIDAL live extraction과 로그인 관리자 화면에서의 승인 후 EMS 저장은 미검증이다.
 - 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 취향 프로필에 반영하는 코드는 로컬 구현 및 Web build/lint까지 확인했다. 운영 배포는 아직 하지 않았다.
 - 2026-09-27 로그인된 운영 `/gms`에서 추천 12곡 표시를 확인했다. 액션 저장과 프로필 갱신은 로컬 변경이 미배포 상태이고 실계정 데이터 변경도 하지 않아 아직 미검증이다. 2026-09-23 운영 취향 프로필은 `completed|101`이며 전체 1개·군집 2개 centroid 생성 기록으로 2026-09-22의 `profile_count=0` 메모를 대체한다.
@@ -168,8 +170,9 @@
 
 1. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 2. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생과 player 시간 증가를 확인한다.
-3. 다음 resolver batch 전 matched 승격의 과거 오류 메타데이터 정리를 수정하고, 새 24건의 false-match 검토와 embedding completion·rollback rehearsal을 수행한다.
-4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
+3. 로그인 TIDAL 브라우저 세션에서 고정 20곡의 실제 decode·재생 위치 증가를 확인한다.
+4. 1,000곡 run의 다음 batch 또는 남은 846건 전체에 대한 aggregate request budget을 별도 승인한 뒤 계속한다.
+5. 1,000곡 기준선을 완료·승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
 
 ## 관련 문서
 
@@ -192,6 +195,8 @@
 - `docs/changes/2026-09-21-musicbrainz-genre-enrichment.md`
 - `docs/changes/2026-09-21-genre-embedding-input.md`
 - `docs/plans/2026-09-21-genre-embedding-input.md`
+- `docs/plans/2026-09-27-editorial-resolver-quality-gate.md`
+- `docs/changes/2026-09-27-editorial-resolver-quality-gate.md`
 - `docs/superpowers/specs/2026-09-22-track-embedding-taste-profile-design.md`
 - `docs/superpowers/plans/2026-09-22-track-embedding-taste-profile.md`
 - `docs/changes/2026-09-22-track-embedding-taste-profile.md`
