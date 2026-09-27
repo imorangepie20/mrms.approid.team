@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
         from .editorial_sections import (
             SECTION_DEFINITIONS,
             discover_editorial_memberships,
-            sync_editorial_sections,
+            sync_editorial_sections_guarded,
         )
         from .tidal import TidalCatalogClient
 
@@ -175,7 +175,12 @@ def main(argv: list[str] | None = None) -> int:
                 playlist_limit=args.playlist_limit,
             )
         with psycopg.connect(database_url, row_factory=dict_row) as connection:
-            counts = sync_editorial_sections(connection, SECTION_DEFINITIONS, memberships, dry_run=args.dry_run)
+            counts = sync_editorial_sections_guarded(
+                connection,
+                SECTION_DEFINITIONS,
+                memberships,
+                dry_run=args.dry_run,
+            )
         print(
             json.dumps(
                 {slug: asdict(count) for slug, count in counts.items()},

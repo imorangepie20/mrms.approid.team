@@ -13,6 +13,15 @@ from .tidal_popularity import (
 )
 
 
+MAX_SECTION_TRACKS = 12
+MIN_SECTION_TRACKS = 6
+MIN_READY_SECTIONS = 4
+
+
+class EditorialSectionSyncGateError(RuntimeError):
+    pass
+
+
 @dataclass(frozen=True)
 class SectionDefinition:
     slug: str
@@ -37,6 +46,14 @@ class SectionSyncCount:
     discovered: int
     joined: int
     stored: int
+
+
+@dataclass(frozen=True)
+class _ProjectedSection:
+    definition: SectionDefinition
+    sort_order: int
+    discovered: int
+    joined: tuple[tuple[EditorialMembership, object], ...]
 
 
 SECTION_DEFINITIONS = (
@@ -209,6 +226,7 @@ def sync_editorial_sections(
     memberships: Iterable[EditorialMembership],
     *,
     dry_run: bool,
+    enforce_gate: bool = False,
 ) -> dict[str, SectionSyncCount]:
     definition_list = list(definitions)
     membership_list = list(memberships)
@@ -224,65 +242,120 @@ def sync_editorial_sections(
     by_tidal = {str(row["tidal_id"]): row for row in rows}
     by_isrc = {str(row["isrc"]).upper(): row for row in rows if row.get("isrc")}
 
-    counts: dict[str, SectionSyncCount] = {}
+    projected_sections: list[_ProjectedSection] = []
+    seen_track_ids: set[str] = set()
     for sort_order, definition in enumerate(definition_list):
         discovered = [
             item for item in membership_list if item.section_slug == definition.slug
         ]
+        discovered.sort(
+            key=lambda item: (
+                item.rank,
+                item.tidal_id,
+                item.isrc,
+                item.source_playlist_id,
+            )
+        )
         joined: list[tuple[EditorialMembership, object]] = []
-        seen_track_ids: set[str] = set()
         for item in discovered:
             row = by_tidal.get(item.tidal_id) or by_isrc.get(item.isrc.upper())
             if row is None or str(row["id"]) in seen_track_ids:
                 continue
             seen_track_ids.add(str(row["id"]))
             joined.append((item, row["id"]))
-
-        stored = 0
-        if not dry_run:
-            with connection.transaction():
-                section = connection.execute(
-                    """INSERT INTO ems_editorial_sections
-                         (slug, title, description, sort_order, active, updated_at)
-                       VALUES (%s, %s, %s, %s, true, now())
-                       ON CONFLICT (slug) DO UPDATE SET
-                         title = EXCLUDED.title,
-                         description = EXCLUDED.description,
-                         sort_order = EXCLUDED.sort_order,
-                         active = true,
-                         updated_at = now()
-                       RETURNING id""",
-                    (
-                        definition.slug,
-                        definition.title,
-                        definition.description,
-                        sort_order,
-                    ),
-                ).fetchone()
-                section_id = section["id"]
-                connection.execute(
-                    "DELETE FROM ems_track_sections WHERE section_id = %s",
-                    (section_id,),
-                )
-                for item, track_id in joined:
-                    connection.execute(
-                        """INSERT INTO ems_track_sections
-                             (section_id, track_id, rank, source_playlist_id,
-                              source_playlist_name, last_seen_at)
-                           VALUES (%s, %s, %s, %s, %s, now())""",
-                        (
-                            section_id,
-                            track_id,
-                            item.rank,
-                            item.source_playlist_id,
-                            item.source_playlist_name,
-                        ),
-                    )
-                stored = len(joined)
-
-        counts[definition.slug] = SectionSyncCount(
-            discovered=len(discovered),
-            joined=len(joined),
-            stored=stored,
+            if len(joined) == MAX_SECTION_TRACKS:
+                break
+        projected_sections.append(
+            _ProjectedSection(
+                definition=definition,
+                sort_order=sort_order,
+                discovered=len(discovered),
+                joined=tuple(joined),
+            )
         )
-    return counts
+
+    ready_sections = sum(
+        len(projected.joined) >= MIN_SECTION_TRACKS
+        for projected in projected_sections
+    )
+    if enforce_gate and not dry_run and ready_sections < MIN_READY_SECTIONS:
+        raise EditorialSectionSyncGateError(
+            "editorial section sync gate failed: "
+            f"ready_sections={ready_sections} required={MIN_READY_SECTIONS}"
+        )
+
+    if dry_run:
+        return {
+            projected.definition.slug: SectionSyncCount(
+                discovered=projected.discovered,
+                joined=len(projected.joined),
+                stored=0,
+            )
+            for projected in projected_sections
+        }
+
+    with connection.transaction():
+        for projected in projected_sections:
+            definition = projected.definition
+            section = connection.execute(
+                """INSERT INTO ems_editorial_sections
+                     (slug, title, description, sort_order, active, updated_at)
+                   VALUES (%s, %s, %s, %s, true, now())
+                   ON CONFLICT (slug) DO UPDATE SET
+                     title = EXCLUDED.title,
+                     description = EXCLUDED.description,
+                     sort_order = EXCLUDED.sort_order,
+                     active = true,
+                     updated_at = now()
+                   RETURNING id""",
+                (
+                    definition.slug,
+                    definition.title,
+                    definition.description,
+                    projected.sort_order,
+                ),
+            ).fetchone()
+            section_id = section["id"]
+            connection.execute(
+                "DELETE FROM ems_track_sections WHERE section_id = %s",
+                (section_id,),
+            )
+            for item, track_id in projected.joined:
+                connection.execute(
+                    """INSERT INTO ems_track_sections
+                         (section_id, track_id, rank, source_playlist_id,
+                          source_playlist_name, last_seen_at)
+                       VALUES (%s, %s, %s, %s, %s, now())""",
+                    (
+                        section_id,
+                        track_id,
+                        item.rank,
+                        item.source_playlist_id,
+                        item.source_playlist_name,
+                    ),
+                )
+
+    return {
+        projected.definition.slug: SectionSyncCount(
+            discovered=projected.discovered,
+            joined=len(projected.joined),
+            stored=len(projected.joined),
+        )
+        for projected in projected_sections
+    }
+
+
+def sync_editorial_sections_guarded(
+    connection: object,
+    definitions: Iterable[SectionDefinition],
+    memberships: Iterable[EditorialMembership],
+    *,
+    dry_run: bool,
+) -> dict[str, SectionSyncCount]:
+    return sync_editorial_sections(
+        connection,
+        definitions,
+        memberships,
+        dry_run=dry_run,
+        enforce_gate=True,
+    )
