@@ -7,6 +7,7 @@
 ## 변경 내용
 
 - `/visualizer`에 실제 PCM frequency bin을 그리는 막대형·방사형 canvas를 추가했다.
+- 막대형은 FFT bin을 로그 주파수 밴드로 묶고 고역 gain을 보정해 저역 막대가 좌측에만 몰리지 않게 했으며, 전체 막대 묶음을 canvas 중앙에 고정한다.
 - 현재 트랙 artwork, 재생 위치, 이전·재생/일시정지·다음, 대기열 전환과 표시 방식 segmented control을 desktop·mobile 공통으로 제공한다.
 - 전역 플레이어에서 TIDAL ID가 있는 현재 트랙에만 `EQ` 진입 링크를 표시하고 Next client navigation으로 재생 세션을 보존한다. 현재 TIDAL 트랙 없이 직접 접근하면 Home으로 복귀한다.
 - HLS.js의 `BUFFER_CODECS`·`BUFFER_APPENDING`에서 init/media fMP4를 캡처하고, `AudioContext.decodeAudioData`로 mono PCM을 만든다.
@@ -25,6 +26,7 @@
 ## 검증 결과
 
 - focused Vitest: 7개 파일, 27개 테스트 통과.
+- 막대 분포 보완 focused Vitest: 2개 파일, 5개 테스트 통과. 로그 밴드의 저역·고역 분포와 canvas 중앙 정렬을 고정했다.
 - layout·player·visualizer·analysis route 재검증: 5개 파일, 24개 테스트 통과.
 - 전체 Vitest: 98개 파일 중 95개, 385개 중 381개 통과. 이번 diff 밖에서 이미 문서화된 Home 기대값 1건과 likes·recommendations API의 HTTP 503 기대 불일치 3건만 실패했다.
 - `npm run lint`: 오류 0개, 기존 경고 5개.
