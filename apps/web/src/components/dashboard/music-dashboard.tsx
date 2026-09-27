@@ -10,7 +10,6 @@ import { TrackList } from "@/components/music/track-list";
 import { LikeButton } from "@/components/music/like-button";
 import { MmsLibrary, type MmsImportedPlaylist } from "@/components/music/mms-library";
 import { PlayIcon } from "@/components/music/play-icon";
-import { TrackRail } from "@/components/music/track-rail";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { fetchEmsSections } from "@/lib/ems/client";
 import type { EmsSectionsResponse } from "@/lib/ems/sections";
@@ -31,7 +30,7 @@ const copy = {
 } as const;
 
 export function MusicDashboard({ access, importedPlaylists = [], space, tracks: providedTracks, recommendationError = false, recommendationReady = false, profileVersion = "ems-v1" }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; space: Space; tracks?: Track[]; recommendationError?: boolean; recommendationReady?: boolean; profileVersion?: string }) {
-  const { acceptTrack, playTrack, rejectTrack } = useMusicSession();
+  const { acceptTrack, playTrack, rejectTrack, setQueue } = useMusicSession();
   const tracks = space === "gms" ? providedTracks ?? [] : providedTracks ?? [];
 
   if (space === "home") return <Home />;
@@ -58,7 +57,12 @@ export function MusicDashboard({ access, importedPlaylists = [], space, tracks: 
     if (decision === "accept") acceptTrack(track.id);
     else rejectTrack(track.id);
   };
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <p className="notice"><span aria-hidden="true" className="notice-mark" />싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  const playGmsTrack = (track: Track) => {
+    const source = { id: "gms", type: "gms" as const };
+    setQueue(tracks, source);
+    void playTrack(track, source);
+  };
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <p className="notice"><span aria-hidden="true" className="notice-mark" />싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
 }
 
 function PersonalizationGate({ access, returnTo }: { access: PersonalizationAccess; returnTo: string }) {
@@ -170,7 +174,57 @@ function Gateway({ tracks, error, ready, onPlay, onAccept, onReject }: { tracks:
   if (error) return <GatewayEmptyState variant="error" />;
   if (!ready) return <GatewayEmptyState variant="not-ready" />;
   if (!tracks.length) return <GatewayEmptyState variant="empty" />;
-  return <><h2 className="dash-heading">결정 대기 중 <small>{tracks.length}곡</small></h2><TrackRail ariaLabel="GMS 추천" className="track-rail--gateway">{tracks.map((track) => <article className="gateway-card gateway-card--fixed" key={track.id}><div className={`gateway-cover bg-gradient-to-br ${track.artworkClass}`}>{track.artworkUrl ? <Image alt={`${track.title} 앨범 아트`} fill sizes="238px" src={track.artworkUrl} /> : null}<div className="track-card-play-overlay"><button className="track-card-play-button cover-play-button grid size-10 place-items-center rounded-full bg-[rgba(76,29,149,0.82)] text-white ring-1 ring-[rgba(46,16,101,0.95)] shadow-[0_8px_24px_rgba(0,0,0,0.42)] transition duration-200 hover:bg-[rgba(109,40,217,0.88)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] motion-reduce:transform-none" aria-label={`${track.title} 재생`} onClick={() => onPlay(track)}><PlayIcon /></button></div></div><b>{track.title}</b><small>{track.artist} · {track.album}</small><div><button onClick={() => onAccept(track)}>추천 수락</button><button onClick={() => onReject(track)}>싫어요</button><LikeButton item={trackLikeItem(track)} /></div></article>)}</TrackRail></>;
+  return (
+    <section aria-labelledby="gms-track-list-title" className="gms-track-list-section">
+      <h2 className="dash-heading" id="gms-track-list-title">결정 대기 중 <small>{tracks.length}곡</small></h2>
+      <div aria-hidden="true" className="gms-track-list-header">
+        <span>#</span><span>곡</span><span>아티스트</span><span>앨범</span><span>결정</span>
+      </div>
+      <ol aria-label="GMS 트랙 추천" className="gms-track-list">
+        {tracks.map((track, index) => (
+          <GatewayTrackRow
+            index={index}
+            key={track.id}
+            onAccept={onAccept}
+            onPlay={onPlay}
+            onReject={onReject}
+            track={track}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: number; track: Track; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
+  const [artworkFailed, setArtworkFailed] = useState(false);
+  const playbackUnavailable = track.playbackAvailable === false;
+
+  return (
+    <li className={`gms-track-row ${playbackUnavailable ? "gms-track-row--unavailable" : ""}`}>
+      <span aria-hidden="true" className="gms-track-number">{String(index + 1).padStart(2, "0")}</span>
+      <button
+        aria-label={playbackUnavailable ? `재생 불가 ${track.title}` : `재생 ${track.title}`}
+        className="gms-track-main"
+        disabled={playbackUnavailable}
+        type="button"
+        onClick={() => onPlay(track)}
+      >
+        <span className={`gms-track-artwork bg-gradient-to-br ${track.artworkClass}`}>
+          {track.artworkUrl && !artworkFailed ? <Image alt="" fill sizes="48px" src={track.artworkUrl} onError={() => setArtworkFailed(true)} /> : null}
+          {playbackUnavailable ? null : <span aria-hidden="true" className="gms-track-play"><PlayIcon /></span>}
+        </span>
+        <span className="gms-track-copy"><b>{track.title}</b><small>{track.artist} · {track.album}</small></span>
+      </button>
+      <span className="gms-track-artist">{track.artist}</span>
+      <span className="gms-track-album">{track.album}</span>
+      <div className="gms-track-actions">
+        <button className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>추천 수락</button>
+        <button className="gms-decision-button" type="button" onClick={() => onReject(track)}>싫어요</button>
+        <LikeButton item={trackLikeItem(track)} />
+      </div>
+    </li>
+  );
 }
 
 function GatewayEmptyState({ variant }: { variant: "error" | "not-ready" | "empty" }) {

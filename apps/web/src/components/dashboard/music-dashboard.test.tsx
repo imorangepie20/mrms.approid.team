@@ -235,50 +235,60 @@ it("persists GMS decisions separately from the MMS like action", async () => {
   vi.unstubAllGlobals();
 });
 
-it("keeps recommendation reason metadata out of GMS cards", () => {
+it("renders GMS track recommendations as a list instead of cards", () => {
   renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
       recommendationReady
       space="gms"
-      tracks={[{
-        ...catalog[0],
-        id: "ems-track-reason",
-        recommendation: {
-          reasonCodes: ["taste_match", "fresh_release"],
-          score: 0.92,
-          scoreComponents: {
-            catalogPriority: 0.8,
-            diversity: 1,
-            freshness: 0.95,
-            matchConfidence: 0.9,
-            similarity: 0.9,
+      tracks={[
+        {
+          ...catalog[0],
+          id: "ems-track-reason",
+          recommendation: {
+            reasonCodes: ["taste_match", "fresh_release"],
+            score: 0.92,
+            scoreComponents: {
+              catalogPriority: 0.8,
+              diversity: 1,
+              freshness: 0.95,
+              matchConfidence: 0.9,
+              similarity: 0.9,
+            },
           },
         },
-      }]}
+        { ...catalog[1], id: "ems-track-second" },
+      ]}
     />,
   );
 
-  expect(screen.getByRole("region", { name: "GMS 추천" })).toBeInTheDocument();
-  expect(screen.getByRole("article")).toHaveClass("gateway-card--fixed");
+  expect(screen.getByRole("list", { name: "GMS 트랙 추천" })).toBeInTheDocument();
+  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  expect(screen.queryByRole("region", { name: "GMS 추천" })).not.toBeInTheDocument();
+  expect(document.querySelector(".gateway-card")).not.toBeInTheDocument();
   expect(screen.queryByText("취향 일치")).not.toBeInTheDocument();
   expect(screen.queryByText("최근 발매")).not.toBeInTheDocument();
 });
 
-it("renders the GMS play action with a visual icon hook", () => {
+it("queues all GMS tracks before playing a track from the list", async () => {
+  session.setQueue.mockClear();
+  session.playTrack.mockClear();
+  const user = userEvent.setup();
+  const tracks = [catalog[0], catalog[1]];
+
   renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
       recommendationReady
       space="gms"
-      tracks={[catalog[0]]}
+      tracks={tracks}
     />,
   );
 
-  const playButton = screen.getByRole("button", { name: "Midnight City 재생" });
-  expect(playButton).toHaveClass("cover-play-button");
-  expect(playButton).toHaveClass("track-card-play-button");
-  expect(playButton.parentElement).toHaveClass("track-card-play-overlay");
+  const playButton = screen.getByRole("button", { name: "재생 Midnight City" });
   expect(playButton.querySelector("svg.play-icon")).toBeInTheDocument();
-  expect(playButton.querySelector("span.play-icon")).not.toBeInTheDocument();
+  await user.click(playButton);
+
+  expect(session.setQueue).toHaveBeenCalledWith(tracks, { id: "gms", type: "gms" });
+  expect(session.playTrack).toHaveBeenCalledWith(catalog[0], { id: "gms", type: "gms" });
 });
