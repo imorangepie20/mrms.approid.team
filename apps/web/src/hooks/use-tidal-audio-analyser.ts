@@ -35,9 +35,9 @@ function zero(target: Uint8Array) {
   target.fill(0);
 }
 
-async function analysisAudio(trackId: string, quality: string, signal: AbortSignal) {
+export async function fetchVisualizerAnalysisAudio(trackId: string, signal: AbortSignal) {
   const response = await fetch(
-    `/api/tidal/tracks/${encodeURIComponent(trackId)}/analysis?quality=${encodeURIComponent(quality)}`,
+    `/api/tidal/tracks/${encodeURIComponent(trackId)}/analysis?quality=LOW`,
     { cache: "no-store", signal },
   );
   if (!response.ok) throw new Error("tidal_analysis_audio_unavailable");
@@ -98,23 +98,13 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
     };
 
     const decodeDirect = async (
-      url: string,
       trackId: string,
-      quality: string,
       startTime: number | null,
       jobId: number,
       signal: AbortSignal,
     ) => {
       try {
-        let data: ArrayBuffer;
-        try {
-          const direct = await fetch(url, { mode: "cors", signal });
-          if (!direct.ok) throw new Error("direct_stream_fetch_failed");
-          data = await direct.arrayBuffer();
-        } catch {
-          if (!current(jobId)) return;
-          data = await analysisAudio(trackId, quality, signal);
-        }
+        const data = await fetchVisualizerAnalysisAudio(trackId, signal);
         const decoded = await decodeCompleteAudioData(data);
         if (!current(jobId)) return;
         ring.current.clear();
@@ -147,9 +137,7 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
         decodeQueue.current = decodeQueue.current
           .catch(() => undefined)
           .then(() => decodeDirect(
-            event.url,
             event.trackId,
-            event.quality,
             event.startTime,
             jobId,
             controller.signal,
