@@ -19,10 +19,20 @@
 - 변경 파일 ESLint: 오류·경고 0건.
 - `npm run build`: Next.js production build와 TypeScript 통과.
 - `git diff --check`: 통과.
-- 배포와 public browser 결과는 완료 후 기록한다.
+- 기능 커밋 `d33d8fb`, Zorin release `d33d8fb`, Web image `sha256:aad7862ec5cbedf50b5bf9c3ab3879b8c1ddfc2ac4fd0c7e5b99eb324aababfc`를 배포했고 컨테이너 `healthy`를 확인했다.
+- 로그인된 public MMS의 31곡 플레이리스트에서 원래 첫 곡 `Seagulls` 대신 `The Dock of the Bay`가 즉시 재생되고 셔플 상태가 켜졌다. 다음 동작은 섞인 2번 곡 `This House Is Empty Now`를 재생했다.
+- 전체 플레이어 EQ는 `data-analyser-mode=pcm`, canvas `418x112`였고 0.9초 간격 캡처에서 실제 막대 형태가 달라졌다. desktop과 `390x844`에서 앨범 하단 overlay, 컨트롤과 텍스트 겹침이 없었다.
+- browser warning/error는 0건이었다.
+- public `/api/health/live`, `/api/health/ready`, Home, MMS와 EMS는 모두 HTTP 200이었다.
 
 ## 운영 경계
 
 - DB schema와 data write는 없다.
 - 사용자 데이터, TIDAL 연결 정보, active EMS catalog와 상시 worker를 변경하지 않는다.
 - 비밀값, token, cookie, signed URL과 raw query를 출력하거나 기록하지 않는다.
+
+## 롤백
+
+- 변경 전 release `/home/approid/apps/music-pie/releases/6f557df`와 Web image `sha256:80d0a8a79a40ad15653fb8c46e5455d1c938ebb5b33e2d83a7106ee2599b1f6e`를 `music-pie-web:pre-shuffle-eq-d33d8fb`로 보존했다.
+- 문제가 생기면 이 image를 `current`로 복원하고 release symlink를 `6f557df`로 되돌린 뒤 Web만 재생성한다.
+- EMS pipeline과 source-routines의 container ID, image와 시작 시각은 배포 전후 동일하다.
