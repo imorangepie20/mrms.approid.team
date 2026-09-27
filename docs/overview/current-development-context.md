@@ -2,7 +2,7 @@
 
 최종 갱신: 2026-09-27
 
-최신 기능 기준 커밋: `bc47ed34e971`
+최신 기능 기준 커밋: `38c22ae0f47e`
 
 최신 Zorin Web 배포 기준 커밋: `bc47ed34e971` (비회원 재생 오류 안내)
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-27 `38c22ae0f47e`에서 resolver의 active editorial section 조인 후보 우선 처리, catalog GET 사용량 출력, 누적 matched count 갱신을 추가했다. 운영에서 승인된 24곡 단일 batch를 실행해 24/24 matched, catalog GET 24/50, ambiguous/not_found/unavailable/retryable/budget_exhausted 0을 기록했다. DB는 matched 130, pending 830, retryable 40, resolving 0으로 일치하고 run은 `paused`다. 상세는 `docs/changes/2026-09-27-editorial-priority-resolver-batch.md`에 기록한다.
 - 2026-09-27 `bc47ed34e971`에서 비회원 재생 오류의 내부 `unauthorized` 코드를 한국어 안내와 로그인 진입점으로 교체했다. 운영 Web만 재배포했고 공개 Home·EMS·readiness, 컨테이너 health, 실제 EMS 트랙 선택 뒤 `returnTo=/ems` 로그인 링크와 내부 코드 비노출을 확인했다. 이전 `c7a002d` release와 Web 이미지는 롤백용으로 보존했다. 상세는 `docs/changes/2026-09-27-anonymous-playback-error.md`에 기록한다.
 - 2026-09-26 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 개인 취향 프로필에 반영하도록 로컬 구현했다. 좋아요의 완료 EMS 임베딩을 재사용하고 EMS·사용자 라이브러리에 없는 TIDAL 좋아요는 메타데이터 스냅샷으로 계산 중 임베딩한다. 긍정 액션 트랙은 기본 가중치의 2배로 반영하고 거절 이력은 긍정 피드백과 GMS 후보에서 제외한다. Web build·lint와 diff 검사는 통과했다. 2026-09-27 운영 GMS 추천 카드 표시는 확인했으며 액션 재계산 코드는 미배포 상태라 액션 검증은 남았다. 상세는 `docs/changes/2026-09-26-user-action-taste-profile.md`에 기록한다.
 - 2026-09-26 관리자 공개 URL 수집·검토 경로를 로컬 구현했다. 관리자 Melon 장르·TIDAL track/album/playlist URL 제출, 원본·항목 출처와 수집 시각 저장, 곡별 승인·제외, 기존 EMS resolver 연동을 추가했다. 운영 migration·배포와 live URL·관리자 브라우저 검증은 남아 있다. 상세는 `docs/changes/2026-09-26-admin-url-import.md`에 기록한다.
@@ -86,6 +87,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-27 | `services/ems-pipeline` full pytest, one-off resolver image build, 운영 DB 백업·단일 batch·전후 count 대조 | editorial 우선 24건, GET budget 50 이하, run paused, DB·사용자 데이터 보존 | 통과: 52개 테스트, 24/24 matched, GET 24, 후보 합계 1,000·resolving 0·matched_count 130, active EMS 38,582→38,618, 사용자 기준 수치 불변 |
 | 2026-09-27 | `apps/web` focused Vitest·lint·build, Zorin Web image build·Compose 교체, 공개 HTTP·브라우저 smoke | 비회원 재생 오류 안내, 로그인 복귀 경로, 내부 코드 비노출, 롤백 보존 | 통과: focused 9개 테스트, lint·build, release `bc47ed34e971`, Web healthy, 공개 `/`·`/ems`·readiness 200, 로그인 307, `returnTo=/ems`, 브라우저·Web 로그 오류 0건 |
 | 2026-09-20 | 생성 문서의 경로·링크·템플릿 확인 | `AGENTS.md`가 가리키는 4개 문서와 작업·변경 템플릿이 존재함 | 통과: 7개 필수 문서의 존재, `AGENTS.md` 참조, 템플릿 표식 확인 |
 | 2026-09-20 | 수정된 하네스 안내와 작업·변경 템플릿 대조 | 조사 근거·직접 검증·미정 항목을 기록할 수 있음 | 통과: 필수 문서 7개, `AGENTS.md` 참조, 추가 템플릿 항목 확인 |
@@ -139,6 +141,7 @@
 
 ## 미검증·제약
 
+- resolver 재시도 후 matched가 된 3건은 과거 `rate_limited` 오류 코드가 남아 있다. 상태·집계에는 영향이 없지만 다음 batch 전 matched 승격 시 오류 메타데이터를 지우는 회귀 수정이 필요하다.
 - 관리자 URL 수집은 코드·로컬 build까지만 확인했다. 운영 migration·배포, Melon/TIDAL live extraction과 로그인 관리자 화면에서의 승인 후 EMS 저장은 미검증이다.
 - 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 취향 프로필에 반영하는 코드는 로컬 구현 및 Web build/lint까지 확인했다. 운영 배포는 아직 하지 않았다.
 - 2026-09-27 로그인된 운영 `/gms`에서 추천 12곡 표시를 확인했다. 액션 저장과 프로필 갱신은 로컬 변경이 미배포 상태이고 실계정 데이터 변경도 하지 않아 아직 미검증이다. 2026-09-23 운영 취향 프로필은 `completed|101`이며 전체 1개·군집 2개 centroid 생성 기록으로 2026-09-22의 `profile_count=0` 메모를 대체한다.
@@ -158,7 +161,7 @@
 
 1. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 2. Home top 3, EMS section·검색·재생을 desktop/mobile browser에서 확인한다.
-3. paused resolver bounded batch와 embedding completion을 계속 확인한 뒤 false-match 검토·rollback rehearsal을 수행한다.
+3. 다음 resolver batch 전 matched 승격의 과거 오류 메타데이터 정리를 수정하고, 새 24건의 false-match 검토와 embedding completion·rollback rehearsal을 수행한다.
 4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
 
 ## 관련 문서

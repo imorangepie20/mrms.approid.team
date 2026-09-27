@@ -43,3 +43,10 @@
 
 - `set -x`, `env`, env-file 내용, OAuth token, cookie, signed URL, raw TIDAL query와 provider 원문 응답을 출력하지 않는다.
 - run ID, image ID, 상태별 count, request 사용량, health와 백업 파일명·크기만 기록한다.
+
+## 실행 결과
+
+- 승인된 단일 batch만 실행했다: 처리 `24`, matched `24`, ambiguous/not_found/unavailable/retryable/budget_exhausted 각 `0`.
+- catalog GET은 `24/50`이었고 batch size `24`, 최대 batch `1`, 최소 간격 `1.5초`를 넘지 않았다.
+- DB 누적 상태는 matched `130`, pending `830`, retryable `40`, resolving `0`, 전체 `1,000`이며 run `matched_count=130`과 일치한다.
+- run은 `paused`로 남겼다. 상세 운영 기록은 `docs/changes/2026-09-27-editorial-priority-resolver-batch.md`에 있다.
