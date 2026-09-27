@@ -116,17 +116,13 @@ describe("TidalSearch", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("검색 결과를 불러오지 못했습니다");
   });
 
-  it("shows suggestions alongside catalog results", async () => {
+  it("dismisses suggestions when the catalog search completes", async () => {
+    let resolveSearch: ((response: Response) => void) | undefined;
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = new URL(String(input), "http://localhost");
       if (url.pathname.endsWith("/suggestions")) return json({ suggestions: ["Björk"] });
-      return json({
-        albums: [],
-        artists: [],
-        next: null,
-        playlists: [],
-        topHits: [{ ...track, kind: "track" }],
-        tracks: [track],
+      return new Promise<Response>((resolve) => {
+        resolveSearch = resolve;
       });
     }));
     const user = userEvent.setup();
@@ -134,8 +130,19 @@ describe("TidalSearch", () => {
 
     await user.type(screen.getByRole("searchbox"), "bj");
 
+    expect(await screen.findByRole("option", { name: "Björk" })).toBeInTheDocument();
+
+    await act(async () => resolveSearch?.(Response.json({
+      albums: [],
+      artists: [],
+      next: null,
+      playlists: [],
+      topHits: [{ ...track, kind: "track" }],
+      tracks: [track],
+    })));
+
     expect(await screen.findByText("Human Behaviour")).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Björk" })).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "검색어 추천" })).not.toBeInTheDocument();
   });
 
   it("queues the current result set and plays the selected track", async () => {

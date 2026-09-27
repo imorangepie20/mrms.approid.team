@@ -72,41 +72,36 @@ export function TidalSearch() {
     const timer = window.setTimeout(async () => {
       setIsLoading(true);
       setError(null);
-      try {
-        const searchRequest = fetch(
-          `/api/tidal/search?q=${encodeURIComponent(normalized)}`,
-          { signal: controller.signal },
-        );
-        const suggestionRequest = Array.from(normalized).length >= 2
-          ? fetch(
+      let searchCompleted = false;
+      if (Array.from(normalized).length >= 2) {
+        void (async () => {
+          try {
+            const response = await fetch(
               `/api/tidal/search/suggestions?q=${encodeURIComponent(normalized)}`,
               { signal: controller.signal },
-            )
-          : Promise.resolve(null);
-        const [searchOutcome, suggestionOutcome] = await Promise.allSettled([
-          searchRequest,
-          suggestionRequest,
-        ]);
-        let nextSuggestions: { suggestions: string[] } = { suggestions: [] };
-        if (suggestionOutcome.status === "fulfilled" && suggestionOutcome.value?.ok) {
-          try {
-            nextSuggestions = await suggestionOutcome.value.json() as { suggestions: string[] };
+            );
+            if (!response.ok) return;
+            const body = await response.json() as { suggestions: string[] };
+            if (requestId !== requestIdRef.current || searchCompleted) return;
+            setSuggestions(body.suggestions);
           } catch {
             // Suggestions are optional; catalog results remain usable.
           }
-        }
-        if (requestId !== requestIdRef.current) return;
-        setSuggestions(nextSuggestions.suggestions);
-        if (searchOutcome.status === "rejected") {
-          throw searchOutcome.reason;
-        }
-        const searchResponse = searchOutcome.value;
+        })();
+      }
+      try {
+        const searchResponse = await fetch(
+          `/api/tidal/search?q=${encodeURIComponent(normalized)}`,
+          { signal: controller.signal },
+        );
         if (!searchResponse.ok) {
           throw new Error("search_failed");
         }
         const nextResults = await searchResponse.json() as TidalSearchResult;
+        searchCompleted = true;
         if (requestId !== requestIdRef.current) return;
         setResults(nextResults);
+        setSuggestions([]);
       } catch (requestError) {
         if (controller.signal.aborted || requestId !== requestIdRef.current) return;
         setResults(emptyResults);
