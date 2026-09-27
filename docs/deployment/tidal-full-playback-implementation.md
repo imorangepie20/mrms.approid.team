@@ -123,6 +123,8 @@ Device token은 `tidal_connections`의 다음 열에 저장한다.
 
 연결은 `app_users.auth0_subject`를 기준으로 사용자별 한 건만 조회하고 갱신한다. 다른 사용자의 token이나 재생 상태를 섞지 않는다.
 
+일반 Authorization Code callback은 같은 TIDAL 사용자에게 이미 갱신 가능한 Device 세션이 있으면 기존 재생 자격 증명을 보존한다. 두 TIDAL 사용자 ID가 모두 존재하고 정확히 같을 때만 보존하며, 계정이 다르거나 ID를 확인할 수 없거나 만료 세션에 refresh token이 없으면 일반 OAuth 연결로 교체한다. 이 판정은 `FOR UPDATE` transaction 안에서 수행한다.
+
 `getUsableTidalAccessToken()`은 만료까지 60초보다 많이 남았으면 복호화한 현재 access token을 반환한다. 60초 이내라면 다음 규칙으로 갱신한다.
 
 1. 동일 `auth0_subject`의 동시 refresh 요청을 프로세스 내부 promise map으로 직렬화한다.
@@ -307,6 +309,8 @@ curl.exe -I https://mrms.approid.team
 먼저 실행 중인 서버가 최신 build인지 확인한다. 이 구현 과정에서는 이전 production 프로세스가 일반 OAuth scope를 다시 저장해 같은 오류가 반복된 적이 있었다. 새 build로 재시작한 뒤 다시 승인했고 DB에는 `w_usr w_sub r_usr`가 저장됐다.
 
 DB를 확인할 때는 `status`, `scope`, `access_token_expires_at`, `updated_at` 같은 메타데이터만 조회한다. 암호화 token 값도 출력하거나 복사하지 않는다. 저장 scope와 JWT claim 중 하나라도 허용 조건을 충족하면 stream 요청은 통과한다.
+
+2026-09-28부터 같은 TIDAL 계정의 일반 OAuth 재연결은 기존 Device 세션을 덮어쓰지 않는다. 이 변경 전에 이미 일반 scope로 교체된 연결은 잃어버린 Device 자격 증명을 복구하지 않으며, 사용자가 `TIDAL 재생 연결`을 한 번 다시 승인해야 한다.
 
 ### 인증 완료 후 모달이 남는다
 

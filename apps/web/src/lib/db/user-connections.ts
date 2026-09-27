@@ -62,6 +62,8 @@ type StoreDeviceTokenDependencies = {
   now?: () => Date;
 };
 
+type StoreAuthorizationTokenDependencies = StoreDeviceTokenDependencies;
+
 const refreshesBySubject = new Map<string, Promise<unknown>>();
 
 export type UsableTidalAccessToken = {
@@ -70,6 +72,56 @@ export type UsableTidalAccessToken = {
   scope: string | null;
   userId: string | null;
 };
+
+function canPreserveDeviceSession(
+  connection: UserConnection | null,
+  token: TidalToken,
+  now: Date,
+) {
+  if (
+    !connection ||
+    connection.status !== "connected" ||
+    !connection.encryptedAccessToken ||
+    !connection.accessTokenExpiresAt ||
+    !connection.tidalUserId ||
+    !token.userId ||
+    connection.tidalUserId !== token.userId ||
+    !hasTidalDeviceSessionScopes(connection.scope) ||
+    hasTidalDeviceSessionScopes(token.scope)
+  ) {
+    return false;
+  }
+
+  return Boolean(connection.encryptedRefreshToken) ||
+    connection.accessTokenExpiresAt.getTime() > now.getTime() + 60_000;
+}
+
+export async function storeTidalAuthorizationToken(
+  auth0Subject: string,
+  token: TidalToken,
+  dependencies: StoreAuthorizationTokenDependencies = {},
+) {
+  const encryptionKey = dependencies.encryptionKey ?? process.env.TOKEN_ENCRYPTION_KEY;
+  if (!encryptionKey) throw new Error("TOKEN_ENCRYPTION_KEY is required.");
+  const now = dependencies.now?.() ?? new Date();
+
+  return inConnectionTransaction(dependencies.executor, async (transaction) => {
+    const existing = await getUserConnectionForUpdate(auth0Subject, transaction);
+    if (canPreserveDeviceSession(existing, token, now)) return existing!;
+
+    return upsertUserConnection({
+      accessTokenExpiresAt: new Date(now.getTime() + token.expiresIn * 1000),
+      auth0Subject,
+      encryptedAccessToken: encryptToken(token.accessToken, encryptionKey),
+      encryptedRefreshToken: token.refreshToken
+        ? encryptToken(token.refreshToken, encryptionKey)
+        : null,
+      scope: token.scope,
+      status: "connected",
+      tidalUserId: token.userId ?? null,
+    }, transaction);
+  });
+}
 
 export async function storeTidalDeviceToken(
   auth0Subject: string,

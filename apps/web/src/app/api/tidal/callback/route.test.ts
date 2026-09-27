@@ -14,12 +14,8 @@ vi.mock("@/lib/auth/auth0", () => ({
   requireAuth0Subject: vi.fn(async () => "auth0|listener"),
 }));
 
-vi.mock("@/lib/auth/token-cipher", () => ({
-  encryptToken: vi.fn(() => "encrypted-token"),
-}));
-
 vi.mock("@/lib/db/user-connections", () => ({
-  upsertUserConnection: vi.fn(async () => undefined),
+  storeTidalAuthorizationToken: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/tidal/oauth", () => ({

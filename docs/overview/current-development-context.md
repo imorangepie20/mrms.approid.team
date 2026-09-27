@@ -1,6 +1,6 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-09-27
+최종 갱신: 2026-09-28
 
 최신 기능 기준 커밋: `45e0a6c`
 
@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-28 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
 - 2026-09-27 `211a97f`에서 Home 상단을 `21st.dev`의 셰이더 히어로 방향으로 재구성했다. 잠긴 예제 소스 대신 공식 `@paper-design/shaders-react@0.0.67`의 `MeshGradient`를 사용하고 관리자 hero 콘텐츠, 실제 EMS 선곡과 이하 Home 흐름은 유지했다. `72e7677`, `45e0a6c`에서는 `390x844` 운영 확인으로 찾은 기존 검색·인증·페이지 제목 겹침을 기능 손실 없이 보정했다. desktop/mobile 셰이더, 다음 영역 노출과 console error 0건을 확인했고 WebGL fallback, 감속 모드, 긴 문구 줄바꿈을 포함한다. 상세는 `docs/changes/2026-09-27-home-shader-hero.md`에 기록한다.
 - 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 줄였고, `968cff2`에서는 늦은 HLS 구독에 마지막 media segment 1개를 즉시 재전달하면서 임시 timing advance를 제거했다. `77e7dda`에서는 재생 음질은 유지하고 direct 분석 요청만 `LOW`로 고정해 첫 반응 대기량을 줄였다. `102ffb5`에서는 독립 EQ 화면과 compact player 링크를 제거하고 전체 플레이어 앨범 아트 하단에 반투명 막대 overlay를 배치했으며 `/visualizer`는 Home으로 전환한다. `54a5988`에서는 전체 파일 decode 대기를 없앤 same-origin live streaming analyser를 적용했고, 운영 캡처를 기준으로 overlay를 27%로 줄이고 포화되던 고역 gain을 낮춘다. 분석 API는 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
 - 2026-09-27 1,000곡 품질 gate를 근거로 10,000곡 cohort와 MusicBrainz snapshot delta 운영을 설계·검토했고 결정은 `HOLD_10K`다. 기준 run은 `paused`, matched `154`, pending `806`, retryable `40`이며 1k 완료·사용자 승인과 로그인 browser decode가 남았다. 1k 종료는 `846곡/36 batch/GET 1,800`, 10k 확대는 신규 `9,000곡/375 batch/GET 18,000` hard cap으로 제안했으며 이번 외부 요청·DB write·scheduler 변경은 0건이다. 기존 scheduler의 무제한 snapshot resolver, 승인 없는 resume, 상태·disk·embedding 관측 부족을 선행 차단 조건으로 기록했다. 상세는 `docs/changes/2026-09-27-ems-10k-snapshot-diff-gate.md`에 있다.
@@ -43,6 +44,7 @@
 - TIDAL 검색 트랙에 `STREAM` availability가 없으면 목록에서 재생을 비활성화하고 전체 재생·셔플 큐에서도 제외한다.
 - 전역 재생 세션은 큐, 이전/다음, 셔플, 전체/한 곡 반복, 볼륨, 음소거, 재생 위치를 관리한다.
 - 전체 재생은 별도 TIDAL Device Code 세션으로 `FULL` playback manifest를 발급하고 `HTMLAudioElement`와 `hls.js`로 재생한다.
+- 같은 TIDAL 계정의 일반 OAuth 재연결은 갱신 가능한 Device Code 세션을 보존한다. TIDAL 사용자 ID가 다르거나 확인되지 않으면 이전 재생 세션을 승계하지 않는다.
 - Device Code 승인 완료 시 실패했던 현재 큐 항목을 자동으로 다시 로드해 연결 버튼과 오류 상태를 해제한다.
 - 전역 플레이어는 큐와 셔플·반복 상태를 유지하며 seek, 볼륨, 음소거, 이전·다음 곡을 제어한다.
 - 사용자 좋아요는 가져온 라이브러리와 GMS 추천 수락·싫어요와 분리해 트랙·플레이리스트·앨범·아티스트 네 유형으로 영구 저장한다.
@@ -168,6 +170,7 @@
 - MusicBrainz 장르 라이선스 확인, 공용 장르 어휘의 콜드스타트 정책, 캐시 만료·갱신 정책은 아직 확정하지 않았다.
 - 로그인 계정의 분석 시작 UI는 아직 미검증이다. 운영 `/gms` 카드 표시는 2026-09-27 확인했으나 로컬 액션 프로필 코드가 미배포라 추천 결정 저장 후 프로필 갱신은 확인하지 않았다.
 - 기준 기능과 Zorin 배포 기반은 공개 서버에 반영됐다. 로그인된 실제 계정의 MMS 표시와 TIDAL 재생은 브라우저에서 다시 확인해야 한다.
+- 2026-09-28 배포 전 운영 연결 메타데이터는 일반 OAuth scope 상태라, 기존에 덮어써진 Device 자격 증명은 사용자 재승인 없이 복구할 수 없다. 새 보존 로직 배포 뒤 전체 재생 연결을 한 번 승인하고 버튼 해제와 실제 재생을 확인해야 한다.
 - 로그인된 실제 TIDAL 계정에서 온보딩의 트랙 기준 상태와 15곡 미만 완료 차단은 아직 시각 검증하지 않았다.
 - 저장소에는 사용자 작업으로 보이는 미추적 문서 `docs/plans/portable-self-hosted-deployment-guide.md`가 있다. 내용 변경·추적 여부 결정은 다음 작업으로 넘긴다.
 - 에디토리얼 section membership과 Web release는 production에 반영됐고 공개 desktop/mobile browser QA를 마쳤다. 로그인 계정의 실제 TIDAL codec 재생은 남아 있다.
@@ -196,6 +199,8 @@
 - `docs/changes/2026-09-21-tidal-catalog-details.md`
 - `docs/changes/2026-09-21-tidal-supported-playback-fallback.md`
 - `docs/deployment/tidal-full-playback-implementation.md`
+- `docs/plans/2026-09-28-tidal-playback-session-preservation.md`
+- `docs/changes/2026-09-28-tidal-playback-session-preservation.md`
 - `docs/changes/2026-09-21-harness-runtime-application.md`
 - `docs/changes/2026-09-21-user-likes.md`
 - `docs/changes/2026-09-21-tidal-ai-analysis-allowed.md`

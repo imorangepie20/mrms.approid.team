@@ -6,6 +6,7 @@ import {
   getUsableTidalAccessToken,
   getUserConnection,
   markReauthenticationRequired,
+  storeTidalAuthorizationToken,
   storeTidalDeviceToken,
   upsertUserConnection,
   type QueryExecutor,
@@ -48,6 +49,124 @@ describe("user TIDAL connections", () => {
     expect(decryptToken(values[3] as string, encryptionKey)).toBe("device-refresh");
     expect(values[5]).toBe("r_usr r_stream");
     expect(values[6]).toBe("123");
+  });
+
+  it("preserves a refreshable same-user device session during regular OAuth reconnect", async () => {
+    const encryptionKey = Buffer.alloc(32, 17).toString("base64");
+    const existingRow = {
+      access_token_expires_at: new Date("2026-09-20T00:59:00.000Z"),
+      auth0_subject: "auth0|listener-a",
+      encrypted_access_token: encryptToken("device-access", encryptionKey),
+      encrypted_refresh_token: encryptToken("device-refresh", encryptionKey),
+      scope: "w_usr w_sub r_usr",
+      status: "connected",
+      tidal_user_id: "12345",
+      updated_at: new Date("2026-09-19T23:00:00.000Z"),
+    };
+    const database = queryExecutor([existingRow]);
+
+    const result = await storeTidalAuthorizationToken("auth0|listener-a", {
+      accessToken: "regular-access",
+      expiresIn: 7200,
+      refreshToken: "regular-refresh",
+      scope: "search.read user.read playback playlists.read",
+      userId: "12345",
+    }, {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-20T01:00:00.000Z"),
+    });
+
+    expect(result.scope).toBe("w_usr w_sub r_usr");
+    expect(decryptToken(result.encryptedAccessToken!, encryptionKey)).toBe("device-access");
+    expect(database.query).toHaveBeenCalledTimes(1);
+    expect(database.query).toHaveBeenCalledWith(
+      expect.stringMatching(/FOR UPDATE/i),
+      ["auth0|listener-a"],
+    );
+  });
+
+  it("replaces a device session when regular OAuth belongs to another TIDAL user", async () => {
+    const encryptionKey = Buffer.alloc(32, 19).toString("base64");
+    const existingRow = {
+      access_token_expires_at: new Date("2026-09-20T03:00:00.000Z"),
+      auth0_subject: "auth0|listener-a",
+      encrypted_access_token: encryptToken("device-access", encryptionKey),
+      encrypted_refresh_token: encryptToken("device-refresh", encryptionKey),
+      scope: "w_usr w_sub r_usr",
+      status: "connected",
+      tidal_user_id: "old-user",
+      updated_at: new Date("2026-09-19T23:00:00.000Z"),
+    };
+    const replacementRow = {
+      ...existingRow,
+      encrypted_access_token: encryptToken("regular-access", encryptionKey),
+      encrypted_refresh_token: encryptToken("regular-refresh", encryptionKey),
+      scope: "search.read user.read playback playlists.read",
+      tidal_user_id: "new-user",
+    };
+    const database = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [existingRow] })
+        .mockResolvedValueOnce({ rows: [replacementRow] }),
+    } satisfies QueryExecutor;
+
+    await storeTidalAuthorizationToken("auth0|listener-a", {
+      accessToken: "regular-access",
+      expiresIn: 7200,
+      refreshToken: "regular-refresh",
+      scope: "search.read user.read playback playlists.read",
+      userId: "new-user",
+    }, {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-20T01:00:00.000Z"),
+    });
+
+    const values = database.query.mock.calls[1]?.[1] as unknown[];
+    expect(decryptToken(values[2] as string, encryptionKey)).toBe("regular-access");
+    expect(values[5]).toBe("search.read user.read playback playlists.read");
+    expect(values[6]).toBe("new-user");
+  });
+
+  it("replaces an expired device session that has no refresh token", async () => {
+    const encryptionKey = Buffer.alloc(32, 23).toString("base64");
+    const existingRow = {
+      access_token_expires_at: new Date("2026-09-20T00:59:00.000Z"),
+      auth0_subject: "auth0|listener-a",
+      encrypted_access_token: encryptToken("expired-device-access", encryptionKey),
+      encrypted_refresh_token: null,
+      scope: "w_usr w_sub r_usr",
+      status: "connected",
+      tidal_user_id: "12345",
+      updated_at: new Date("2026-09-19T23:00:00.000Z"),
+    };
+    const replacementRow = {
+      ...existingRow,
+      access_token_expires_at: new Date("2026-09-20T03:00:00.000Z"),
+      encrypted_access_token: encryptToken("regular-access", encryptionKey),
+      encrypted_refresh_token: encryptToken("regular-refresh", encryptionKey),
+      scope: "search.read user.read playback playlists.read",
+    };
+    const database = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [existingRow] })
+        .mockResolvedValueOnce({ rows: [replacementRow] }),
+    } satisfies QueryExecutor;
+
+    await storeTidalAuthorizationToken("auth0|listener-a", {
+      accessToken: "regular-access",
+      expiresIn: 7200,
+      refreshToken: "regular-refresh",
+      scope: "search.read user.read playback playlists.read",
+      userId: "12345",
+    }, {
+      encryptionKey,
+      executor: database,
+      now: () => new Date("2026-09-20T01:00:00.000Z"),
+    });
+
+    expect(database.query).toHaveBeenCalledTimes(2);
   });
 
   it("queries a connection only by the requesting Auth0 subject", async () => {

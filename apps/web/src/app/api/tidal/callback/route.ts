@@ -2,8 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { requireAuth0Subject } from "@/lib/auth/auth0";
-import { encryptToken } from "@/lib/auth/token-cipher";
-import { upsertUserConnection } from "@/lib/db/user-connections";
+import { storeTidalAuthorizationToken } from "@/lib/db/user-connections";
 import {
   exchangeTidalCode,
   readTidalOAuthConfig,
@@ -66,22 +65,7 @@ export async function GET(request: Request) {
         exchangeCode: (code, verifier) =>
           exchangeTidalCode({ code, verifier }, config),
         persistConnection: async (token, subject) => {
-          const encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
-          if (!encryptionKey) {
-            throw new Error("TOKEN_ENCRYPTION_KEY is required.");
-          }
-
-          await upsertUserConnection({
-            accessTokenExpiresAt: new Date(Date.now() + token.expiresIn * 1000),
-            auth0Subject: subject,
-            encryptedAccessToken: encryptToken(token.accessToken, encryptionKey),
-            encryptedRefreshToken: token.refreshToken
-              ? encryptToken(token.refreshToken, encryptionKey)
-              : null,
-            scope: token.scope,
-            status: "connected",
-            tidalUserId: token.userId,
-          });
+          await storeTidalAuthorizationToken(subject, token);
         },
       },
     );
