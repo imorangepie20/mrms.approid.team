@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { LikeButton } from "@/components/music/like-button";
-import { useTidalAudioAnalyser } from "@/hooks/use-tidal-audio-analyser";
+import type { TidalAudioAnalyser } from "@/hooks/use-tidal-audio-analyser";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import type { Track } from "@/lib/music/types";
 import type { QueueItem, RepeatMode } from "@/providers/music-session-provider";
@@ -36,6 +36,7 @@ function QueueArtwork({ track }: { track: Track }) {
 }
 
 type FullPlayerDialogProps = {
+  analyser: TidalAudioAnalyser;
   currentTrack: Track;
   currentIndex: number | null;
   durationSeconds: number;
@@ -59,6 +60,7 @@ type FullPlayerDialogProps = {
 };
 
 export function FullPlayerDialog({
+  analyser,
   currentTrack,
   currentIndex,
   durationSeconds,
@@ -82,7 +84,6 @@ export function FullPlayerDialog({
 }: FullPlayerDialogProps) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const hasArtwork = Boolean(currentTrack.artworkUrl) && failedArtworkUrl !== currentTrack.artworkUrl;
-  const analyser = useTidalAudioAnalyser(isPlaying);
   const hasLiveEqualizer = Boolean(currentTrack.tidalTrackId);
 
   return (

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { LikeButton } from "@/components/music/like-button";
+import { useTidalAudioAnalyser } from "@/hooks/use-tidal-audio-analyser";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { useMusicSession } from "@/providers/music-session-provider";
 
@@ -51,6 +52,7 @@ export function PersistentPlayer() {
     toggleShuffle,
     volume,
   } = useMusicSession();
+  const analyser = useTidalAudioAnalyser(isPlaying);
   const canPrevious = currentIndex !== null && (currentIndex > 0 || repeatMode === "all");
   const canNext = currentIndex !== null && (currentIndex < queue.length - 1 || repeatMode === "all");
   const repeatLabel = repeatMode === "off" ? "반복 끔" : repeatMode === "all" ? "전체 반복" : "한 곡 반복";
@@ -203,6 +205,7 @@ export function PersistentPlayer() {
       </aside>
       {isFullPlayerOpen && currentTrack ? (
         <FullPlayerDialog
+          analyser={analyser}
           currentTrack={currentTrack}
           currentIndex={currentIndex}
           isPlaying={isPlaying}

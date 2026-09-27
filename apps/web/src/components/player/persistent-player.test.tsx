@@ -3,14 +3,28 @@ import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const mocks = vi.hoisted(() => ({
+  analyserMounted: vi.fn(),
+  analyserUnmounted: vi.fn(),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("@/hooks/use-tidal-audio-analyser", () => ({
-  useTidalAudioAnalyser: () => ({ binCount: 128, mode: "pcm", read: vi.fn() }),
-}));
+vi.mock("@/hooks/use-tidal-audio-analyser", async () => {
+  const { useEffect } = await import("react");
+  return {
+    useTidalAudioAnalyser: () => {
+      useEffect(() => {
+        mocks.analyserMounted();
+        return () => mocks.analyserUnmounted();
+      }, []);
+      return { binCount: 128, mode: "pcm", read: vi.fn() };
+    },
+  };
+});
 
 vi.mock("./visual-equalizer-canvas", () => ({
   VisualEqualizerCanvas: ({ className }: { className?: string }) => (
@@ -101,6 +115,8 @@ function renderPlayer(ui: ReactNode) {
 
 describe("PersistentPlayer", () => {
   afterEach(() => {
+    mocks.analyserMounted.mockClear();
+    mocks.analyserUnmounted.mockClear();
     vi.unstubAllGlobals();
   });
 
@@ -119,6 +135,25 @@ describe("PersistentPlayer", () => {
     const artwork = screen.getByTestId("full-player-eq-overlay");
     expect(artwork).toHaveAttribute("data-analyser-mode", "pcm");
     expect(within(artwork).getByTestId("embedded-equalizer")).toHaveClass("full-player-eq-canvas");
+  });
+
+  it("keeps one analyser mounted before and while the full player is open", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    renderPlayer(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+
+    expect(mocks.analyserMounted).toHaveBeenCalledTimes(1);
+    const unmountsBeforeOpen = mocks.analyserUnmounted.mock.calls.length;
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    await user.click(screen.getByRole("button", { name: /now playing track a/i }));
+    expect(screen.getByRole("dialog", { name: "전체 화면 플레이어" })).toBeInTheDocument();
+    expect(mocks.analyserMounted).toHaveBeenCalledTimes(1);
+    expect(mocks.analyserUnmounted).toHaveBeenCalledTimes(unmountsBeforeOpen);
   });
 
   it("shows the current track artwork with a gradient fallback", async () => {
