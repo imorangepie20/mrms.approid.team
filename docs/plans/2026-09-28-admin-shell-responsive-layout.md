@@ -19,3 +19,9 @@
 - 관리자 Vitest, lint, production build와 Web production build를 실행한다.
 - 운영 배포 후 Tracks·Spotify·Statistics를 1024px, 1272px, 1536px에서 확인한다.
 - 각 화면에서 document overflow 0, header·액션 잘림 0, 표 내부 overflow 격리와 console error 0을 확인한다.
+
+## 결과
+
+- 구현은 `635aa7c`, stale asset 차단은 `7032b1f`에 반영했다.
+- 운영 1024px drawer, 1272px 핵심 10개 경로, 1536px persistent sidebar를 검증했고 document overflow와 console error는 0건이다.
+- container의 관리자 JS·CSS는 각각 1개이며 최신 해시 자산이 실제 browser에 로드됐다.
