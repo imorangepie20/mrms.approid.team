@@ -96,6 +96,19 @@ function SessionHarness() {
       <button type="button" onClick={() => session.setQueue([trackA, unavailableTrack, trackC], { id: "unavailable", type: "search" })}>
         Queue with unavailable
       </button>
+      <button type="button" onClick={() => void session.playQueue(
+        [trackA, unavailableTrack, trackB, trackC],
+        { id: "shuffled", type: "search" },
+        { shuffle: true },
+      )}>
+        Play shuffled queue
+      </button>
+      <button type="button" onClick={() => void session.playQueue(
+        [trackA, trackB],
+        { id: "ordered", type: "search" },
+      )}>
+        Play ordered queue
+      </button>
       <button type="button" onClick={() => void session.playQueueIndex(0)}>
         First duplicate
       </button>
@@ -235,6 +248,37 @@ describe("MusicSessionProvider", () => {
 
     expect(screen.getByText("Shuffle: true")).toBeInTheDocument();
     expect(screen.getByText("Queue: Track A, Track C, Track B")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Duplicate queue" }));
+    expect(screen.getByText("Shuffle: false")).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
+  it("starts a playable shuffled queue atomically and resets shuffle for ordered playback", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    render(
+      <MusicSessionProvider engine={engine}>
+        <SessionHarness />
+      </MusicSessionProvider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Play shuffled queue" }));
+
+    expect(screen.getByText("Shuffle: true")).toBeInTheDocument();
+    expect(screen.getByText("Queue: Track B, Track C, Track A")).toBeInTheDocument();
+    expect(screen.getByText("Now playing: Track B")).toBeInTheDocument();
+    expect(engine.load).toHaveBeenLastCalledWith(
+      trackB,
+      expect.objectContaining({ id: "shuffled", type: "search" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Play ordered queue" }));
+
+    expect(screen.getByText("Shuffle: false")).toBeInTheDocument();
+    expect(screen.getByText("Queue: Track A, Track B")).toBeInTheDocument();
+    expect(screen.getByText("Now playing: Track A")).toBeInTheDocument();
     vi.restoreAllMocks();
   });
 

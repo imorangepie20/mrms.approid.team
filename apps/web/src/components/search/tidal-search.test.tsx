@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 
 const session = vi.hoisted(() => ({
   pausePlayback: vi.fn().mockResolvedValue(undefined),
+  playQueue: vi.fn(),
   playTrack: vi.fn(),
   setQueue: vi.fn(),
 }));
@@ -296,13 +297,15 @@ describe("TidalSearch", () => {
     expect(screen.getByText("Human Behaviour")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "전체 재생" }));
 
-    expect(session.setQueue).toHaveBeenCalledWith(
+    expect(session.playQueue).toHaveBeenCalledWith(
       [track],
       expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
     );
-    expect(session.playTrack).toHaveBeenCalledWith(
-      track,
+    await user.click(screen.getByRole("button", { name: "셔플" }));
+    expect(session.playQueue).toHaveBeenCalledWith(
+      [track],
       expect.objectContaining({ id: `${kind}:${kind}-1`, type: "search" }),
+      { shuffle: true },
     );
 
     expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();

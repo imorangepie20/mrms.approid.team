@@ -58,6 +58,11 @@ type MusicSession = {
   playbackError: string | null;
   playbackPosition: number;
   playbackStatus: PlaybackStatus;
+  playQueue: (
+    tracks: Track[],
+    source: { id: string; type: PlaybackSource },
+    options?: { shuffle?: boolean },
+  ) => Promise<void>;
   playQueueIndex: (index: number) => Promise<void>;
   playTrack: (
     track: Track,
@@ -118,6 +123,21 @@ function queueItems(
       source,
       track,
     }));
+}
+
+function shuffledQueueItems(items: QueueItem[]) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  if (
+    shuffled.length > 1 &&
+    shuffled.every((item, index) => item.referenceId === items[index].referenceId)
+  ) {
+    shuffled.push(shuffled.shift()!);
+  }
+  return shuffled;
 }
 
 function isPlayable(track: Track): track is PlayableTrack {
@@ -195,6 +215,7 @@ export function MusicSessionProvider({
   const loadGeneration = useRef(0);
   const lastAudibleVolume = useRef(100);
   const repeatModeRef = useRef<RepeatMode>("off");
+  const shuffleEnabledRef = useRef(false);
   const volumeRef = useRef(100);
   const playQueueIndexRef = useRef<(index: number) => Promise<void>>(async () => {});
 
@@ -294,6 +315,8 @@ export function MusicSessionProvider({
   const setQueue = useCallback(
     (tracks: Track[], source: { id: string; type: PlaybackSource }) => {
       const queue = queueItems(tracks, source);
+      shuffleEnabledRef.current = false;
+      setShuffleEnabled(false);
       playbackRef.current = {
         ...playbackRef.current,
         currentIndex: null,
@@ -303,6 +326,25 @@ export function MusicSessionProvider({
     },
     [],
   );
+
+  const playQueue = useCallback(async (
+    tracks: Track[],
+    source: { id: string; type: PlaybackSource },
+    options: { shuffle?: boolean } = {},
+  ) => {
+    const shuffle = options.shuffle === true;
+    const available = queueItems(tracks, source);
+    const queue = shuffle ? shuffledQueueItems(available) : available;
+    shuffleEnabledRef.current = shuffle;
+    setShuffleEnabled(shuffle);
+    const first = queue[0];
+    if (!first) {
+      playbackRef.current = { ...playbackRef.current, currentIndex: null, queue };
+      dispatch({ queue, type: "queue" });
+      return;
+    }
+    await loadItem(first, 0, queue);
+  }, [loadItem]);
 
   const playTrack = useCallback(
     async (
@@ -354,24 +396,21 @@ export function MusicSessionProvider({
   }, []);
 
   const toggleShuffle = useCallback(() => {
-    setShuffleEnabled((enabled) => {
-      const nextEnabled = !enabled;
-      if (!nextEnabled || playbackRef.current.queue.length < 2) return nextEnabled;
-      const currentIndex = playbackRef.current.currentIndex;
-      const currentItem = currentIndex === null
-        ? null
-        : playbackRef.current.queue[currentIndex];
-      const upcoming = playbackRef.current.queue.filter((_, index) => index !== currentIndex);
-      for (let index = upcoming.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [upcoming[index], upcoming[swapIndex]] = [upcoming[swapIndex], upcoming[index]];
-      }
-      const queue = currentItem ? [currentItem, ...upcoming] : upcoming;
-      const reorderedIndex = currentItem ? 0 : null;
-      playbackRef.current = { ...playbackRef.current, currentIndex: reorderedIndex, queue };
-      dispatch({ currentIndex: reorderedIndex, queue, type: "reorder" });
-      return nextEnabled;
-    });
+    const nextEnabled = !shuffleEnabledRef.current;
+    shuffleEnabledRef.current = nextEnabled;
+    setShuffleEnabled(nextEnabled);
+    if (!nextEnabled || playbackRef.current.queue.length < 2) return;
+    const currentIndex = playbackRef.current.currentIndex;
+    const currentItem = currentIndex === null
+      ? null
+      : playbackRef.current.queue[currentIndex];
+    const upcoming = shuffledQueueItems(
+      playbackRef.current.queue.filter((_, index) => index !== currentIndex),
+    );
+    const queue = currentItem ? [currentItem, ...upcoming] : upcoming;
+    const reorderedIndex = currentItem ? 0 : null;
+    playbackRef.current = { ...playbackRef.current, currentIndex: reorderedIndex, queue };
+    dispatch({ currentIndex: reorderedIndex, queue, type: "reorder" });
   }, []);
 
   const setVolume = useCallback(async (level: number) => {
@@ -452,6 +491,7 @@ export function MusicSessionProvider({
     playbackError: playback.errorCode,
     playbackPosition: playback.positionSeconds,
     playbackStatus: playback.status,
+    playQueue,
     playQueueIndex,
     playTrack,
     previousTrack,
@@ -470,7 +510,7 @@ export function MusicSessionProvider({
     volume,
   }), [
     acceptTrack, connectTidal, currentTrack, cycleRepeatMode, initializeMms, isAuthenticated,
-    isPersonalized, musicState, nextTrack, pausePlayback, playback, playQueueIndex, playTrack,
+    isPersonalized, musicState, nextTrack, pausePlayback, playback, playQueue, playQueueIndex, playTrack,
     previousTrack, rejectTrack, repeatMode, restoreRejectedTrack, seek, setQueue,
     setVolume, shuffleEnabled, toggleMute, togglePlayback, toggleShuffle, volume,
   ]);

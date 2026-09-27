@@ -8,6 +8,7 @@ import { LikesProvider } from "@/providers/likes-provider";
 const session = vi.hoisted(() => ({
   currentTrack: null,
   playbackStatus: "idle",
+  playQueue: vi.fn(),
   playTrack: vi.fn(),
   setQueue: vi.fn(),
 }));
@@ -151,14 +152,15 @@ describe("MmsLibrary likes", () => {
     expect(screen.getByRole("button", { name: "MMS 목록으로 돌아가기" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "전체 재생" }));
 
-    expect(session.setQueue).toHaveBeenCalledWith(importedPlaylist.tracks, {
+    expect(session.playQueue).toHaveBeenCalledWith(importedPlaylist.tracks, {
       id: "imported-playlist:saved-playlist-1",
       type: "mms",
     });
-    expect(session.playTrack).toHaveBeenCalledWith(importedPlaylist.tracks[0], {
+    await user.click(screen.getByRole("button", { name: "셔플" }));
+    expect(session.playQueue).toHaveBeenCalledWith(importedPlaylist.tracks, {
       id: "imported-playlist:saved-playlist-1",
       type: "mms",
-    });
+    }, { shuffle: true });
   });
 
   it.each([
@@ -183,7 +185,6 @@ describe("MmsLibrary likes", () => {
     expect(await screen.findByRole("heading", { name: likedItem.title })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "전체 재생" }));
 
-    expect(session.setQueue).toHaveBeenCalledWith([detailTrack], { id: sourceId, type: "mms" });
-    expect(session.playTrack).toHaveBeenCalledWith(detailTrack, { id: sourceId, type: "mms" });
+    expect(session.playQueue).toHaveBeenCalledWith([detailTrack], { id: sourceId, type: "mms" });
   });
 });

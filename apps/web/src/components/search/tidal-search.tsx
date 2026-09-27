@@ -42,7 +42,7 @@ type CatalogDetail = CatalogSelection & {
 };
 
 export function TidalSearch() {
-  const { playTrack, setQueue } = useMusicSession();
+  const { playQueue, playTrack, setQueue } = useMusicSession();
   const [activeTab, setActiveTab] = useState<ResultTab>("topHits");
   const [detail, setDetail] = useState<CatalogDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -217,11 +217,12 @@ export function TidalSearch() {
           onBack={closeDetail}
           onRetry={() => void loadDetail(detail, false)}
           onPlay={(tracks) => {
-            const first = tracks[0];
-            if (!first) return;
             const source = { id: `${detail.kind}:${detail.id}`, type: "search" as const };
-            setQueue(tracks, source);
-            void playTrack(first, source);
+            void playQueue(tracks, source);
+          }}
+          onShuffle={(tracks) => {
+            const source = { id: `${detail.kind}:${detail.id}`, type: "search" as const };
+            void playQueue(tracks, source, { shuffle: true });
           }}
         />
     );
@@ -475,20 +476,11 @@ function CatalogArtworkCard({ artworkUrl, id, kind, onOpen, secondary, tertiary,
   return <article className="group relative min-w-0"><button aria-label={`${kindLabel} ${title} 열기`} className="w-full text-left" type="button" onClick={() => onOpen(selection)}><span className="relative block aspect-square overflow-hidden rounded-lg border border-[var(--border)] bg-gradient-to-br from-[#24153d] to-[#4c1d95] transition duration-200 group-hover:border-purple-400/40 group-hover:brightness-110 group-focus-visible:outline-2 group-focus-visible:outline-offset-3 group-focus-visible:outline-[var(--focus-ring)]">{artworkUrl && failedArtworkUrl !== artworkUrl ? <Image alt={`${title} ${kind === "album" ? "앨범 아트" : "플레이리스트 커버"}`} className="object-cover transition-transform duration-200 group-hover:scale-[1.02]" fill sizes="(min-width: 1024px) 270px, 50vw" src={artworkUrl} onError={() => setFailedArtworkUrl(artworkUrl)} /> : <span className="absolute inset-0 flex items-end p-4 text-[10px] font-semibold tracking-[0.18em] text-white/80">MUSIC PIE</span>}</span><span className="mt-3 block truncate text-[15px] font-[560] text-[var(--foreground)]">{title}</span><span className="mt-1 block truncate text-sm text-[var(--muted)]">{secondary}</span>{tertiary ? <span className="mt-1 block text-xs uppercase tracking-[0.06em] text-[var(--subtle)]">{tertiary}</span> : null}</button><LikeButton className="absolute right-2 top-2 bg-black/60 text-white" item={likeItem} /></article>;
 }
 
-function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: CatalogDetail; onBack: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void }) {
+function CatalogDetailPanel({ detail, onBack, onPlay, onRetry, onShuffle }: { detail: CatalogDetail; onBack: () => void; onPlay: (tracks: PlayableTrack[]) => void; onRetry: () => void; onShuffle: (tracks: PlayableTrack[]) => void }) {
   const [failedArtworkUrl, setFailedArtworkUrl] = useState<string | null>(null);
   const detailLikeItem = detail.kind === "album"
     ? albumLikeItem({ artist: detail.secondary, artworkUrl: detail.artworkUrl, id: detail.id, title: detail.title })
     : playlistLikeItem({ artworkUrl: detail.artworkUrl, curator: detail.secondary, id: detail.id, title: detail.title, trackCount: detail.trackCount ?? detail.tracks.length });
-  const shuffleAndPlay = () => {
-    const shuffled = [...detail.tracks];
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-    }
-    onPlay(shuffled);
-  };
-
   return (
     <section className="w-full pb-10 pt-6 sm:py-8">
       <button className="inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-[var(--muted)] hover:bg-white/[0.04] hover:text-[var(--foreground)] focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]" type="button" onClick={onBack}>
@@ -508,7 +500,7 @@ function CatalogDetailPanel({ detail, onBack, onPlay, onRetry }: { detail: Catal
             <button className="min-h-11 rounded-lg bg-[var(--brand)] px-5 text-sm font-semibold text-white enabled:hover:brightness-110 disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={() => onPlay(detail.tracks)}>
               전체 재생
             </button>
-            <button className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-5 text-sm font-semibold text-[var(--muted)] enabled:hover:text-[var(--foreground)] disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={shuffleAndPlay}>
+            <button className="min-h-11 rounded-lg border border-[var(--border)] bg-[var(--surface-raised)] px-5 text-sm font-semibold text-[var(--muted)] enabled:hover:text-[var(--foreground)] disabled:cursor-default disabled:opacity-40" disabled={detail.status !== "ready" || detail.tracks.length === 0} type="button" onClick={() => onShuffle(detail.tracks)}>
               셔플
             </button>
             <LikeButton item={detailLikeItem} />

@@ -70,7 +70,7 @@ function likedTrackToTrack(item: LikeItem): Track {
 
 export function MmsLibrary({ access, importedPlaylists = [] }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[] }) {
   const { items } = useLikes();
-  const { playTrack, setQueue } = useMusicSession();
+  const { playQueue } = useMusicSession();
   const [selectedDetail, setDetail] = useState<CatalogDetail | null>(null);
   const tracks = items.filter((item) => item.entityType === "track").map(likedTrackToTrack);
   const playlists = items.filter((item) => item.entityType === "playlist");
@@ -84,20 +84,12 @@ export function MmsLibrary({ access, importedPlaylists = [] }: { access?: Person
     : null;
 
   const playTracks = (queue: Track[], sourceId = "liked-tracks") => {
-    const first = queue[0];
-    if (!first) return;
     const source = { id: sourceId, type: "mms" as const };
-    setQueue(queue, source);
-    void playTrack(first, source);
+    void playQueue(queue, source);
   };
 
   const playShuffled = (queue: Track[], sourceId: string) => {
-    const shuffled = [...queue];
-    for (let index = shuffled.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(Math.random() * (index + 1));
-      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-    }
-    playTracks(shuffled, sourceId);
+    void playQueue(queue, { id: sourceId, type: "mms" }, { shuffle: true });
   };
 
   const openDetail = async (item: LikeKey & LikeSnapshot) => {

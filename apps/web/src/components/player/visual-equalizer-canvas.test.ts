@@ -32,7 +32,7 @@ describe("visual equalizer bar distribution", () => {
     expect(levels.filter((level) => level >= 0.87)).toHaveLength(0);
   });
 
-  it("spreads low and high frequency energy across logarithmic bands", () => {
+  it("mirrors logarithmic bands with bass in the center and treble at the edges", () => {
     const low = new Float32Array(128);
     const high = new Float32Array(128);
     low[2] = 220;
@@ -43,8 +43,13 @@ describe("visual equalizer bar distribution", () => {
     const lowPeak = lowLevels.indexOf(Math.max(...lowLevels));
     const highPeak = highLevels.indexOf(Math.max(...highLevels));
 
-    expect(lowPeak).toBeLessThan(20);
-    expect(highPeak).toBeGreaterThan(36);
+    expect(lowPeak).toBeGreaterThanOrEqual(18);
+    expect(lowPeak).toBeLessThanOrEqual(29);
+    expect(highPeak < 8 || highPeak > 39).toBe(true);
     expect(highLevels[highPeak]).toBeGreaterThan(0);
+    for (let index = 0; index < lowLevels.length / 2; index += 1) {
+      expect(lowLevels[index]).toBeCloseTo(lowLevels[lowLevels.length - 1 - index], 6);
+      expect(highLevels[index]).toBeCloseTo(highLevels[highLevels.length - 1 - index], 6);
+    }
   });
 });

@@ -36,14 +36,15 @@ export function resolveVisualizerMaxBarHeight(height: number) {
 export function createVisualizerBarLevels(values: Float32Array, count = BAR_COUNT) {
   const levels = new Float32Array(count);
   if (values.length === 0) return levels;
+  const bandCount = Math.ceil(count / 2);
   const minBin = Math.min(1, values.length - 1);
   const maxBin = Math.max(minBin + 1, values.length - 1);
   const minLog = Math.log(Math.max(1, minBin));
   const maxLog = Math.log(Math.max(2, maxBin));
 
-  for (let index = 0; index < count; index += 1) {
-    const startRatio = index / count;
-    const endRatio = (index + 1) / count;
+  for (let band = 0; band < bandCount; band += 1) {
+    const startRatio = band / bandCount;
+    const endRatio = (band + 1) / bandCount;
     const start = Math.min(
       values.length - 1,
       Math.max(minBin, Math.floor(Math.exp(minLog + (maxLog - minLog) * startRatio))),
@@ -52,13 +53,17 @@ export function createVisualizerBarLevels(values: Float32Array, count = BAR_COUN
       values.length,
       Math.max(start + 1, Math.ceil(Math.exp(minLog + (maxLog - minLog) * endRatio))),
     );
-    let sum = 0;
-    for (let bin = start; bin < end; bin += 1) sum += values[bin];
-    const bandPosition = index / Math.max(1, count - 1);
-    const average = sum / Math.max(1, end - start) / 255;
+    let sumSquares = 0;
+    for (let bin = start; bin < end; bin += 1) sumSquares += values[bin] ** 2;
+    const bandPosition = band / Math.max(1, bandCount - 1);
+    const average = Math.sqrt(sumSquares / Math.max(1, end - start)) / 255;
     const gained = average * (1 + bandPosition * HIGH_FREQUENCY_GAIN);
     const gated = Math.max(0, gained - NOISE_FLOOR) / (1 - NOISE_FLOOR);
-    levels[index] = Math.min(0.88, Math.pow(gated, 1.08) * 0.82);
+    const level = Math.min(0.88, Math.pow(gated, 1.08) * 0.82);
+    const left = Math.floor((count - 1) / 2) - band;
+    const right = Math.ceil((count - 1) / 2) + band;
+    if (left >= 0) levels[left] = level;
+    if (right < count) levels[right] = level;
   }
   return levels;
 }
