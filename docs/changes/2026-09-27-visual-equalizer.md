@@ -12,6 +12,7 @@
 - `/visualizer` 진입 직후 약 2초 동안 막대가 시작하지 않는다는 운영 피드백에 따라 마지막 HLS media segment를 메모리에 1개만 보존하고 늦게 연결된 analyser에 즉시 재전달한다. 재생 중 동기화를 왜곡하던 timing advance는 제거했다.
 - direct `LOSSLESS` 재생에서는 큰 FLAC 전체 다운로드가 첫 EQ 시작을 지연시키므로, 재생 음질은 유지하면서 분석 전용 same-origin 요청만 `LOW` 품질로 고정해 초기 전송·decode 크기를 줄인다.
 - 전체 플레이어를 연 뒤에 analyser를 생성하던 구조 때문에 overlay가 늦게 준비되는 결함을 수정했다. analyser는 전역 플레이어와 함께 한 번만 마운트해 재생 시작부터 분석을 준비하고, 전체 플레이어를 열고 닫아도 같은 분석 상태를 유지한다.
+- 분석 전용 파일 전체의 다운로드와 `decodeAudioData` 완료를 기다리던 direct stream 경로를 same-origin streaming media와 Web Audio `AnalyserNode` 경로로 교체했다. 무음 gain graph에서 즉시 frequency bin을 읽고 실제 플레이어의 재생·일시정지·현재 시각을 동기화하며, 미지원·실패 브라우저에서는 기존 bounded 전체 디코드로 복귀한다.
 - 현재 트랙 artwork, 재생 위치, 이전·재생/일시정지·다음, 대기열 전환과 표시 방식 segmented control을 desktop·mobile 공통으로 제공한다.
 - 전역 플레이어에서 TIDAL ID가 있는 현재 트랙에만 `EQ` 진입 링크를 표시하고 Next client navigation으로 재생 세션을 보존한다. 현재 TIDAL 트랙 없이 직접 접근하면 Home으로 복귀한다.
 - HLS.js의 `BUFFER_CODECS`·`BUFFER_APPENDING`에서 init/media fMP4를 캡처하고, `AudioContext.decodeAudioData`로 mono PCM을 만든다.

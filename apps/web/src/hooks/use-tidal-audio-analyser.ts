@@ -13,6 +13,11 @@ import {
   decodeFragmentedMp4Segment,
   supportsAudioDecoding,
 } from "@/lib/tidal/segment-decoder";
+import {
+  analysisAudioUrl,
+  createLiveAudioAnalyser,
+  type LiveAudioAnalyser,
+} from "@/lib/tidal/live-audio-analyser";
 import { pcmToByteFrequencyData } from "@/lib/tidal/simple-fft";
 
 export type AudioAnalyserMode = "error" | "idle" | "pcm" | "unsupported" | "waiting";
@@ -37,7 +42,7 @@ function zero(target: Uint8Array) {
 
 export async function fetchVisualizerAnalysisAudio(trackId: string, signal: AbortSignal) {
   const response = await fetch(
-    `/api/tidal/tracks/${encodeURIComponent(trackId)}/analysis?quality=LOW`,
+    analysisAudioUrl(trackId),
     { cache: "no-store", signal },
   );
   if (!response.ok) throw new Error("tidal_analysis_audio_unavailable");
@@ -51,12 +56,14 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
   const decodeQueue = useRef<Promise<void>>(Promise.resolve());
   const job = useRef(0);
   const abortController = useRef<AbortController | null>(null);
+  const liveAnalyser = useRef<LiveAudioAnalyser | null>(null);
   const [mode, setMode] = useState<AudioAnalyserMode>(() => (
     supportsAudioDecoding() ? "waiting" : "unsupported"
   ));
 
   useEffect(() => {
     playing.current = isPlaying;
+    liveAnalyser.current?.sync(isPlaying, audio.current?.currentTime ?? 0);
   }, [isPlaying]);
 
   useEffect(() => subscribeActiveTidalAudioElement((element) => {
@@ -73,6 +80,8 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
       job.current += 1;
       abortController.current?.abort();
       abortController.current = null;
+      liveAnalyser.current?.dispose();
+      liveAnalyser.current = null;
       return job.current;
     };
     const current = (jobId: number) => mounted && job.current === jobId;
@@ -119,6 +128,33 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
       }
     };
 
+    const streamDirect = async (
+      trackId: string,
+      startTime: number | null,
+      jobId: number,
+      signal: AbortSignal,
+    ) => {
+      try {
+        const live = createLiveAudioAnalyser(
+          trackId,
+          startTime ?? audio.current?.currentTime ?? 0,
+        );
+        liveAnalyser.current = live;
+        await live.ready;
+        if (!current(jobId)) {
+          live.dispose();
+          return;
+        }
+        live.sync(playing.current, audio.current?.currentTime ?? 0);
+        setMode("pcm");
+      } catch {
+        if (!current(jobId)) return;
+        liveAnalyser.current?.dispose();
+        liveAnalyser.current = null;
+        await decodeDirect(trackId, startTime, jobId, signal);
+      }
+    };
+
     const unsubscribe = subscribeTidalAudioCapture((event) => {
       if (event.type === "reset") {
         nextJob();
@@ -136,7 +172,7 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
         abortController.current = controller;
         decodeQueue.current = decodeQueue.current
           .catch(() => undefined)
-          .then(() => decodeDirect(
+          .then(() => streamDirect(
             event.trackId,
             event.startTime,
             jobId,
@@ -153,6 +189,8 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
     return () => {
       mounted = false;
       abortController.current?.abort();
+      liveAnalyser.current?.dispose();
+      liveAnalyser.current = null;
       unsubscribe();
     };
   }, []);
@@ -163,6 +201,11 @@ export function useTidalAudioAnalyser(isPlaying: boolean): TidalAudioAnalyser {
     read(target: Uint8Array) {
       if (mode !== "pcm" || !playing.current) {
         zero(target);
+        return;
+      }
+      if (liveAnalyser.current) {
+        liveAnalyser.current.sync(true, audio.current?.currentTime ?? 0);
+        liveAnalyser.current.read(target);
         return;
       }
       const currentTime = audio.current?.currentTime ?? Number.NaN;
