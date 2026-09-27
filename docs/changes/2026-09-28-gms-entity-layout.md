@@ -19,7 +19,10 @@ GMS의 개별 트랙 추천이 큰 카드와 가로 rail로 표시되어 플레�
 - 변경 파일 ESLint: 오류·경고 0건.
 - `npm run build`: Next.js production build와 TypeScript 통과.
 - 전체 Vitest: 101개 파일 중 99개, 397개 테스트 중 394개 통과. 기존 인증 mock 관련 3건은 동일하게 실패했다.
-- 배포와 public browser 결과는 완료 후 기록한다.
+- 기능 커밋과 release `be3c8e5`, Web image `sha256:acf13db2b4e5d1ec103d5664119b06e20d5abb2bd7720cfbb955d2d09e088b88`를 배포했고 Web container `healthy`를 확인했다.
+- 로그인된 public GMS에서 추천 12곡이 목록 12행으로 표시되고 기존 `gateway-card`와 gateway rail이 각각 0개임을 확인했다.
+- desktop에서 곡·아티스트·앨범·결정 열을, `390x844`에서 곡명 아래 메타데이터와 다음 줄 액션 배치를 확인했다. mobile body 가로 overflow와 잘린 action group은 각각 0건이었다.
+- browser warning/error는 0건이고 public health, Home, GMS, MMS와 EMS는 모두 HTTP 200이었다.
 
 ## 운영 경계
 
@@ -29,5 +32,6 @@ GMS의 개별 트랙 추천이 큰 카드와 가로 rail로 표시되어 플레�
 
 ## 롤백
 
-- 배포 전 release와 Web image를 식별해 보존한다.
-- 문제가 생기면 이전 image와 release symlink로 Web만 복원한다.
+- 변경 전 release `/home/approid/apps/music-pie/releases/3884c52`와 Web image `sha256:aad7862ec5cbedf50b5bf9c3ab3879b8c1ddfc2ac4fd0c7e5b99eb324aababfc`를 `music-pie-web:pre-gms-list-be3c8e5`로 보존했다.
+- 문제가 생기면 이 image를 `current`로 복원하고 release symlink를 `3884c52`로 되돌린 뒤 Web만 재생성한다.
+- EMS pipeline과 source-routines의 container ID, image와 시작 시각은 배포 전후 동일하다.
