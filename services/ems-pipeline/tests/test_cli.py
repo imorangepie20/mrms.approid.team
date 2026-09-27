@@ -36,7 +36,7 @@ def test_execute_run_commits_resolution_results_and_run_status() -> None:
     assert counts["matched"] == 2
     assert status == "completed"
     assert connection.events == ["begin", "commit"]
-    assert connection.update == ("completed", 2, "run-a")
+    assert connection.update == ("completed", "run-a", "run-a")
 
 
 def test_execute_run_pauses_bounded_canary() -> None:
@@ -48,7 +48,24 @@ def test_execute_run_pauses_bounded_canary() -> None:
     _counts, status = cli.execute_run(connection, "run-b", object(), fake_worker, max_batches=1)
 
     assert status == "paused"
-    assert connection.update == ("paused", 0, "run-b")
+    assert connection.update == ("paused", "run-b", "run-b")
+
+
+def test_parser_accepts_editorial_priority_for_bounded_run() -> None:
+    args = cli.build_parser().parse_args([
+        "run",
+        "--run-id", "run-a",
+        "--batch-size", "24",
+        "--max-batches", "1",
+        "--request-budget", "50",
+        "--prioritize-editorial",
+    ])
+
+    assert args.prioritize_editorial is True
+    assert args.batch_size == 24
+    assert args.max_batches == 1
+    assert args.request_budget == 50
+    assert args.min_request_interval_seconds == 1.5
 
 
 def test_parser_accepts_tidal_editorial_snapshot() -> None:

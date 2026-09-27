@@ -47,7 +47,18 @@ def test_claim_candidates_uses_skip_locked_and_expired_leases() -> None:
     assert claimed == [{"id": "candidate-a"}]
     assert "FOR UPDATE SKIP LOCKED" in connection.cursor_value.sql
     assert "lease_expires_at" in connection.cursor_value.sql
-    assert connection.cursor_value.values == ("run-a", 16, 300)
+    assert connection.cursor_value.values == (False, "run-a", 16, 300)
+
+
+def test_claim_candidates_can_prioritize_active_editorial_matches() -> None:
+    connection = FakeConnection()
+    claim_candidates(connection, "run-a", batch_size=24, prioritize_editorial=True)
+
+    assert "ems_track_sections" in connection.cursor_value.sql
+    assert "ems_editorial_sections" in connection.cursor_value.sql
+    assert "editorial_priority DESC" in connection.cursor_value.sql
+    assert "pending_priority DESC" in connection.cursor_value.sql
+    assert connection.cursor_value.values == (True, "run-a", 24, 300)
 
 
 def test_health_gate_pauses_when_disk_or_dependency_is_unhealthy() -> None:

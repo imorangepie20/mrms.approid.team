@@ -47,6 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--batch-size", type=int, default=50)
     run.add_argument("--max-batches", type=int, default=None)
     run.add_argument("--request-budget", type=int, default=None)
+    run.add_argument("--min-request-interval-seconds", type=float, default=1.5)
+    run.add_argument("--prioritize-editorial", action="store_true")
     embed = subparsers.add_parser("embed")
     embed.add_argument("--batch-size", type=int, default=16)
     embed.add_argument("--max-batches", type=int, default=None)
@@ -70,13 +72,29 @@ def execute_run(
     *,
     batch_size: int = 50,
     max_batches: int | None = None,
+    prioritize_editorial: bool = False,
 ) -> tuple[dict[str, int], str]:
     with connection.transaction():
-        counts = worker(connection, run_id, catalog_client, batch_size=batch_size, max_batches=max_batches)
+        counts = worker(
+            connection,
+            run_id,
+            catalog_client,
+            batch_size=batch_size,
+            max_batches=max_batches,
+            prioritize_editorial=prioritize_editorial,
+        )
         status = "paused" if counts.get("budget_exhausted", 0) or max_batches is not None else "completed"
         connection.execute(
-            "UPDATE ems_ingest_runs SET status = %s, matched_count = %s, heartbeat_at = now(), finished_at = now() WHERE id = %s",
-            (status, counts.get("matched", 0), run_id),
+            """UPDATE ems_ingest_runs
+                  SET status = %s,
+                      matched_count = (
+                        SELECT count(*)::int
+                          FROM ems_ingest_candidates
+                         WHERE run_id = %s AND resolver_status = 'matched'
+                      ),
+                      heartbeat_at = now(), finished_at = now()
+                WHERE id = %s""",
+            (status, run_id, run_id),
         )
     return counts, status
 
@@ -202,9 +220,27 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("DATABASE_URL, TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET are required")
         budget = args.request_budget if args.request_budget is not None else int(os.environ.get("TIDAL_REQUEST_BUDGET", "1000"))
         with psycopg.connect(database_url, row_factory=dict_row) as connection:
-            client = TidalCatalogClient(client_id, client_secret, request_budget=budget)
-            counts, status = execute_run(connection, args.run_id, client, run_worker, batch_size=args.batch_size, max_batches=args.max_batches)
-        print(json.dumps({"run_id": args.run_id, "status": status, "counts": counts}, sort_keys=True))
+            client = TidalCatalogClient(
+                client_id,
+                client_secret,
+                request_budget=budget,
+                min_request_interval_seconds=args.min_request_interval_seconds,
+            )
+            counts, status = execute_run(
+                connection,
+                args.run_id,
+                client,
+                run_worker,
+                batch_size=args.batch_size,
+                max_batches=args.max_batches,
+                prioritize_editorial=args.prioritize_editorial,
+            )
+        print(json.dumps({
+            "run_id": args.run_id,
+            "status": status,
+            "requests_used": client.used_requests,
+            "counts": counts,
+        }, sort_keys=True))
         return 0
     if args.command == "embed":
         from .embedding import embed_ems_batch, embed_remote

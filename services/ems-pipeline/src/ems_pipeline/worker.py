@@ -23,7 +23,14 @@ def retry_delay(attempt: int, retry_after_seconds: int | None) -> int:
     return min(3600, max(1, int(math.pow(2, max(0, attempt)))))
 
 
-def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, lease_seconds: int = 300) -> list[dict[str, Any]]:
+def claim_candidates(
+    connection: Any,
+    run_id: str,
+    *,
+    batch_size: int = 50,
+    lease_seconds: int = 300,
+    prioritize_editorial: bool = False,
+) -> list[dict[str, Any]]:
     if batch_size <= 0 or lease_seconds <= 0:
         raise ValueError("batch_size and lease_seconds must be positive")
     with connection.transaction():
@@ -31,14 +38,26 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
             cursor.execute(
                 """
                 WITH claimed AS (
-                  SELECT id
-                  FROM ems_ingest_candidates
-                  WHERE run_id = %s
-                    AND (resolver_status IN ('pending', 'retryable')
-                         OR (resolver_status = 'resolving' AND lease_expires_at < now()))
-                    AND (lease_expires_at IS NULL OR lease_expires_at < now())
-                    AND (next_attempt_at IS NULL OR next_attempt_at <= now())
-                  ORDER BY sequence_no
+                  SELECT candidate.id,
+                         CASE WHEN %s AND EXISTS (
+                           SELECT 1
+                             FROM ems_track_sections AS membership
+                             JOIN ems_editorial_sections AS section
+                               ON section.id = membership.section_id AND section.active
+                             JOIN ems_tracks AS track
+                               ON track.id = membership.track_id AND track.status = 'active'
+                            WHERE (candidate.isrc IS NOT NULL AND track.isrc = candidate.isrc)
+                               OR (lower(track.title) = lower(candidate.title)
+                                   AND lower(track.artist) = lower(candidate.artist))
+                         ) THEN 1 ELSE 0 END AS editorial_priority,
+                         CASE WHEN candidate.resolver_status = 'pending' THEN 1 ELSE 0 END AS pending_priority
+                  FROM ems_ingest_candidates AS candidate
+                  WHERE candidate.run_id = %s
+                    AND (candidate.resolver_status IN ('pending', 'retryable')
+                         OR (candidate.resolver_status = 'resolving' AND candidate.lease_expires_at < now()))
+                    AND (candidate.lease_expires_at IS NULL OR candidate.lease_expires_at < now())
+                    AND (candidate.next_attempt_at IS NULL OR candidate.next_attempt_at <= now())
+                  ORDER BY editorial_priority DESC, pending_priority DESC, candidate.sequence_no
                   FOR UPDATE SKIP LOCKED
                   LIMIT %s
                 )
@@ -53,7 +72,7 @@ def claim_candidates(connection: Any, run_id: str, *, batch_size: int = 50, leas
                           candidate.recording_mbid, candidate.duration_ms, candidate.release_date,
                           candidate.tidal_id AS source_tidal_id, candidate.attempt_count;
                 """,
-                (run_id, batch_size, lease_seconds),
+                (prioritize_editorial, run_id, batch_size, lease_seconds),
             )
             return list(cursor.fetchall())
 
@@ -78,11 +97,25 @@ def mark_resolution(connection: Any, candidate_id: str, result: ResolveResult, *
             )
 
 
-def run_worker(connection: Any, run_id: str, catalog_client: Any, *, batch_size: int = 50, max_batches: int | None = None, on_result: Callable[[ResolveResult], None] | None = None) -> dict[str, int]:
+def run_worker(
+    connection: Any,
+    run_id: str,
+    catalog_client: Any,
+    *,
+    batch_size: int = 50,
+    max_batches: int | None = None,
+    prioritize_editorial: bool = False,
+    on_result: Callable[[ResolveResult], None] | None = None,
+) -> dict[str, int]:
     counts = {status.value: 0 for status in ResolveStatus}
     batches = 0
     while max_batches is None or batches < max_batches:
-        claimed = claim_candidates(connection, run_id, batch_size=batch_size)
+        claimed = claim_candidates(
+            connection,
+            run_id,
+            batch_size=batch_size,
+            prioritize_editorial=prioritize_editorial,
+        )
         if not claimed:
             break
         batches += 1
