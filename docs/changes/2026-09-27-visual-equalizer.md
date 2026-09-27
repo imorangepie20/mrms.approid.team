@@ -44,6 +44,7 @@
 - 막대 분포 보완 커밋 `2226ca9`를 release `/home/approid/apps/music-pie/releases/2226ca9`와 Web image `music-pie-web:2226ca9`로 Web에 추가 배포했다.
 - 위치·높이·동기화 보완 커밋 `0e6440c`를 release `/home/approid/apps/music-pie/releases/0e6440c`와 Web image `music-pie-web:0e6440c`로 Web에 추가 배포했다.
 - 시작 지연 보완 커밋 `968cff2`를 release `/home/approid/apps/music-pie/releases/968cff2`와 Web image `music-pie-web:968cff2`로 Web에 추가 배포했다. 앞선 timing advance는 이 배포에서 제거했다.
+- direct 분석 경량화 커밋 `77e7dda`를 release `/home/approid/apps/music-pie/releases/77e7dda`와 Web image `music-pie-web:77e7dda`로 Web에 추가 배포했다.
 - Web container는 `healthy`이고 local/public readiness, Home, EMS, `/visualizer`가 HTTP 200이다. 비인증 analysis API는 401이다.
 - 공개 desktop 브라우저에서 EMS 트랙 선택 뒤 Next client navigation이 현재 트랙과 12곡 대기열을 보존하는 것을 확인했다.
 - `/visualizer`에서 현재 artwork·제목·아티스트, 이전/재생/다음, 재생 위치, 대기열 전환, 막대/방사형 키보드 전환이 동작했다.
@@ -62,5 +63,6 @@
 - 막대 분포 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/91b409e`와 image `music-pie-web:pre-visualizer-bars-2226ca9`를 사용한다.
 - 위치·높이·동기화 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/b2de0a0`와 image `music-pie-web:pre-visualizer-timing-0e6440c`를 사용한다.
 - 시작 지연 보완만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f922cfe`와 image `music-pie-web:pre-visualizer-start-968cff2`를 사용한다.
+- direct 분석 경량화만 되돌릴 때는 release `/home/approid/apps/music-pie/releases/9ec49ca`와 image `music-pie-web:pre-visualizer-analysis-77e7dda`를 사용한다.
 - 오류 상태 보완까지 되돌릴 때는 release `/home/approid/apps/music-pie/releases/f6392b0`와 image `music-pie-web:pre-visualizer-errors-58ba65e`를 사용한다.
 - 롤백 시 Web만 재생성하고 EMS·PostgreSQL·embedding·상시 worker는 재시작하지 않는다.

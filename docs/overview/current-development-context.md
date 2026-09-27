@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-27
 
-최신 기능 기준 커밋: `968cff2`
+최신 기능 기준 커밋: `77e7dda`
 
-최신 Zorin Web 배포 기준 커밋: `968cff2` (Visual EQ 첫 HLS segment 시작 지연 보완)
+최신 Zorin Web 배포 기준 커밋: `77e7dda` (Visual EQ direct 분석 시작 경량화)
 
 최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배해 저역 막대가 좌측에 몰리는 현상을 보완했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 stage의 46%로 줄였다. `968cff2`에서는 화면 진입 뒤 첫 반응이 약 2초 늦는 원인을 지속 동기화가 아닌 늦은 HLS 구독으로 정정하고, 마지막 media segment 1개를 즉시 재전달하도록 변경하면서 임시 timing advance를 제거했다. `/visualizer`는 HLS segment 또는 direct audio를 mono PCM으로 decode하고 현재 재생 시각에 맞춘 128-bin DFT로 막대형·방사형 canvas를 그린다. direct 분석 fallback은 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. Web만 배포했고 공개 desktop에서 세션·대기열 보존, 키보드 모드·트랙 전환, 비회원 오류·로그인 복귀 경로와 console 오류 0건을 확인했다. 위치·높이·시작 지연 focused test는 통과했으며 390x844 실제 viewport와 로그인 live PCM 자동 측정은 남았다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
+- 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배해 저역 막대가 좌측에 몰리는 현상을 보완했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 stage의 46%로 줄였다. `968cff2`에서는 늦은 HLS 구독에 마지막 media segment 1개를 즉시 재전달하면서 임시 timing advance를 제거했다. `77e7dda`에서는 direct `LOSSLESS` 전체 파일 분석이 첫 EQ 반응을 지연시키는 경로를 찾아 재생 음질은 유지하고 분석 전용 요청만 `LOW`로 고정했다. `/visualizer`는 HLS segment 또는 direct audio를 mono PCM으로 decode하고 현재 재생 시각에 맞춘 128-bin DFT로 막대형·방사형 canvas를 그린다. direct 분석 fallback은 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. Web만 배포했고 공개 desktop에서 세션·대기열 보존, 키보드 모드·트랙 전환, 비회원 오류·로그인 복귀 경로와 console 오류 0건을 확인했다. 위치·높이·시작 지연 focused test는 통과했으며 390x844 실제 viewport와 로그인 live PCM 자동 측정은 남았다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
 - 2026-09-27 1,000곡 품질 gate를 근거로 10,000곡 cohort와 MusicBrainz snapshot delta 운영을 설계·검토했고 결정은 `HOLD_10K`다. 기준 run은 `paused`, matched `154`, pending `806`, retryable `40`이며 1k 완료·사용자 승인과 로그인 browser decode가 남았다. 1k 종료는 `846곡/36 batch/GET 1,800`, 10k 확대는 신규 `9,000곡/375 batch/GET 18,000` hard cap으로 제안했으며 이번 외부 요청·DB write·scheduler 변경은 0건이다. 기존 scheduler의 무제한 snapshot resolver, 승인 없는 resume, 상태·disk·embedding 관측 부족을 선행 차단 조건으로 기록했다. 상세는 `docs/changes/2026-09-27-ems-10k-snapshot-diff-gate.md`에 있다.
 - 2026-09-27 `951fb9a`에서 matched 승격의 stale 오류 정리, rate-limit·budget 중단 시 미처리 claim 복구, embedding 실제 잔여 집계를 추가했다. 승인된 resolver 24곡은 24/24 matched, catalog GET 24/50이었고 최종 1,000곡 분류는 matched 154, pending 806, retryable 40, 나머지 0으로 run을 `paused`로 남겼다. 전수 false-match 0/154, target embedding 154/154, 전체 미완료 0, playback media 표본 20/20, 격리 restore와 사용자·기존 active 보존을 확인했다. 상세는 `docs/changes/2026-09-27-editorial-resolver-quality-gate.md`에 기록한다.
 - 2026-09-27 배포된 Home·EMS를 desktop과 `390x844` mobile에서 bounded browser QA했다. Home 3개, EMS 5개 section이 각각 12곡이고 API/UI `totalCount=38,762`, section 전역 중복 0을 확인했다. rail keyboard·mobile swipe, focus ring, 비회원 재생 recovery, 검색 전환·빈 상태·복귀, 제거된 platform filter, 문서 overflow와 고정 UI를 검증했으며 blocking 결함은 0건이다. 검색 오류 문구 회귀 테스트를 추가했다. 상세는 `docs/changes/2026-09-27-home-ems-browser-qa.md`에 기록한다.
