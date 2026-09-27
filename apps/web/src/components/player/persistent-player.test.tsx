@@ -90,7 +90,25 @@ function renderPlayer(ui: ReactNode) {
 }
 
 describe("PersistentPlayer", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("opens the visual equalizer for a TIDAL track", async () => {
+    const engine = fakeEngine();
+    const user = userEvent.setup();
+    renderPlayer(
+      <MusicSessionProvider engine={engine}>
+        <PlaybackStarter />
+        <PersistentPlayer />
+      </MusicSessionProvider>,
+    );
+    await user.click(screen.getByRole("button", { name: "Start playback" }));
+    expect(screen.getByRole("link", { name: "비주얼 이퀄라이저 열기" })).toHaveAttribute(
+      "href",
+      "/visualizer",
+    );
+  });
 
   it("shows the current track artwork with a gradient fallback", async () => {
     const engine = fakeEngine();
@@ -297,5 +315,6 @@ describe("PersistentPlayer", () => {
     await user.click(screen.getByRole("button", { name: "Start local playback" }));
 
     expect(screen.queryByRole("button", { name: "TIDAL 전체 재생" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "비주얼 이퀄라이저 열기" })).not.toBeInTheDocument();
   });
 });

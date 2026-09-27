@@ -111,6 +111,15 @@ export function PersistentPlayer() {
                 item={trackLikeItem(currentTrack)}
               />
               <div className="flex shrink-0 items-center gap-1">
+                {"tidalTrackId" in currentTrack && currentTrack.tidalTrackId ? (
+                  <a
+                    aria-label="비주얼 이퀄라이저 열기"
+                    className="grid size-10 place-items-center rounded-full text-xs font-bold text-cyan-300 hover:bg-white/10"
+                    href="/visualizer"
+                  >
+                    EQ
+                  </a>
+                ) : null}
                 {needsLogin ? (
                   <a
                     className="inline-flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-md border border-white/20 px-3 text-xs font-bold text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"

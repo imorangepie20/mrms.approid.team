@@ -1,6 +1,14 @@
 import Hls from "hls.js";
 
 import type { Track } from "@/lib/music/types";
+import { setActiveTidalAudioElement } from "@/lib/tidal/active-audio";
+import {
+  attachTidalAudioCapture,
+  detachTidalAudioCapture,
+  notifyDirectTidalAudioSource,
+  notifyNativeHlsTidalAudioSource,
+  type AudioCaptureTarget,
+} from "@/lib/tidal/audio-capture";
 import type { TidalPlaybackStream } from "@/lib/tidal/playback-stream";
 
 export type PlaybackSource = "playlist" | "search" | "ems" | "mms" | "gms";
@@ -26,11 +34,10 @@ export interface PlaybackEngine {
   subscribe(listener: (event: PlaybackEvent) => void): () => void;
 }
 
-type HlsLike = {
+type HlsLike = AudioCaptureTarget & {
   attachMedia(media: HTMLMediaElement): void;
   destroy(): void;
   loadSource(url: string): void;
-  on(event: string, listener: (event: string, data: { fatal?: boolean; details?: string }) => void): void;
 };
 
 type EngineDependencies = {
@@ -56,7 +63,7 @@ function isHls(stream: TidalPlaybackStream) {
 
 export function createTidalPlaybackEngine(dependencies: EngineDependencies = {}): PlaybackEngine {
   const createAudio = dependencies.createAudio ?? (() => document.createElement("audio"));
-  const createHls = dependencies.createHls ?? (() => new Hls() as HlsLike);
+  const createHls = dependencies.createHls ?? (() => new Hls() as unknown as HlsLike);
   const fetchStream = dependencies.fetchStream ?? fetchPlaybackStream;
   const listeners = new Set<(event: PlaybackEvent) => void>();
   let audio: HTMLAudioElement | null = null;
@@ -67,6 +74,7 @@ export function createTidalPlaybackEngine(dependencies: EngineDependencies = {})
   const emit = (event: PlaybackEvent) => listeners.forEach((listener) => listener(event));
 
   const clear = () => {
+    detachTidalAudioCapture();
     hls?.destroy();
     hls = null;
     if (audio) {
@@ -75,6 +83,7 @@ export function createTidalPlaybackEngine(dependencies: EngineDependencies = {})
       audio.load();
     }
     audio = null;
+    setActiveTidalAudioElement(null);
   };
 
   const attachEvents = (media: HTMLAudioElement, activeGeneration: number, activeReference: string) => {
@@ -103,6 +112,7 @@ export function createTidalPlaybackEngine(dependencies: EngineDependencies = {})
       if (generation !== activeGeneration) return;
       const media = createAudio();
       audio = media;
+      setActiveTidalAudioElement(media);
       media.preload = "auto";
       media.volume = Math.min(1, Math.max(0, volume / 100));
       attachEvents(media, activeGeneration, source.referenceId);
@@ -110,14 +120,30 @@ export function createTidalPlaybackEngine(dependencies: EngineDependencies = {})
         const instance = createHls();
         hls = instance;
         instance.on(Hls.Events.ERROR, (_event, data) => {
-          if (data.fatal && generation === activeGeneration) {
-            emit({ code: data.details || "tidal_hls_error", type: "error" });
+          const details = data && typeof data === "object"
+            ? data as { details?: unknown; fatal?: unknown }
+            : {};
+          if (details.fatal && generation === activeGeneration) {
+            emit({
+              code: typeof details.details === "string" ? details.details : "tidal_hls_error",
+              type: "error",
+            });
           }
         });
+        attachTidalAudioCapture(instance);
         instance.loadSource(stream.streamUrl);
         instance.attachMedia(media);
       } else {
         media.src = stream.streamUrl;
+        if (isHls(stream)) {
+          notifyNativeHlsTidalAudioSource();
+        } else {
+          notifyDirectTidalAudioSource(
+            stream.streamUrl,
+            track.tidalTrackId,
+            stream.audioQuality ?? "HIGH",
+          );
+        }
       }
       if (stream.durationSeconds && stream.durationSeconds > 0) {
         emit({ durationSeconds: stream.durationSeconds, type: "duration" });
