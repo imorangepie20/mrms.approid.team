@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-27 resolver 확장 뒤 editorial section dry-run을 `playlist-limit=2`, request budget `24`, timeout `8초`로 다시 실행했다. `new-releases 39/25/0`, `seasonal-jazz 38/38/0`, `night-rnb 39/28/0`, `feel-good 34/30/0`, `focus 26/26/0`(`discovered/joined/stored`)으로 projected stored 기준 `5/5` section이 6곡 이상이라 gate를 통과했다. 기존 section `10`·membership `113`의 전후 fingerprint, release와 서비스 상태는 동일하며 실제 membership write와 release 전환은 하지 않았다. 상세는 `docs/changes/2026-09-27-editorial-dry-run-after-resolver.md`에 기록한다.
 - 2026-09-27 `38c22ae0f47e`에서 resolver의 active editorial section 조인 후보 우선 처리, catalog GET 사용량 출력, 누적 matched count 갱신을 추가했다. 운영에서 승인된 24곡 단일 batch를 실행해 24/24 matched, catalog GET 24/50, ambiguous/not_found/unavailable/retryable/budget_exhausted 0을 기록했다. DB는 matched 130, pending 830, retryable 40, resolving 0으로 일치하고 run은 `paused`다. 상세는 `docs/changes/2026-09-27-editorial-priority-resolver-batch.md`에 기록한다.
 - 2026-09-27 `bc47ed34e971`에서 비회원 재생 오류의 내부 `unauthorized` 코드를 한국어 안내와 로그인 진입점으로 교체했다. 운영 Web만 재배포했고 공개 Home·EMS·readiness, 컨테이너 health, 실제 EMS 트랙 선택 뒤 `returnTo=/ems` 로그인 링크와 내부 코드 비노출을 확인했다. 이전 `c7a002d` release와 Web 이미지는 롤백용으로 보존했다. 상세는 `docs/changes/2026-09-27-anonymous-playback-error.md`에 기록한다.
 - 2026-09-26 사용자 TIDAL 트랙 좋아요와 GMS 추천 수락·거절을 개인 취향 프로필에 반영하도록 로컬 구현했다. 좋아요의 완료 EMS 임베딩을 재사용하고 EMS·사용자 라이브러리에 없는 TIDAL 좋아요는 메타데이터 스냅샷으로 계산 중 임베딩한다. 긍정 액션 트랙은 기본 가중치의 2배로 반영하고 거절 이력은 긍정 피드백과 GMS 후보에서 제외한다. Web build·lint와 diff 검사는 통과했다. 2026-09-27 운영 GMS 추천 카드 표시는 확인했으며 액션 재계산 코드는 미배포 상태라 액션 검증은 남았다. 상세는 `docs/changes/2026-09-26-user-action-taste-profile.md`에 기록한다.
@@ -87,6 +88,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-27 | editorial focused pytest·Vitest, Zorin one-off `sync-editorial-sections --dry-run`, DB fingerprint·release·HTTP 대조 | 5 slug 집계, 최소 4개 joined 6 이상, stored 0, 기존 DB·서비스 불변 | 통과: pipeline 12개·Web 24개 테스트, joined `25/38/28/30/26`, stored 모두 0, section 10·membership 113 fingerprint 불변, 세 container healthy, Home·EMS·readiness 200 |
 | 2026-09-27 | `services/ems-pipeline` full pytest, one-off resolver image build, 운영 DB 백업·단일 batch·전후 count 대조 | editorial 우선 24건, GET budget 50 이하, run paused, DB·사용자 데이터 보존 | 통과: 52개 테스트, 24/24 matched, GET 24, 후보 합계 1,000·resolving 0·matched_count 130, active EMS 38,582→38,618, 사용자 기준 수치 불변 |
 | 2026-09-27 | `apps/web` focused Vitest·lint·build, Zorin Web image build·Compose 교체, 공개 HTTP·브라우저 smoke | 비회원 재생 오류 안내, 로그인 복귀 경로, 내부 코드 비노출, 롤백 보존 | 통과: focused 9개 테스트, lint·build, release `bc47ed34e971`, Web healthy, 공개 `/`·`/ems`·readiness 200, 로그인 307, `returnTo=/ems`, 브라우저·Web 로그 오류 0건 |
 | 2026-09-20 | 생성 문서의 경로·링크·템플릿 확인 | `AGENTS.md`가 가리키는 4개 문서와 작업·변경 템플릿이 존재함 | 통과: 7개 필수 문서의 존재, `AGENTS.md` 참조, 템플릿 표식 확인 |
@@ -161,8 +163,9 @@
 
 1. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 2. Home top 3, EMS section·검색·재생을 desktop/mobile browser에서 확인한다.
-3. 다음 resolver batch 전 matched 승격의 과거 오류 메타데이터 정리를 수정하고, 새 24건의 false-match 검토와 embedding completion·rollback rehearsal을 수행한다.
-4. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
+3. editorial dry-run gate `5/5` 통과 결과를 승인한 뒤에만 실제 membership sync와 release 전환 범위를 정한다.
+4. 다음 resolver batch 전 matched 승격의 과거 오류 메타데이터 정리를 수정하고, 새 24건의 false-match 검토와 embedding completion·rollback rehearsal을 수행한다.
+5. 1,000곡 기준선을 승인한 뒤 10,000곡 gate와 snapshot diff scheduler를 검토한다.
 
 ## 관련 문서
 
