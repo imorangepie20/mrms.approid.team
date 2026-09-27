@@ -65,4 +65,30 @@ describe("TIDAL audio capture", () => {
     ]);
     unsubscribe();
   });
+
+  it("replays the latest HLS media segment to late subscribers", () => {
+    const listeners = new Map<string, (event: string, data: unknown) => void>();
+    const target = {
+      off: vi.fn(),
+      on: vi.fn((event: string, listener: (event: string, data: unknown) => void) => listeners.set(event, listener)),
+    };
+    attachTidalAudioCapture(target);
+    listeners.get(Hls.Events.BUFFER_CODECS)?.("codecs", {
+      audio: { initSegment: mp4Box("ftyp") },
+    });
+    listeners.get(Hls.Events.BUFFER_APPENDING)?.("appending", {
+      data: mp4Box("moof"),
+      frag: { duration: 2, sn: 1, start: 4 },
+      type: "audio",
+    });
+
+    const events: TidalAudioCaptureEvent[] = [];
+    const unsubscribe = subscribeTidalAudioCapture((event) => events.push(event));
+    expect(events.map((event) => event.type)).toEqual(["source", "segment"]);
+    expect(events[1]).toMatchObject({
+      segment: { kind: "media", startTime: 4, type: "audio" },
+      type: "segment",
+    });
+    unsubscribe();
+  });
 });

@@ -35,6 +35,7 @@ let attachedTarget: AudioCaptureTarget | null = null;
 let detachListeners: (() => void) | null = null;
 let currentSource: TidalAudioCaptureEvent | null = null;
 let currentDirectStream: TidalAudioCaptureEvent | null = null;
+let currentMediaSegment: TidalAudioCaptureEvent | null = null;
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -54,11 +55,22 @@ function emit(event: TidalAudioCaptureEvent) {
   if (event.type === "reset") {
     currentSource = null;
     currentDirectStream = null;
+    currentMediaSegment = null;
   } else if (event.type === "source") {
     currentSource = event;
+    currentMediaSegment = null;
     if (event.source !== "direct") currentDirectStream = null;
   } else if (event.type === "direct-stream") {
     currentDirectStream = event;
+  } else if (event.segment.kind === "media") {
+    currentMediaSegment = {
+      segment: {
+        ...event.segment,
+        initSegment: event.segment.initSegment?.slice() ?? null,
+        payload: event.segment.payload.slice(),
+      },
+      type: "segment",
+    };
   }
   subscribers.forEach((subscriber) => subscriber(event));
 }
@@ -182,6 +194,7 @@ export function subscribeTidalAudioCapture(subscriber: Subscriber) {
   subscribers.add(subscriber);
   if (currentSource) subscriber(currentSource);
   if (currentDirectStream) subscriber(currentDirectStream);
+  if (currentMediaSegment) subscriber(currentMediaSegment);
   return () => {
     subscribers.delete(subscriber);
   };
