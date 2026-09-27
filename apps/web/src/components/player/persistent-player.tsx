@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
@@ -112,13 +113,13 @@ export function PersistentPlayer() {
               />
               <div className="flex shrink-0 items-center gap-1">
                 {"tidalTrackId" in currentTrack && currentTrack.tidalTrackId ? (
-                  <a
+                  <Link
                     aria-label="비주얼 이퀄라이저 열기"
                     className="grid size-10 place-items-center rounded-full text-xs font-bold text-cyan-300 hover:bg-white/10"
                     href="/visualizer"
                   >
                     EQ
-                  </a>
+                  </Link>
                 ) : null}
                 {needsLogin ? (
                   <a
