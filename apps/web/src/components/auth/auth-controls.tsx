@@ -15,7 +15,7 @@ export function AuthControls({ user, isAdmin = false }: AuthControlsProps) {
     return (
       <div className="auth-controls">
         {isAdmin && <Link href="/admin">관리자</Link>}
-        <Link href="/account">{user.name ?? user.email ?? "계정"}</Link>
+        <Link className="auth-account-link" href="/account">{user.name ?? user.email ?? "계정"}</Link>
         <a href="/api/auth/logout">로그아웃</a>
       </div>
     );

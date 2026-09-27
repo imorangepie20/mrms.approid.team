@@ -11,6 +11,7 @@ Home 첫 화면을 [21st.dev `reuno-ui/hero`](https://21st.dev/community/compone
 - 관리자 `home_content`의 hero 제목, 본문, 링크는 그대로 사용한다. hero 뒤의 서비스 개념, 이용법, 실제 EMS 선곡과 음악 이야기 순서도 바꾸지 않았다.
 - WebGL이 없거나 셰이더 초기화 전이어도 같은 색 구성의 CSS 배경이 즉시 보인다. 셰이더 캔버스는 보조 기술에서 숨겼고 `prefers-reduced-motion`에서는 속도를 0으로 둔다.
 - 데스크톱은 448px, mobile은 최소 430px 높이로 제한해 첫 화면 아래 콘텐츠의 시작이 보이게 했다. 제목과 본문에는 긴 문자열 줄바꿈을 적용하고 CTA는 44px 높이와 focus outline을 유지한다.
+- `390x844` 운영 확인에서 발견한 기존 상단 겹침을 함께 수정했다. mobile 검색은 왼쪽, 인증 동작은 오른쪽에 두고 계정명만 말줄임하며 페이지 제목을 독립된 다음 행으로 내려 모든 동작을 유지한다.
 - Home 테스트의 콘텐츠 mock을 실제 `/api/home/content` 배열 응답과 EMS section 응답으로 분리해 동적 hero 회귀를 검증한다.
 
 ## 검증

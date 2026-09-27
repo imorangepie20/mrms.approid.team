@@ -89,7 +89,7 @@
   .mobile-search {
     position: fixed;
     top: 8px;
-    right: 150px;
+    left: 10px;
     z-index: 36;
     display: grid;
     width: 40px;
@@ -119,12 +119,20 @@
   .auth-controls {
     top: 8px;
     right: 10px;
+    max-width: calc(100% - 66px);
   }
 
   .auth-controls a {
     min-height: 40px;
-    padding: 0 11px;
+    padding: 0 9px;
     font-size: 13px;
+  }
+
+  .auth-controls .auth-account-link {
+    max-width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dashboard-page {
@@ -149,7 +157,8 @@
 
   .space-title {
     height: 58px;
-    padding-right: 150px;
+    margin-top: 52px;
+    padding-right: 0;
     font-size: 21px;
   }
 
