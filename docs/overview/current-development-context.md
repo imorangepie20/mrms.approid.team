@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `be3c8e5`
+최신 기능 기준 커밋: `8822341`
 
-최신 Zorin Web 배포 기준 커밋: `be3c8e5` (GMS 트랙 목록형 UI)
+최신 Zorin Web 배포 기준 커밋: `8822341` (GMS 트랙 결정 액션 축약)
 
 최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-28 `be3c8e5`에서 GMS 개별 트랙 추천을 카드 rail에서 곡·아티스트·앨범·결정 액션이 구분된 세로 목록으로 전환했다. 트랙 선택 시 GMS 추천 전체를 대기열로 설정하며 desktop과 `390x844`에서 12개 목록 행, 기존 카드·rail 0개, mobile overflow·action 잘림 0건과 browser 오류 0건을 확인했다. 현재 GMS 계약은 `Track[]`만 제공하므로 가짜 앨범·플레이리스트 데이터를 만들지 않았고 실제 컬렉션 엔터티는 카드형으로 표시하는 원칙을 유지한다. 상세는 `docs/changes/2026-09-28-gms-entity-layout.md`에 기록한다.
+- 2026-09-28 `be3c8e5`에서 GMS 개별 트랙 추천을 카드 rail에서 곡·아티스트·앨범·결정 액션이 구분된 세로 목록으로 전환하고, `8822341`에서 추천 수락을 `+ MMS`, 싫어요를 접근성 이름과 tooltip을 갖춘 Lucide `ThumbsDown` 아이콘으로 축약했다. 트랙 선택 시 GMS 추천 전체를 대기열로 설정하며 desktop과 `390x844`에서 12개 목록 행·축약 액션, 기존 카드·rail 0개, mobile overflow·action 잘림 0건과 browser 오류 0건을 확인했다. 현재 GMS 계약은 `Track[]`만 제공하므로 가짜 앨범·플레이리스트 데이터를 만들지 않았고 실제 컬렉션 엔터티는 카드형으로 표시하는 원칙을 유지한다. 상세는 `docs/changes/2026-09-28-gms-entity-layout.md`에 기록한다.
 - 2026-09-28 `d33d8fb`에서 앨범·플레이리스트의 셔플 큐 생성과 첫 곡 load를 provider의 원자적 `playQueue`로 통합하고, 재생 불가 곡 제외·순서 변화 보장·일반 큐 전환 시 셔플 해제를 적용했다. EQ는 실제 analyser RMS 에너지를 저역 중앙·고역 양쪽의 48개 대칭 막대로 다시 구성했다. 로그인 public MMS 31곡에서 무작위 첫 곡과 섞인 다음 곡 재생, `pcm` canvas 변화, desktop·`390x844`, browser 오류 0건을 확인했다. 상세는 `docs/changes/2026-09-28-shuffle-equalizer-reimplementation.md`에 기록한다.
 - 2026-09-28 `fa3e1ab`에서 검색 완료 즉시 제시어를 닫던 `94657c3`의 부자연스러운 동작을 교체했다. 현재는 검색 결과와 제시어를 함께 유지하고, 검색창·제시어 이외 영역 클릭 또는 `Escape`에서 닫으며, 검색창을 다시 누르거나 focus하면 보존한 제시어를 다시 연다. public Search의 결과·제시어 동시 표시, 외부 클릭·`Escape` 닫기와 Web health를 확인했고 오래된 응답 차단·새 입력·탭 선택·검색 실패 fallback은 유지한다. 상세는 `docs/changes/2026-09-28-search-suggestion-outside-dismissal.md`에 기록한다.
 - 2026-09-28 `78d028b`에서 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. Web만 배포했고 local/public Home·MMS·EMS·readiness와 로그인 MMS 렌더링을 확인했다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
@@ -99,7 +99,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
-| 2026-09-28 | `apps/web` GMS focused·full Vitest, 변경 파일 ESLint, build, Web-only release, 로그인 GMS desktop·`390x844` browser QA | 트랙 목록형, 전체 추천 queue, 카드·rail 제거, mobile overflow·action 잘림 0, EMS 보존 | 통과: focused 9개, build·lint·diff check, release `be3c8e5`, 운영 12행·카드 0·rail 0, mobile overflow·action 잘림 0, browser 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
+| 2026-09-28 | `apps/web` GMS focused·full Vitest, 변경 파일 ESLint, build, production audit, Web-only release, 로그인 GMS desktop·`390x844` browser QA | 트랙 목록형, 전체 추천 queue, `+ MMS`·싫어요 아이콘, mobile overflow·action 잘림 0, EMS 보존 | 통과: focused 10개, build·lint·diff check, production audit 취약점 0, release `8822341`, 운영 12행·12개 축약 액션, 카드·rail·mobile overflow·action 잘림·browser 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
 | 2026-09-28 | `apps/web` shuffle/EQ focused·full Vitest, 변경 파일 ESLint, build, Web-only release, 로그인 MMS desktop·`390x844` browser QA | 셔플 큐 즉시 재생·다음 곡 순서, 실제 PCM EQ 변화, 겹침·browser 오류 0, EMS 보존 | 통과: focused 4파일·27개, build·lint·diff check, release `d33d8fb`, 31곡 셔플 첫 곡·다음 곡 일치, `pcm` canvas `418x112`와 시간차 변화, desktop/mobile 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
 | 2026-09-28 | `apps/web` focused/full Vitest·변경 파일 ESLint·build·diff check, Zorin Web-only release, public HTTP·로그인 Search browser QA | 결과와 제시어 동시 표시, 외부 클릭·`Escape` 닫기, 입력창 재진입, 기존 서비스·EMS 보존 | 통과: focused 7개, ESLint 오류·경고 0, build, release `fa3e1ab`, Web healthy, public 5개 경로 HTTP 200, 결과+listbox 1·외부 클릭/`Escape` 뒤 0, EMS ID/image/start 불변. 전체 테스트는 기존 인증 mock 3건 실패, focus 유지 재클릭 browser 자동화 미검증 |
 | 2026-09-27 | `apps/web` PCM·DFT·capture·player·visualizer·analysis route focused/full Vitest, lint, build, Web-only release, public desktop browser QA | 실제 신호만 사용, TIDAL 트랙 진입 경계, 48MiB hard cap, 세션·대기열 보존, 오류 경로, 기존 서비스 유지 | 통과: focused 27개·연결 회귀 24개·보완 13개, lint 오류 0, build·diff check, release `58ba65e`, Web healthy, local/public 200, analysis 비인증 401, desktop 대기열·모드·오류 경로와 console 오류 0. 전체 기존 실패 4건, mobile 실제 viewport·로그인 PCM 미검증 |

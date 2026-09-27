@@ -26,6 +26,8 @@ GMS의 개별 트랙 추천이 큰 카드와 가로 rail로 표시되어 플레�
 - 로그인된 public GMS에서 추천 12곡이 목록 12행으로 표시되고 기존 `gateway-card`와 gateway rail이 각각 0개임을 확인했다.
 - desktop에서 곡·아티스트·앨범·결정 열을, `390x844`에서 곡명 아래 메타데이터와 다음 줄 액션 배치를 확인했다. mobile body 가로 overflow와 잘린 action group은 각각 0건이었다.
 - browser warning/error는 0건이고 public health, Home, GMS, MMS와 EMS는 모두 HTTP 200이었다.
+- 액션 보완 커밋과 release `8822341`, Web image `sha256:fbc21714132208d0d3a922c5c9f1aa274bb5f43bb15caf890b6e04de845200d1`을 Web에 추가 배포했다.
+- 운영 desktop과 `390x844`에서 12개 `+ MMS`, 12개 `ThumbsDown` 아이콘, action 잘림 0, 가로 overflow 0과 browser warning/error 0을 확인했다.
 
 ## 운영 경계
 
@@ -35,6 +37,7 @@ GMS의 개별 트랙 추천이 큰 카드와 가로 rail로 표시되어 플레�
 
 ## 롤백
 
-- 변경 전 release `/home/approid/apps/music-pie/releases/3884c52`와 Web image `sha256:aad7862ec5cbedf50b5bf9c3ab3879b8c1ddfc2ac4fd0c7e5b99eb324aababfc`를 `music-pie-web:pre-gms-list-be3c8e5`로 보존했다.
-- 문제가 생기면 이 image를 `current`로 복원하고 release symlink를 `3884c52`로 되돌린 뒤 Web만 재생성한다.
+- 목록형 전환 전 release `/home/approid/apps/music-pie/releases/3884c52`와 Web image `sha256:aad7862ec5cbedf50b5bf9c3ab3879b8c1ddfc2ac4fd0c7e5b99eb324aababfc`를 `music-pie-web:pre-gms-list-be3c8e5`로 보존했다.
+- 액션 보완 직전 release `/home/approid/apps/music-pie/releases/2ac817f`와 Web image `sha256:acf13db2b4e5d1ec103d5664119b06e20d5abb2bd7720cfbb955d2d09e088b88`를 `music-pie-web:pre-gms-actions-8822341`로 보존했다.
+- 액션 보완에 문제가 생기면 직전 image를 `current`로 복원하고 release symlink를 `2ac817f`로 되돌린 뒤 Web만 재생성한다.
 - EMS pipeline과 source-routines의 container ID, image와 시작 시각은 배포 전후 동일하다.
