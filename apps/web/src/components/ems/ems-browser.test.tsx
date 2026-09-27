@@ -127,6 +127,29 @@ describe("EmsBrowser", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows a recoverable message when catalog search fails", async () => {
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes("/api/ems/sections")
+          ? Response.json({ totalCount: 54, sections })
+          : new Response(null, { status: 503 }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<EmsBrowser />);
+
+    await user.type(
+      await screen.findByRole("searchbox", { name: "카탈로그 검색" }),
+      "검색 오류 재현",
+    );
+
+    expect(
+      await screen.findByText(
+        "검색 결과를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("keeps cached sections when an in-flight search is aborted", async () => {
     fetchMock.mockImplementation((url: string, options?: RequestInit) => {
       if (url.includes("/api/ems/sections")) {
