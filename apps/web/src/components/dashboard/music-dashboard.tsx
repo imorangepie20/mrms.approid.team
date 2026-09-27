@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { ThumbsDown } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { HomeShaderHero } from "@/components/dashboard/home-shader-hero";
@@ -219,8 +220,8 @@ function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: 
       <span className="gms-track-artist">{track.artist}</span>
       <span className="gms-track-album">{track.album}</span>
       <div className="gms-track-actions">
-        <button className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>추천 수락</button>
-        <button className="gms-decision-button" type="button" onClick={() => onReject(track)}>싫어요</button>
+        <button className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>+ MMS</button>
+        <button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" title="싫어요" type="button" onClick={() => onReject(track)}><ThumbsDown aria-hidden="true" /></button>
         <LikeButton item={trackLikeItem(track)} />
       </div>
     </li>

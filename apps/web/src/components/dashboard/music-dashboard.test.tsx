@@ -143,7 +143,7 @@ it("keeps GMS recommendation decisions separate from persistent hearts", async (
     />,
   );
 
-  expect(screen.getAllByRole("button", { name: "추천 수락" })).not.toHaveLength(0);
+  expect(screen.getAllByRole("button", { name: "+ MMS" })).not.toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "좋아요 Midnight City" }));
 
   expect(session.acceptTrack).not.toHaveBeenCalled();
@@ -222,7 +222,7 @@ it("persists GMS decisions separately from the MMS like action", async () => {
     />,
   );
 
-  await user.click(screen.getByRole("button", { name: "추천 수락" }));
+  await user.click(screen.getByRole("button", { name: "+ MMS" }));
 
   expect(fetcher).toHaveBeenCalledWith(
     "/api/recommendations/decisions",
@@ -291,4 +291,20 @@ it("queues all GMS tracks before playing a track from the list", async () => {
 
   expect(session.setQueue).toHaveBeenCalledWith(tracks, { id: "gms", type: "gms" });
   expect(session.playTrack).toHaveBeenCalledWith(catalog[0], { id: "gms", type: "gms" });
+});
+
+it("shows the GMS reject action as an accessible icon button", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  const rejectButton = screen.getByRole("button", { name: "싫어요" });
+  expect(rejectButton).toHaveAttribute("title", "싫어요");
+  expect(rejectButton).toHaveTextContent("");
+  expect(rejectButton.querySelector("svg")).toBeInTheDocument();
 });

@@ -836,7 +836,7 @@
 .gms-track-list-header,
 .gms-track-row {
   display: grid;
-  grid-template-columns: 42px minmax(220px, 1.6fr) minmax(120px, 0.8fr) minmax(140px, 0.9fr) minmax(236px, auto);
+  grid-template-columns: 42px minmax(220px, 1.6fr) minmax(120px, 0.8fr) minmax(140px, 0.9fr) minmax(178px, auto);
   align-items: center;
   column-gap: 12px;
 }
@@ -1006,6 +1006,22 @@
   border-color: rgba(174, 123, 255, 0.72);
   background: rgba(124, 58, 237, 0.34);
   color: #e4d8ff;
+}
+
+.gms-decision-button--icon {
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+  place-items: center;
+}
+
+.gms-decision-button--icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
 }
 
 @media (max-width: 800px) {
