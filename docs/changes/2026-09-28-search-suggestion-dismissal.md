@@ -18,7 +18,7 @@
 - 변경 파일 ESLint: 오류·경고 0건.
 - 전체 Vitest: 101개 파일 중 99개 통과, 396개 중 393개 통과. 기존 likes/recommendations 인증 mock 3건의 `503` 실패가 동일하게 남았다.
 - `npm run build`: Next.js production build와 TypeScript 통과.
-- 배포와 public browser 결과는 완료 후 기록한다.
+- 로그인된 public Search에서 `liverty` 입력 후 결과와 5개 탭이 표시되고 제시어 listbox가 0개인 것을 확인했다.
 
 ## 운영 경계
 
@@ -28,5 +28,7 @@
 
 ## 롤백
 
-- 배포 전 release와 Web image를 보존한다.
-- 문제가 생기면 이전 image를 `current`로 복원하고 release symlink를 이전 대상으로 되돌린 뒤 Web만 재생성한다.
+- 기능 커밋 `94657c3`을 release `/home/approid/apps/music-pie/releases/94657c3`과 Web image `sha256:1311ffcf...`로 배포했다.
+- Web 컨테이너는 `healthy`이고 local/public Search·MMS·EMS·readiness는 HTTP `200`이다.
+- DB migration과 data write는 수행하지 않았다. EMS pipeline `7312158fc9b0...`과 source routines `d5e6f27110e6...`의 image·시작 시각은 배포 전후 동일하다.
+- rollback은 이전 release `/home/approid/apps/music-pie/releases/aa5192c`과 `music-pie-web:pre-search-suggestions-94657c3`(`sha256:2389b2f...`)이다. 문제가 생기면 이전 image를 `current`로 복원하고 release symlink를 되돌린 뒤 Web만 재생성한다.

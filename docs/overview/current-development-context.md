@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `78d028b`
+최신 기능 기준 커밋: `94657c3`
 
-최신 Zorin Web 배포 기준 커밋: `78d028b` (일반 OAuth 재연결의 TIDAL Device 재생 세션 보존)
+최신 Zorin Web 배포 기준 커밋: `94657c3` (검색 완료 후 제시어 닫기)
 
 최신 Zorin EMS 배포 기준 커밋: `951fb9a` (resolver 품질 gate image, 상시 worker 무재시작)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-28 검색 완료 뒤 제시어 목록이 결과를 가리던 문제를 수정했다. 제시어가 먼저 도착하면 검색 중에 표시하되, 카탈로그 검색이 성공하는 순간 닫는다. 검색 실패 시에는 오류 안내와 제시어를 함께 유지하고, 오래된 응답 차단·새 입력·탭 선택 동작은 보존한다. 상세는 `docs/changes/2026-09-28-search-suggestion-dismissal.md`에 기록한다.
+- 2026-09-28 `94657c3`에서 검색 완료 뒤 제시어 목록이 결과를 가리던 문제를 수정했다. 제시어가 먼저 도착하면 검색 중에 표시하되, 카탈로그 검색이 성공하는 순간 닫는다. 검색 실패 시에는 오류 안내와 제시어를 함께 유지하고, 오래된 응답 차단·새 입력·탭 선택 동작은 보존한다. Web만 배포했고 로그인된 public Search에서 실제 결과 뒤 제시어 listbox 0개를 확인했다. 상세는 `docs/changes/2026-09-28-search-suggestion-dismissal.md`에 기록한다.
 - 2026-09-28 `78d028b`에서 일반 TIDAL OAuth 재연결이 같은 사용자의 전체 재생 Device 세션을 덮어써 `TIDAL 재생 연결` 버튼이 반복되던 원인을 수정했다. 동일한 TIDAL 사용자 ID와 갱신 가능한 Device scope를 transaction에서 확인해 기존 재생 자격 증명을 보존하며, 다른 계정·확인 불가 ID·갱신 불가능한 만료 세션은 보존하지 않는다. Web만 배포했고 local/public Home·MMS·EMS·readiness와 로그인 MMS 렌더링을 확인했다. DB schema와 사용자·EMS 데이터 변경은 없다. 상세는 `docs/changes/2026-09-28-tidal-playback-session-preservation.md`에 기록한다.
 - 2026-09-27 `211a97f`에서 Home 상단을 `21st.dev`의 셰이더 히어로 방향으로 재구성했다. 잠긴 예제 소스 대신 공식 `@paper-design/shaders-react@0.0.67`의 `MeshGradient`를 사용하고 관리자 hero 콘텐츠, 실제 EMS 선곡과 이하 Home 흐름은 유지했다. `72e7677`, `45e0a6c`에서는 `390x844` 운영 확인으로 찾은 기존 검색·인증·페이지 제목 겹침을 기능 손실 없이 보정했다. desktop/mobile 셰이더, 다음 영역 노출과 console error 0건을 확인했고 WebGL fallback, 감속 모드, 긴 문구 줄바꿈을 포함한다. 상세는 `docs/changes/2026-09-27-home-shader-hero.md`에 기록한다.
 - 2026-09-27 `58ba65e`에서 사용자가 소유한 `imorangepie20/my-forever-music`의 Visual EQ 구조를 Music Pie에 맞게 이식했고, `2226ca9`에서 막대형 FFT를 로그 주파수 밴드와 고역 gain으로 재분배했다. `0e6440c`에서는 막대를 오른쪽으로 2.5% 이동하고 최대 높이를 줄였고, `968cff2`에서는 늦은 HLS 구독에 마지막 media segment 1개를 즉시 재전달하면서 임시 timing advance를 제거했다. `77e7dda`에서는 재생 음질은 유지하고 direct 분석 요청만 `LOW`로 고정해 첫 반응 대기량을 줄였다. `102ffb5`에서는 독립 EQ 화면과 compact player 링크를 제거하고 전체 플레이어 앨범 아트 하단에 반투명 막대 overlay를 배치했으며 `/visualizer`는 Home으로 전환한다. `54a5988`에서는 전체 파일 decode 대기를 없앤 same-origin live streaming analyser를 적용했고, 운영 캡처를 기준으로 overlay를 27%로 줄이고 포화되던 고역 gain을 낮춘다. 분석 API는 인증·`no-store`·48MiB hard cap을 적용하며 signed URL과 token을 저장·로그하지 않는다. 상세는 `docs/changes/2026-09-27-visual-equalizer.md`에 기록한다.
