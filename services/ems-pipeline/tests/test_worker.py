@@ -1,5 +1,6 @@
+import ems_pipeline.worker as worker_module
 from ems_pipeline.tidal import ResolveResult, ResolveStatus
-from ems_pipeline.worker import HealthGate, claim_candidates, mark_resolution, retry_delay
+from ems_pipeline.worker import HealthGate, claim_candidates, mark_resolution, release_unprocessed_claims, retry_delay
 
 
 class FakeCursor:
@@ -38,6 +39,9 @@ class FakeConnection:
 
     def cursor(self) -> FakeCursor:
         return self.cursor_value
+
+    def execute(self, sql: str, values: object = None) -> None:
+        self.cursor_value.execute(sql, values)
 
 
 def test_claim_candidates_uses_skip_locked_and_expired_leases() -> None:
@@ -86,3 +90,44 @@ def test_mark_resolution_records_retry_checkpoint_without_query_text() -> None:
     assert "next_attempt_at" in connection.cursor_value.sql
     assert "query_hash" in connection.cursor_value.sql
     assert connection.cursor_value.values == ("retryable", "rate_limited", "a" * 64, None, 7, 7, "retryable", "candidate-a")
+
+
+def test_release_unprocessed_claims_restores_status_and_attempt() -> None:
+    connection = FakeConnection()
+
+    release_unprocessed_claims(
+        connection,
+        [{"id": "candidate-b", "previous_status": "retryable"}],
+    )
+
+    assert "attempt_count = GREATEST(0, attempt_count - 1)" in connection.cursor_value.sql
+    assert connection.cursor_value.values == ("retryable", "candidate-b")
+
+    release_unprocessed_claims(
+        connection,
+        [{"id": "candidate-c", "previous_status": "resolving"}],
+    )
+
+    assert connection.cursor_value.values == ("retryable", "candidate-c")
+
+
+def test_run_worker_stops_on_rate_limit_and_releases_remaining_claims(monkeypatch) -> None:
+    rows = [
+        {"id": "candidate-a", "candidate_key": "a", "title": "A", "artist": "Artist", "selection_bucket": "editorial", "attempt_count": 1, "previous_status": "pending"},
+        {"id": "candidate-b", "candidate_key": "b", "title": "B", "artist": "Artist", "selection_bucket": "editorial", "attempt_count": 1, "previous_status": "pending"},
+    ]
+    released: list[dict[str, object]] = []
+    marked: list[str] = []
+    monkeypatch.setattr(worker_module, "claim_candidates", lambda *_args, **_kwargs: rows)
+    monkeypatch.setattr(worker_module, "mark_resolution", lambda _connection, candidate_id, *_args, **_kwargs: marked.append(candidate_id))
+    monkeypatch.setattr(worker_module, "release_unprocessed_claims", lambda _connection, pending: released.extend(pending))
+
+    class RateLimitedCatalog:
+        def resolve(self, _candidate):
+            return ResolveResult(ResolveStatus.RETRYABLE, error_code="rate_limited")
+
+    counts = worker_module.run_worker(FakeConnection(), "run-a", RateLimitedCatalog(), batch_size=2, max_batches=1)
+
+    assert counts["retryable"] == 1
+    assert marked == ["candidate-a"]
+    assert [row["id"] for row in released] == ["candidate-b"]

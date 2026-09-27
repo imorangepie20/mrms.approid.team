@@ -39,6 +39,7 @@ def claim_candidates(
                 """
                 WITH claimed AS (
                   SELECT candidate.id,
+                         candidate.resolver_status AS previous_status,
                          CASE WHEN %s AND EXISTS (
                            SELECT 1
                              FROM ems_track_sections AS membership
@@ -70,11 +71,29 @@ def claim_candidates(
                 RETURNING candidate.id, candidate.candidate_key, candidate.selection_bucket, candidate.title,
                           candidate.artist, candidate.album, candidate.isrc,
                           candidate.recording_mbid, candidate.duration_ms, candidate.release_date,
-                          candidate.tidal_id AS source_tidal_id, candidate.attempt_count;
+                          candidate.tidal_id AS source_tidal_id, candidate.attempt_count,
+                          claimed.previous_status;
                 """,
                 (prioritize_editorial, run_id, batch_size, lease_seconds),
             )
             return list(cursor.fetchall())
+
+
+def release_unprocessed_claims(connection: Any, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+    with connection.transaction():
+        for row in rows:
+            previous_status = str(row.get("previous_status") or "pending")
+            if previous_status == "resolving":
+                previous_status = "retryable"
+            connection.execute(
+                """UPDATE ems_ingest_candidates
+                      SET resolver_status = %s, lease_expires_at = NULL,
+                          attempt_count = GREATEST(0, attempt_count - 1)
+                    WHERE id = %s AND resolver_status = 'resolving'""",
+                (previous_status, row["id"]),
+            )
 
 
 def mark_resolution(connection: Any, candidate_id: str, result: ResolveResult, *, attempt_count: int) -> None:
@@ -119,7 +138,7 @@ def run_worker(
         if not claimed:
             break
         batches += 1
-        for row in claimed:
+        for index, row in enumerate(claimed):
             candidate = Candidate(
                 candidate_key=str(row.get("candidate_key", "")),
                 recording_mbid=row.get("recording_mbid"),
@@ -167,6 +186,7 @@ def run_worker(
                 mark_resolution(connection, str(row["id"]), result, attempt_count=int(row.get("attempt_count", 1)))
             if on_result is not None:
                 on_result(result)
-            if result.status == ResolveStatus.BUDGET_EXHAUSTED:
+            if result.status == ResolveStatus.BUDGET_EXHAUSTED or result.error_code == "rate_limited":
+                release_unprocessed_claims(connection, claimed[index + 1:])
                 return counts
     return counts

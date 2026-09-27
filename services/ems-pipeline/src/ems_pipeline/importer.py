@@ -147,7 +147,9 @@ def promote_match(connection: Any, candidate_id: str, match: TidalMatch) -> str:
             cursor.execute(
                 """
                 UPDATE ems_ingest_candidates
-                   SET resolver_status = 'matched', tidal_id = %s, match_rule = %s, resolved_at = now(), lease_expires_at = NULL
+                   SET resolver_status = 'matched', tidal_id = %s, match_rule = %s,
+                       resolver_error_code = NULL, next_attempt_at = NULL,
+                       resolved_at = now(), lease_expires_at = NULL
                  WHERE id = %s
                 """,
                 [match.tidal_id, match.match_rule, candidate_id],

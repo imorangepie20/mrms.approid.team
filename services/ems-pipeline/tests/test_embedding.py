@@ -8,15 +8,21 @@ class FakeResult:
     def fetchall(self):
         return self.rows
 
+    def fetchone(self):
+        return self.rows[0]
+
 
 class FakeConnection:
-    def __init__(self, rows):
+    def __init__(self, rows, remaining=0):
         self.rows = rows
+        self.remaining = remaining
         self.calls = []
 
     def execute(self, sql, values=None):
         self.calls.append((sql, values))
         if sql.lstrip().upper().startswith("SELECT"):
+            if "count(*)" in sql:
+                return FakeResult([{"count": self.remaining}])
             return FakeResult(self.rows)
         return FakeResult([])
 
@@ -38,8 +44,8 @@ def test_embed_ems_batch_persists_completed_vectors_for_active_tracks():
         limit=2,
     )
 
-    assert result == {"embedded": 2, "remaining": 2}
-    assert len(connection.calls) == 3
+    assert result == {"embedded": 2, "remaining": 0}
+    assert len(connection.calls) == 4
     assert "status = 'completed'" in connection.calls[1][0]
     assert connection.calls[1][1][0] == "track-a"
     assert connection.calls[2][1][0] == "track-b"

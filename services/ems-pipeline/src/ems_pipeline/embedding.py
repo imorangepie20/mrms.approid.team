@@ -85,4 +85,13 @@ def embed_ems_batch(
             """,
             (row["id"], MODEL_ID, MODEL_REVISION, _input_hash(text), str(vector)),
         )
-    return {"embedded": len(normalized), "remaining": len(normalized)}
+    remaining = connection.execute(
+        """
+        SELECT count(*)::int AS count
+        FROM ems_tracks AS track
+        LEFT JOIN ems_track_embeddings AS embedding ON embedding.track_id = track.id
+        WHERE track.status = 'active'
+          AND (embedding.track_id IS NULL OR embedding.status <> 'completed')
+        """
+    ).fetchone()["count"]
+    return {"embedded": len(normalized), "remaining": int(remaining)}
