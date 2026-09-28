@@ -2,7 +2,7 @@
 
 최종 갱신: 2026-09-28
 
-최신 기능 기준 커밋: `f930cbf`
+최신 기능 기준 커밋: `7431f14`
 
 최신 Zorin Web 배포 기준 커밋: `f930cbf` (TIDAL 최초 연결과 전체 재생 승인 통합)
 
@@ -10,10 +10,11 @@
 
 ## 이번 목표
 
-사용자가 TIDAL에서 가져온 플레이리스트와 검색·GMS·EMS에서 좋아요한 트랙·플레이리스트·앨범·아티스트를 MMS에서 탐색하고 재생한다.
+사용자가 MMS 내부 플레이리스트를 만들고 트랙을 구성하며, TIDAL에서 가져온 플레이리스트와 검색·GMS·EMS에서 좋아요한 트랙·플레이리스트·앨범·아티스트를 탐색하고 재생한다.
 
 ## 현재 구현
 
+- 2026-09-28 `7431f14`에서 music-pie 내부 MMS 플레이리스트 생성·이름/설명 수정·삭제와 트랙 추가·제거·위/아래 순서 변경을 구현했다. 내부 데이터는 가져온 TIDAL 플레이리스트·EMS·좋아요와 분리하고 사용자 소유권, 중복, 순서 제약을 DB와 API에서 검증한다. 검색·EMS·GMS·MMS의 주요 트랙 UI에서 추가할 수 있다. 전체 Web 116개 파일·450개 테스트, lint 오류 0, production build를 통과했으며 실제 DB migration과 운영 배포는 아직 수행하지 않았다. 상세는 `docs/changes/2026-09-28-mms-playlist-management.md`에 기록한다.
 - 2026-09-28 `f930cbf`에서 온보딩의 일반 TIDAL OAuth 연결 뒤 첫 재생에서 Device 승인을 다시 요구하던 이중 인증 흐름을 제거했다. 최초 연결은 재생 가능한 Device 승인 한 번으로 플레이리스트와 전체 재생을 함께 연결하며, `/tidal-connection`은 Device scope가 저장된 경우에만 완료로 판정한다. 운영 로그인 계정은 추가 승인 없이 연결 완료로 판정됐고 MMS 실제 트랙이 `0:02/4:32`까지 재생됐으며 browser error 0건이었다. 상세는 `docs/changes/2026-09-28-tidal-single-authorization.md`에 기록한다.
 - 2026-09-28 `635aa7c`에서 관리자 sidebar를 1536px 미만 off-canvas, 1536px 이상 persistent 구조로 바꿔 내부 페이지 breakpoint와 실제 본문 폭을 일치시켰다. `7032b1f`에서는 Docker image에 이전·신규 관리자 자산이 함께 남아 오래된 JS가 선택되던 원인을 제거하고 JS·CSS 각각 1개를 강제했다. 운영 1024px drawer, 1272px 핵심 10개 경로, 1536px 확장·접기에서 document overflow 0, console error 0을 확인했다. Web만 교체했고 EMS 서비스와 DB는 유지했다. 상세는 `docs/changes/2026-09-28-admin-shell-responsive-layout.md`에 기록한다.
 - 2026-09-28 `6f48993`에서 관리자 Spotify 차트 화면의 4열 전환을 sidebar 폭을 고려한 `2xl`로 늦추고 main·카드·통계 값의 축소·줄바꿈 경계를 보강했다. 운영 1280px는 2열, 1536px는 4열이며 두 크기 모두 `scrollWidth=clientWidth`, 액션·실행 ID 잘림 0건, console error 0건이다. Web만 교체했고 EMS worker와 source-routines는 유지했다.
@@ -103,6 +104,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-28 | `apps/web`: 기능 관련 Vitest, 전체 `npm test`, `npm run lint`, `npm run build`; 저장소 `git diff --check` | MMS 내부 플레이리스트 CRUD와 트랙 추가·제거·재정렬, 사용자 격리·중복·오류 경계 | 통과: 관련 12개 파일·52개 테스트, 전체 116개 파일·450개 테스트, lint 오류 0(기존 경고 5개), Next.js 16.3.5 build·TypeScript, diff check |
 | 2026-09-28 | pipeline/Web/admin test·lint·build·audit, Zorin backup·migration·Web/EMS worker release, 관리자 실행, DB/API/browser QA | 4개×50곡, 예산 준수, completed snapshot만 전시, duplicate 0, 기존 EMS·사용자 데이터 보존 | 통과: run `8ca016f7...`, Spotify `4/4`, TIDAL `121/450`, matched/not_found `91/19`, public `46/36/45/38`, active `39,035→39,099`, 사용자 집계 `1,5,0,1` 동일, desktop·`390x844` overflow·console 오류 0. Web 전체 test는 기존 Auth mock 3건 실패 |
 | 2026-09-28 | `apps/web` GMS focused·full Vitest, 변경 파일 ESLint, build, production audit, Web-only release, 로그인 GMS desktop·`390x844` browser QA | 트랙 목록형, 전체 추천 queue, `+ MMS`·싫어요 아이콘, mobile overflow·action 잘림 0, EMS 보존 | 통과: focused 10개, build·lint·diff check, production audit 취약점 0, release `8822341`, 운영 12행·12개 축약 액션, 카드·rail·mobile overflow·action 잘림·browser 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
 | 2026-09-28 | `apps/web` shuffle/EQ focused·full Vitest, 변경 파일 ESLint, build, Web-only release, 로그인 MMS desktop·`390x844` browser QA | 셔플 큐 즉시 재생·다음 곡 순서, 실제 PCM EQ 변화, 겹침·browser 오류 0, EMS 보존 | 통과: focused 4파일·27개, build·lint·diff check, release `d33d8fb`, 31곡 셔플 첫 곡·다음 곡 일치, `pcm` canvas `418x112`와 시간차 변화, desktop/mobile 오류 0. 전체 테스트는 기존 인증 mock 3건 실패 |
@@ -167,6 +169,7 @@
 
 ## 미검증·제약
 
+- 내부 플레이리스트용 `022_mms_playlists.sql`은 실제 PostgreSQL에 적용하지 않았다. 로그인된 실제 계정의 브라우저 CRUD와 모바일 조작, 운영 배포도 아직 검증하지 않았다.
 - 10k 확대와 scheduler live는 `HOLD_10K`다. 기존 MusicBrainz routine은 이미 additions-only delta를 자동 처리하지만 후보·GET hard cap, 영속 승인, report-only/live 분리, run별 rollback journal이 없어 10k 권한으로 사용할 수 없다. fault injection과 운영 상태 변경은 수행하지 않았다.
 - Home top 3·EMS 5개 rail의 desktop/mobile 시각, 키보드, 비회원 재생 recovery와 20곡의 production `FULL` manifest·실제 audio range 수신은 확인했다. 로그인 Chrome 세션을 사용할 수 없어 같은 20곡의 `HTMLAudioElement` decode·재생 위치 증가는 아직 확인하지 않았다. Web 전체 Vitest의 기존 Home copy 기대 1건과 recommendations/likes mock 3건도 별도 정리가 필요하다.
 - matched 승격 시 과거 오류 메타데이터를 지우도록 수정했고 target run의 누적 stale 오류 19건도 0으로 정리했다. run은 matched 154, pending 806, retryable 40으로 아직 완료 상태가 아니다.
@@ -188,12 +191,12 @@
 
 ## 다음 작업
 
-1. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
-2. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
-3. 로그인 TIDAL 브라우저 세션에서 고정 20곡의 실제 decode·재생 위치 증가를 확인한다.
-4. 1,000곡 run의 다음 batch 또는 남은 846건 전체에 대한 aggregate request budget을 별도 승인한 뒤 계속한다.
-5. 1,000곡 기준선을 완료·승인한 뒤 10k 선행 구현인 aggregate cap, 승인 전용 resume, report-only/live 분리, 상태·disk·embedding 관측과 rollback journal을 구현·검증한다.
-6. 10k report-only staging, `240곡` live pilot과 누적 checkpoint를 차례로 승인한 뒤에만 scheduler live 도입을 다시 결정한다.
+1. 대상 환경과 rollback 자료를 확정한 뒤 `022_mms_playlists.sql`을 적용하고 로그인 계정의 내부 플레이리스트 CRUD와 트랙 추가를 desktop/mobile에서 확인한다.
+2. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
+3. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
+4. 로그인 TIDAL 브라우저 세션에서 고정 20곡의 실제 decode·재생 위치 증가를 확인한다.
+5. 1,000곡 run의 다음 batch 또는 남은 846건 전체에 대한 aggregate request budget을 별도 승인한 뒤 계속한다.
+6. 1,000곡 기준선을 완료·승인한 뒤 10k 선행 구현인 aggregate cap, 승인 전용 resume, report-only/live 분리, 상태·disk·embedding 관측과 rollback journal을 구현·검증한다.
 
 ## 관련 문서
 
@@ -217,6 +220,9 @@
 - `docs/changes/2026-09-28-shuffle-equalizer-reimplementation.md`
 - `docs/plans/2026-09-28-gms-entity-layout.md`
 - `docs/changes/2026-09-28-gms-entity-layout.md`
+- `docs/superpowers/specs/2026-09-28-mms-playlist-management-design.md`
+- `docs/plans/2026-09-28-mms-playlist-management.md`
+- `docs/changes/2026-09-28-mms-playlist-management.md`
 - `docs/deployment/tidal-full-playback-implementation.md`
 - `docs/plans/2026-09-28-tidal-playback-session-preservation.md`
 - `docs/changes/2026-09-28-tidal-playback-session-preservation.md`
