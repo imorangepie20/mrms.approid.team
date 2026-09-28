@@ -8,6 +8,14 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 
 기준 설계: `docs/overview/taste-analysis-system.md`
 
+## 구현 진행 상태
+
+- 2026-09-29 단계 1의 입력·decode scaffold를 구현했다.
+- 현재 `audio-preprocess-v1`은 preview SHA-256, request byte cap, 최대 30초, mono 16kHz decode, 10초 구간과 전체 신호 요약을 제공한다.
+- 서비스는 backend internal network에만 연결하고 egress network를 부여하지 않는다. concurrency는 1이며 non-root·read-only container로 실행한다.
+- Essentia DSP, MAEST embedding과 MusiCNN prediction은 아직 연결하지 않았다. 현재 응답은 `analysisStage: preprocess`, `embedding: null`, `predictions: []`로 이 경계를 명시한다.
+- 모델 artifact·revision·label vocabulary를 고정한 뒤 같은 API의 model 결과를 확장하며, 그 전에는 대체 벡터나 가짜 prediction을 생성하지 않는다.
+
 ## 2. 확정 결정
 
 - 1차 DSP: Essentia Music Extractor 계열 알고리즘
@@ -97,15 +105,35 @@ Headers:
 }
 ```
 
+단계 1의 decode scaffold는 최종 모델이 아직 고정되지 않았으므로 다음 필드를 사용한다.
+
+```json
+{
+  "featureVersion": "audio-preprocess-v1",
+  "analysisStage": "preprocess",
+  "sampleRate": 16000,
+  "channelCount": 1,
+  "features": {
+    "whole": {},
+    "segments": [{}, {}, {}],
+    "summary": {"segmentCount": 3, "coverageRatio": 1.0}
+  },
+  "embedding": null,
+  "predictions": []
+}
+```
+
+이 중 신호 요약은 decode와 경계 검증용이며 `essentia-dsp-v1`의 최종 DSP feature로 취급하거나 DB에 저장하지 않는다.
+
 `dimensions`는 모델 metadata와 실제 배열 길이에서 결정하고 구현 전에 숫자를 문서에 고정하지 않는다. 응답은 finite value, dimensions, norm, label vocabulary를 검증한 뒤에만 반환한다.
 
 ### 제한
 
-- request byte hard cap
-- decode wall-clock timeout
+- request byte hard cap: 기본 4MiB, 환경 변수로 더 작게만 조정해 canary 가능
+- decode wall-clock timeout: 기본 20초
 - 최대 30초 sample만 분석
 - service concurrency 기본 1
-- model은 startup에서 load하고 readiness는 load 완료 후에만 200
+- 단계 1 readiness는 FFmpeg decoder 사용 가능 시 200이다. 모델 연결 뒤에는 startup load 완료 조건을 추가한다.
 - access log에 body, URL, provider token을 남기지 않음
 
 ### 테스트

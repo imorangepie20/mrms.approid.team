@@ -37,6 +37,33 @@ services:
     cpus: 4.0
     logging: *default-logging
 
+  audio-analysis:
+    image: music-pie-audio-analysis:current
+    build:
+      context: ../services/audio-analysis
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AUDIO_ANALYSIS_MAX_REQUEST_BYTES: "4194304"
+      AUDIO_ANALYSIS_DECODE_TIMEOUT_SECONDS: "20"
+      AUDIO_ANALYSIS_CONCURRENCY: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [backend]
+    mem_limit: 512m
+    cpus: 1.0
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+
   ems-pipeline:
     image: music-pie-ems-pipeline:current
     build:

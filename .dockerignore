@@ -8,6 +8,8 @@
 **/node_modules
 apps/web/public/admin
 **/.venv
+**/.pytest_cache
+**/*.egg-info
 coverage
 infra/runtime
 infra/secrets

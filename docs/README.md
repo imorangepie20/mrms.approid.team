@@ -18,6 +18,7 @@
 
 - [통합 취향 분석 시스템](overview/taste-analysis-system.md)
 - [30초 프리뷰 취향 분석 구현 계획](plans/2026-09-29-audio-preview-analysis-implementation.md)
+- [오디오 분석 service decode scaffold 변경 기록](changes/2026-09-29-audio-analysis-service-scaffold.md)
 - [개인화 추천 초기 전략](decisions/2026-09-20-personalized-recommendation-baseline.md)
 - [사용자 액션 취향 프로필 반영 계획](plans/2026-09-26-user-action-taste-profile.md)
 - [사용자 액션 취향 프로필 반영 변경 기록](changes/2026-09-26-user-action-taste-profile.md)
