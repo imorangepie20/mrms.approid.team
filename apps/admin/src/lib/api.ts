@@ -6,6 +6,47 @@ export type EmsSummary = {
   latestIngest: EmsIngestRun | null;
 };
 
+export type AudioAnalysisStatus = "missing" | "pending" | "running" | "completed" | "retryable" | "failed";
+
+export type AudioAnalysisTrack = {
+  id: string;
+  tidalTrackId: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  status: AudioAnalysisStatus;
+  featureVersion: string | null;
+  previewHash: string | null;
+  durationSeconds: number | null;
+  dimensions: number | null;
+  attemptCount: number;
+  lastErrorCode: string | null;
+  completedAt: string | null;
+  updatedAt: string | null;
+};
+
+export type AudioAnalysisAdminData = {
+  coverage: { activeTrackCount: number; stagedTrackCount: number; completedTrackCount: number; stagedRatio: number; completedRatio: number };
+  statusCounts: Record<AudioAnalysisStatus, number>;
+  featureVersions: Array<{ featureVersion: string; completedTrackCount: number }>;
+  embeddingModelVersions: Array<{ modelId: string; modelRevision: string; dimensions: number; completedTrackCount: number }>;
+  predictionModelVersions: Array<{ modelId: string; modelRevision: string; vocabularyVersion: string; completedTrackCount: number }>;
+  errorCodes: Array<{ status: "retryable" | "failed"; code: string; count: number }>;
+  throughput: { completedLast24Hours: number; days: Array<{ date: string; completedCount: number }> };
+  benchmarks: Array<{ environment: string; input: string; coldLatencySeconds: number; warmLatencySeconds: number; peakRssGib: number; source: string }>;
+  tracks: { totalCount: number; page: number; limit: number; nextPage: number | null; items: AudioAnalysisTrack[] };
+};
+
+export type AudioAnalysisTrackDetail = AudioAnalysisTrack & {
+  job: { claimedAt: string | null; leaseExpiresAt: string | null; nextAttemptAt: string | null; lastErrorAt: string | null } | null;
+  feature: {
+    previewHash: string; featureVersion: string; durationSeconds: number; sampleRate: number; channelCount: number;
+    segmentCount: number; coverageRatio: number; whole: unknown; segments: unknown; summary: unknown; dsp: unknown; createdAt: string;
+  } | null;
+  embeddings: Array<{ modelId: string; modelRevision: string; previewHash: string; dimensions: number; normalization: string; createdAt: string }>;
+  predictions: Array<{ modelId: string; modelRevision: string; vocabularyVersion: string; label: string; probability: number }>;
+};
+
 export type EmsStatistics = {
   activeCount: number;
   taggedCount: number;
@@ -286,6 +327,27 @@ async function requestJson<T>(input: string, init?: RequestInit): Promise<T> {
 
 export function getEmsSummary() {
   return requestJson<EmsSummary>("/api/admin/ems/summary");
+}
+
+export function getAudioAnalysis(options: { query?: string; status?: AudioAnalysisStatus; page?: number; limit?: number } = {}) {
+  const params = new URLSearchParams();
+  if (options.query) params.set("q", options.query);
+  if (options.status) params.set("status", options.status);
+  if (options.page) params.set("page", String(options.page));
+  if (options.limit) params.set("limit", String(options.limit));
+  const suffix = params.toString();
+  return requestJson<AudioAnalysisAdminData>(`/api/admin/audio-analysis${suffix ? `?${suffix}` : ""}`);
+}
+
+export function getAudioAnalysisTrack(trackId: string) {
+  return requestJson<AudioAnalysisTrackDetail>(`/api/admin/audio-analysis/${encodeURIComponent(trackId)}`);
+}
+
+export function requeueAudioAnalysisTrack(trackId: string, featureVersion: "essentia-dsp-v1") {
+  return requestJson<{ trackId: string; status: "pending"; featureVersion: string; updatedAt: string }>(
+    `/api/admin/audio-analysis/${encodeURIComponent(trackId)}`,
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ featureVersion }) },
+  );
 }
 
 export function getEmsStatistics() {

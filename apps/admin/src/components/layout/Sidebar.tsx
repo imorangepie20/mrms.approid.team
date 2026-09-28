@@ -65,7 +65,10 @@ const menuItems: MenuItem[] = [
     {
       title: '추천·취향',
       icon: <BrainCircuit size={20} />,
-      children: [{ title: '취향 분석 설계', path: '/taste-analysis' }],
+      children: [
+        { title: '취향 분석 설계', path: '/taste-analysis' },
+        { title: '오디오 분석 관측', path: '/audio-analysis' },
+      ],
     },
     { title: 'Analytics', icon: <BarChart3 size={20} />, path: '/analytics' },
     {

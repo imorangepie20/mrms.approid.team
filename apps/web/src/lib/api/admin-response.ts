@@ -13,8 +13,11 @@ export function adminErrorResponse(error: unknown) {
   if (error instanceof Error && error.message.startsWith("invalid_")) {
     return Response.json({ code: error.message }, { status: 400 });
   }
-  if (error instanceof Error && error.message === "ems_section_not_found") {
+  if (error instanceof Error && (error.message === "ems_section_not_found" || error.message === "audio_analysis_track_not_found")) {
     return Response.json({ code: error.message }, { status: 404 });
+  }
+  if (error instanceof Error && error.message === "audio_analysis_track_busy") {
+    return Response.json({ code: error.message }, { status: 409 });
   }
   return Response.json({ code: "admin_ems_unavailable" }, { status: 503 });
 }

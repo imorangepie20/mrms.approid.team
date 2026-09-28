@@ -18,6 +18,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - 모델 artifact·metadata·Essentia wheel은 URL, byte 크기, SHA-256을 고정했다. startup load와 실제 shape·finite·norm·probability 검증을 통과해야 readiness와 분석 응답이 성공한다.
 - 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
 - 2026-09-29 단계 2는 스키마 생성과 수동 실행형 bounded worker까지만 구현한다. 자동 스케줄과 전 카탈로그 일괄 처리는 관리자 관측·sample 검증 이후로 미룬다.
+- 2026-09-29 단계 3의 관리자 관측 API와 화면을 구현했다. 활성 EMS 전체 coverage, version·오류·처리량, 트랙별 안전한 상세와 단일 track/version 재처리를 제공하며 운영 배포 전 검증 중이다.
 
 ## 2. 확정 결정
 
@@ -233,6 +234,33 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 재처리는 track ID와 version이 명시된 bounded 요청만 허용
 
 원본 preview URL, provider token, signed stream URL은 응답과 로그에 포함하지 않는다.
+
+### 2026-09-29 실행 설계
+
+- `GET /api/admin/audio-analysis`는 활성 EMS 트랙을 기준으로 `missing`, `pending`, `running`, `completed`, `retryable`, `failed` 전체 상태 수와 stage/completed coverage를 반환한다.
+- 같은 응답은 feature version별 완료 트랙 수, embedding/prediction model revision별 완료 트랙 수, 최근 7일 일별 완료량, retryable·failed error code 분포와 bounded pagination 트랙 목록을 제공한다.
+- `GET /api/admin/audio-analysis/[trackId]`는 단일 UUID 트랙의 job, preview hash, duration, sample/segment coverage, DSP JSON, model id/revision/dimensions/normalization과 prediction을 반환한다. embedding 원본 vector는 관리자 응답에 포함하지 않는다.
+- `POST /api/admin/audio-analysis/[trackId]`는 body에 `featureVersion`을 반드시 요구하고, 현재 worker가 지원하는 `essentia-dsp-v1` 단일 트랙만 `pending`으로 enqueue한다. batch ID, URL, 임의 model/version 또는 암묵적 전체 재처리는 허용하지 않는다.
+- 재처리 enqueue는 기존 결과 row를 삭제하지 않고 job claim·attempt·error·completion 상태만 초기화한다. 실제 preview 다운로드와 분석은 기존 bounded worker가 수행한다.
+- API와 관리자 화면에는 원본 preview URL, provider token, signed URL, embedding 원본 vector를 포함하지 않는다.
+- 운영에서 이미 검증한 Zorin benchmark 표본(cold 20.225초, warm 14.039초, peak RSS 약 1.878 GiB)을 provenance와 함께 읽기 전용으로 표시한다.
+
+### 단계 3 변경 파일과 의존 순서
+
+1. `apps/web/src/lib/audio-analysis/admin.ts`에 aggregate/list/detail/requeue query와 응답 mapping을 구현한다.
+2. `apps/web/src/app/api/admin/audio-analysis/route.ts`와 `[trackId]/route.ts`에 관리자 인증, bounded filter/body 검증과 오류 응답을 연결한다.
+3. `apps/admin/src/lib/api.ts`에 민감 데이터가 없는 관리자 계약과 same-origin client를 추가한다.
+4. `apps/admin/src/pages/AudioAnalysis.tsx`를 생성하고 `App.tsx`, `Sidebar.tsx`에 관측 화면을 연결한다.
+5. repository·route·client·화면 테스트 후 Web/Admin lint·type/build와 전체 관련 회귀를 수행한다.
+
+### 단계 3 완료 기준
+
+- 활성 EMS 총계와 상태 합계가 일치하고 completed/staged coverage가 0 denominator에서도 안전하게 계산된다.
+- feature/model revision별 완료 수, 최근 처리량과 retryable/failed 오류 분포가 DB 결과와 일치한다.
+- 트랙 상세에서 preview hash·duration·DSP·prediction·embedding dimensions를 확인할 수 있고 원본 URL·token·signed URL·embedding vector는 응답에 없다.
+- 재처리는 관리자 인증 뒤 단일 유효 UUID와 명시된 허용 feature version으로만 enqueue되며, 잘못된 ID/version/body와 비활성·없는 트랙은 거절된다.
+- 관리자 화면은 loading/error/empty 상태, 수동 새로고침, status filter, 트랙 상세와 재처리 확인을 키보드와 모바일 폭에서 사용할 수 있다.
+- 성공한 test·lint·build·운영 API/화면 검증만 변경 기록에 남긴다.
 
 ## 8. 단계 4: 사용자 오디오 프로필
 
