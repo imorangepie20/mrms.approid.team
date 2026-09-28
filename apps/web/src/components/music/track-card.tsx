@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 
+import { AddToPlaylistButton } from "@/components/music/add-to-playlist-button";
 import { LikeButton } from "@/components/music/like-button";
 import { PlayIcon } from "@/components/music/play-icon";
 import { trackLikeItem } from "@/lib/likes/adapters";
@@ -75,6 +76,7 @@ export function TrackCard<TTrack extends Track>({
             담기
           </button>
         ) : null}
+        <AddToPlaylistButton track={track} />
         <LikeButton item={trackLikeItem(track)} />
       </div>
     </article>

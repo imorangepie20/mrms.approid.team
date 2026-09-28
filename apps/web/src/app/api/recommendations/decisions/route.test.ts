@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  refreshTasteProfile: vi.fn(),
   requireSubject: vi.fn(),
   save: vi.fn(),
 }));
@@ -10,6 +11,9 @@ vi.mock("@/lib/auth/auth0", () => ({
 }));
 vi.mock("@/lib/db/gms-recommendations", () => ({
   saveRecommendationDecision: mocks.save,
+}));
+vi.mock("@/lib/embeddings/jobs", () => ({
+  refreshTasteProfileFromActions: mocks.refreshTasteProfile,
 }));
 
 import { POST } from "./route";
@@ -26,6 +30,7 @@ describe("POST /api/recommendations/decisions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireSubject.mockResolvedValue("auth0|listener");
+    mocks.refreshTasteProfile.mockResolvedValue(undefined);
     mocks.save.mockResolvedValue(undefined);
   });
 

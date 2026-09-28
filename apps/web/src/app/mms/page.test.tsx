@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   getSavedPlaylistTracks: vi.fn(),
   getSavedPlaylists: vi.fn(),
   getSavedTracks: vi.fn(),
+  getMmsPlaylists: vi.fn(),
   getSession: vi.fn(),
   getUserConnection: vi.fn(),
   musicDashboard: vi.fn(() => null),
@@ -19,6 +20,9 @@ vi.mock("@/lib/db/music-library", () => ({
   getSavedPlaylistTracks: mocks.getSavedPlaylistTracks,
   getSavedPlaylists: mocks.getSavedPlaylists,
   getSavedTracks: mocks.getSavedTracks,
+}));
+vi.mock("@/lib/db/mms-playlists", () => ({
+  getMmsPlaylists: mocks.getMmsPlaylists,
 }));
 vi.mock("@/lib/db/user-connections", () => ({
   getUserConnection: mocks.getUserConnection,
@@ -53,6 +57,14 @@ it("loads imported playlists and their stored tracks without restoring the saved
       title: "Jóga",
     },
   }]);
+  mocks.getMmsPlaylists.mockResolvedValue([{
+    createdAt: "2026-09-28T00:00:00.000Z",
+    description: null,
+    id: "mms-playlist-1",
+    name: "Night Drive",
+    trackCount: 0,
+    updatedAt: "2026-09-28T00:00:00.000Z",
+  }]);
 
   const result = await MmsPage();
   result.type(result.props);
@@ -61,6 +73,7 @@ it("loads imported playlists and their stored tracks without restoring the saved
   expect(mocks.getSavedTracks).not.toHaveBeenCalled();
   expect(mocks.getSavedPlaylists).toHaveBeenCalledWith("auth0|listener-a");
   expect(mocks.getSavedPlaylistTracks).toHaveBeenCalledWith("auth0|listener-a");
+  expect(mocks.getMmsPlaylists).toHaveBeenCalledWith("auth0|listener-a");
   expect(mocks.musicDashboard).toHaveBeenCalledWith(expect.objectContaining({
     access: { connectionStatus: "connected", isAuthenticated: true },
     importedPlaylists: [{
@@ -70,6 +83,7 @@ it("loads imported playlists and their stored tracks without restoring the saved
       tidalPlaylistId: "tidal-playlist-1",
       tracks: [expect.objectContaining({ id: "saved-track-1", title: "Jóga" })],
     }],
+    mmsPlaylists: [expect.objectContaining({ id: "mms-playlist-1", name: "Night Drive" })],
     space: "mms",
   }));
 

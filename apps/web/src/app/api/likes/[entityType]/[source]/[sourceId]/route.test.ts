@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   deleteUserLike: vi.fn(),
+  refreshTasteProfile: vi.fn(),
   requireSubject: vi.fn(),
   upsertUserLike: vi.fn(),
 }));
@@ -10,6 +11,9 @@ vi.mock("@/lib/auth/auth0", () => ({ requireAuth0Subject: mocks.requireSubject }
 vi.mock("@/lib/db/user-likes", () => ({
   deleteUserLike: mocks.deleteUserLike,
   upsertUserLike: mocks.upsertUserLike,
+}));
+vi.mock("@/lib/embeddings/jobs", () => ({
+  refreshTasteProfileFromActions: mocks.refreshTasteProfile,
 }));
 
 import { DELETE, PUT } from "./route";
@@ -26,6 +30,7 @@ describe("/api/likes/[entityType]/[source]/[sourceId]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requireSubject.mockResolvedValue("auth0|listener-a");
+    mocks.refreshTasteProfile.mockResolvedValue(undefined);
     mocks.upsertUserLike.mockResolvedValue({
       ...snapshot,
       createdAt: "2026-09-21T00:00:00.000Z",

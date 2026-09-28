@@ -247,6 +247,45 @@
     gap: 10px;
   }
 
+  .mms-dialog-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .mms-dialog {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .mms-dialog-create > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mms-internal-detail-header {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .mms-internal-cover {
+    width: min(66vw, 240px);
+  }
+
+  .mms-detail-actions button {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+  }
+
+  .mms-create-button {
+    min-height: 40px;
+    padding: 0 12px;
+  }
+
   .mms-track-heading {
     align-items: stretch;
     flex-direction: column;

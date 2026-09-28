@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { HomeShaderHero } from "@/components/dashboard/home-shader-hero";
 import { EditorialSectionRail } from "@/components/ems/editorial-section-rail";
+import { AddToPlaylistButton } from "@/components/music/add-to-playlist-button";
 import { TrackList } from "@/components/music/track-list";
 import { LikeButton } from "@/components/music/like-button";
 import { MmsLibrary, type MmsImportedPlaylist } from "@/components/music/mms-library";
@@ -15,6 +16,7 @@ import { trackLikeItem } from "@/lib/likes/adapters";
 import { fetchEmsSections } from "@/lib/ems/client";
 import type { EmsSectionsResponse } from "@/lib/ems/sections";
 import type { HomeContent } from "@/lib/home/content";
+import type { MmsPlaylistSummary } from "@/lib/mms/playlists";
 import type { Track } from "@/lib/music/types";
 import {
   canUsePersonalization,
@@ -30,7 +32,7 @@ const copy = {
   mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
 } as const;
 
-export function MusicDashboard({ access, importedPlaylists = [], space, tracks: providedTracks, recommendationError = false, recommendationReady = false, profileVersion = "ems-v1" }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; space: Space; tracks?: Track[]; recommendationError?: boolean; recommendationReady?: boolean; profileVersion?: string }) {
+export function MusicDashboard({ access, importedPlaylists = [], mmsPlaylists = [], space, tracks: providedTracks, recommendationError = false, recommendationReady = false, profileVersion = "ems-v1" }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; mmsPlaylists?: MmsPlaylistSummary[]; space: Space; tracks?: Track[]; recommendationError?: boolean; recommendationReady?: boolean; profileVersion?: string }) {
   const { acceptTrack, playTrack, rejectTrack, setQueue } = useMusicSession();
   const tracks = space === "gms" ? providedTracks ?? [] : providedTracks ?? [];
 
@@ -39,7 +41,7 @@ export function MusicDashboard({ access, importedPlaylists = [], space, tracks: 
     if (access && !access.isAuthenticated) {
       return <section className="dashboard-page"><header className="space-title">My Music Space<small>MMS</small></header><PersonalizationGate access={access} returnTo="/mms" /></section>;
     }
-    return <MmsLibrary access={access} importedPlaylists={importedPlaylists} />;
+    return <MmsLibrary access={access} importedPlaylists={importedPlaylists} mmsPlaylists={mmsPlaylists} />;
   }
   const meta = copy[space];
   const personalizationAllowed = access ? canUsePersonalization(access) : false;
@@ -222,6 +224,7 @@ function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: 
       <div className="gms-track-actions">
         <button className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>+ MMS</button>
         <button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" title="싫어요" type="button" onClick={() => onReject(track)}><ThumbsDown aria-hidden="true" /></button>
+        <AddToPlaylistButton track={track} />
         <LikeButton item={trackLikeItem(track)} />
       </div>
     </li>

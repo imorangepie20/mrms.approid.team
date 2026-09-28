@@ -53,6 +53,7 @@ describe("TrackCard", () => {
     expect(onPlay).toHaveBeenCalledWith(track);
     expect(playTrack).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /내 취향으로 담기/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "플레이리스트에 추가 Human Behaviour" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "좋아요 Human Behaviour" })).toBeInTheDocument();
   });
 });

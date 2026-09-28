@@ -68,6 +68,7 @@ describe("TrackList", () => {
 
     expect(screen.getByRole("columnheader", { name: "TITLE" })).toBeInTheDocument();
     expect(screen.getByText("Random Access Memories")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "플레이리스트에 추가 Get Lucky" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "재생 Get Lucky" }));
 

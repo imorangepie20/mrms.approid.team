@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LikeItem } from "@/lib/likes/types";
+import type { MmsPlaylistSummary } from "@/lib/mms/playlists";
 import { LikesProvider } from "@/providers/likes-provider";
 
 const session = vi.hoisted(() => ({
@@ -82,12 +83,26 @@ const importedPlaylist: MmsImportedPlaylist = {
   }],
 };
 
-function renderMms(initialLikes: LikeItem[], importedPlaylists: MmsImportedPlaylist[] = []) {
+const internalPlaylist: MmsPlaylistSummary = {
+  createdAt: "2026-09-28T00:00:00.000Z",
+  description: "밤에 듣는 곡",
+  id: "11111111-1111-4111-8111-111111111111",
+  name: "밤 산책",
+  trackCount: 2,
+  updatedAt: "2026-09-28T01:00:00.000Z",
+};
+
+function renderMms(
+  initialLikes: LikeItem[],
+  importedPlaylists: MmsImportedPlaylist[] = [],
+  mmsPlaylists: MmsPlaylistSummary[] = [],
+) {
   return render(
     <LikesProvider initialLikes={initialLikes} isAuthenticated>
       <MmsLibrary
         access={{ connectionStatus: "connected", isAuthenticated: true }}
         importedPlaylists={importedPlaylists}
+        mmsPlaylists={mmsPlaylists}
       />
     </LikesProvider>,
   );
@@ -111,6 +126,7 @@ describe("MmsLibrary likes", () => {
     expect(within(summaries).getByText("좋아요한 앨범").nextSibling).toHaveTextContent("1");
     expect(within(summaries).getByText("좋아요한 아티스트").nextSibling).toHaveTextContent("1");
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      "내 플레이리스트",
       "가져온 플레이리스트",
       "좋아요한 트랙",
       "좋아요한 플레이리스트",
@@ -135,6 +151,7 @@ describe("MmsLibrary likes", () => {
 
     expect(screen.getByRole("button", { name: "가져온 플레이리스트 Imported Favorites 열기" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      "내 플레이리스트",
       "가져온 플레이리스트",
       "좋아요한 트랙",
       "좋아요한 플레이리스트",
@@ -186,5 +203,84 @@ describe("MmsLibrary likes", () => {
     await user.click(screen.getByRole("button", { name: "전체 재생" }));
 
     expect(session.playQueue).toHaveBeenCalledWith([detailTrack], { id: sourceId, type: "mms" });
+  });
+
+  it("creates an internal playlist and shows it before imported playlists", async () => {
+    const created = { ...internalPlaylist, id: "22222222-2222-4222-8222-222222222222", name: "새 목록", trackCount: 0 };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ playlist: created }, { status: 201 })));
+    const user = userEvent.setup();
+    renderMms([], [importedPlaylist]);
+
+    await user.click(screen.getByRole("button", { name: "새 플레이리스트" }));
+    await user.type(screen.getByLabelText("플레이리스트 이름"), "새 목록");
+    await user.click(screen.getByRole("button", { name: "플레이리스트 만들기" }));
+
+    expect(await screen.findByRole("button", { name: "내 플레이리스트 새 목록 열기" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "가져온 플레이리스트 Imported Favorites 열기" })).toBeInTheDocument();
+  });
+
+  it("opens an internal playlist and reorders then removes tracks", async () => {
+    const detailTracks = [
+      {
+        createdAt: "2026-09-28T00:00:00.000Z",
+        id: "22222222-2222-4222-8222-222222222222",
+        position: 0,
+        source: "tidal" as const,
+        sourceId: "42",
+        track: { ...importedPlaylist.tracks[0], id: "mms-playlist-track:item-1", title: "Jóga" },
+        trackKey: "tidal:42",
+      },
+      {
+        createdAt: "2026-09-28T00:01:00.000Z",
+        id: "33333333-3333-4333-8333-333333333333",
+        position: 1,
+        source: "tidal" as const,
+        sourceId: "43",
+        track: { ...importedPlaylist.tracks[0], id: "mms-playlist-track:item-2", title: "Bachelorette" },
+        trackKey: "tidal:43",
+      },
+    ];
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ playlist: { ...internalPlaylist, tracks: detailTracks } }))
+      .mockResolvedValueOnce(Response.json({ reordered: true }))
+      .mockResolvedValueOnce(Response.json({ deleted: true }));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    renderMms([], [], [internalPlaylist]);
+
+    await user.click(screen.getByRole("button", { name: "내 플레이리스트 밤 산책 열기" }));
+    expect(await screen.findByRole("heading", { name: "밤 산책" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Bachelorette 위로 이동" }));
+    await user.click(screen.getByRole("button", { name: "플레이리스트에서 Jóga 제거" }));
+
+    expect(fetch).toHaveBeenNthCalledWith(2, `/api/mms/playlists/${internalPlaylist.id}/tracks/reorder`, expect.objectContaining({ method: "PATCH" }));
+    expect(fetch).toHaveBeenNthCalledWith(3, `/api/mms/playlists/${internalPlaylist.id}/tracks/${detailTracks[0].id}`, expect.objectContaining({ method: "DELETE" }));
+    expect(screen.queryByText("Jóga")).not.toBeInTheDocument();
+  });
+
+  it("edits and deletes an internal playlist with confirmation", async () => {
+    const detail = { ...internalPlaylist, tracks: [] };
+    const renamed = { ...internalPlaylist, name: "새 이름" };
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(Response.json({ playlist: detail }))
+      .mockResolvedValueOnce(Response.json({ playlist: renamed }))
+      .mockResolvedValueOnce(Response.json({ deleted: true }));
+    vi.stubGlobal("fetch", fetch);
+    const user = userEvent.setup();
+    renderMms([], [], [internalPlaylist]);
+
+    await user.click(screen.getByRole("button", { name: "내 플레이리스트 밤 산책 열기" }));
+    await user.click(await screen.findByRole("button", { name: "플레이리스트 편집" }));
+    const name = screen.getByLabelText("플레이리스트 이름");
+    await user.clear(name);
+    await user.type(name, "새 이름");
+    await user.click(screen.getByRole("button", { name: "변경사항 저장" }));
+    expect(await screen.findByRole("heading", { name: "새 이름" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "플레이리스트 삭제" }));
+    expect(screen.getByRole("alertdialog", { name: "새 이름 삭제" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "플레이리스트 영구 삭제" }));
+
+    expect(await screen.findByText("내 플레이리스트가 없습니다.")).toBeInTheDocument();
   });
 });

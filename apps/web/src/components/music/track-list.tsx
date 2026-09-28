@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { AddToPlaylistButton } from "@/components/music/add-to-playlist-button";
 import { LikeButton } from "@/components/music/like-button";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import type { PlaybackStatus, Track } from "@/lib/music/types";
@@ -12,6 +14,7 @@ import { useMusicSession } from "@/providers/music-session-provider";
 type TrackListProps = {
   emptyMessage?: string;
   heading?: string;
+  renderActions?: (track: Track, index: number) => ReactNode;
   source: { id: string; type: PlaybackSource };
   tracks: Track[];
 };
@@ -19,6 +22,7 @@ type TrackListProps = {
 export function TrackList({
   emptyMessage = "표시할 트랙이 없습니다.",
   heading,
+  renderActions,
   source,
   tracks,
 }: TrackListProps) {
@@ -48,7 +52,7 @@ export function TrackList({
                 <th className="w-[25%] px-2" scope="col">ARTIST</th>
                 <th className="hidden w-[22%] px-2 md:table-cell" scope="col">ALBUM</th>
                 <th className="hidden w-16 px-2 text-right sm:table-cell" scope="col">TIME</th>
-                <th className="w-12 px-0" scope="col"><span className="sr-only">좋아요</span></th>
+                <th className={`${renderActions ? "w-52" : "w-24"} px-0`} scope="col"><span className="sr-only">트랙 저장</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">
@@ -59,6 +63,7 @@ export function TrackList({
                   key={track.id}
                   onPlay={selectTrack}
                   playbackStatus={playbackStatus}
+                  renderActions={renderActions}
                   track={track}
                 />
               ))}
@@ -75,12 +80,14 @@ function TrackRow({
   isCurrent,
   onPlay,
   playbackStatus,
+  renderActions,
   track,
 }: {
   index: number;
   isCurrent: boolean;
   onPlay: (track: Track) => void;
   playbackStatus: PlaybackStatus;
+  renderActions?: (track: Track, index: number) => ReactNode;
   track: Track;
 }) {
   const [artworkFailed, setArtworkFailed] = useState(false);
@@ -135,7 +142,11 @@ function TrackRow({
       <td className="hidden truncate px-2 text-sm text-[var(--muted)] md:table-cell">{track.album}</td>
       <td className="hidden px-2 text-right text-sm tabular-nums text-[var(--muted)] sm:table-cell">{duration}</td>
       <td className="px-0 text-center">
-        <LikeButton item={trackLikeItem(track)} />
+        <div className="flex items-center justify-center gap-1">
+          <AddToPlaylistButton track={track} />
+          <LikeButton item={trackLikeItem(track)} />
+          {renderActions?.(track, index)}
+        </div>
       </td>
     </tr>
   );
