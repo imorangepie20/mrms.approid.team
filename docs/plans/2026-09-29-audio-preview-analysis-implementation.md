@@ -18,7 +18,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - 모델 artifact·metadata·Essentia wheel은 URL, byte 크기, SHA-256을 고정했다. startup load와 실제 shape·finite·norm·probability 검증을 통과해야 readiness와 분석 응답이 성공한다.
 - 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
 - 2026-09-29 단계 2는 스키마 생성과 수동 실행형 bounded worker까지만 구현한다. 자동 스케줄과 전 카탈로그 일괄 처리는 관리자 관측·sample 검증 이후로 미룬다.
-- 2026-09-29 단계 3의 관리자 관측 API와 화면을 구현했다. 활성 EMS 전체 coverage, version·오류·처리량, 트랙별 안전한 상세와 단일 track/version 재처리를 제공하며 운영 배포 전 검증 중이다.
+- 2026-09-29 단계 3의 관리자 관측 API와 화면을 구현하고 `e1bbe73` Web release로 Zorin에 배포했다. 활성 EMS 전체 coverage, version·오류·처리량, 트랙별 안전한 상세와 단일 track/version 재처리를 제공하며 desktop·`390x844`·키보드 동작과 운영 인증 경계를 확인했다.
 
 ## 2. 확정 결정
 
