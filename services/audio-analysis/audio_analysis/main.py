@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
 from hashlib import sha256
+import logging
 import os
 import re
 
@@ -9,13 +10,21 @@ from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from .contracts import AudioAnalysisResponse
+from .models import (
+    AudioAnalyzer,
+    AudioModelError,
+    EssentiaOnnxAnalyzer,
+    MODEL_FEATURE_VERSION,
+)
 from .preprocess import AudioPreprocessError, FfmpegDecoder, build_features
 
 
-FEATURE_VERSION = "audio-preprocess-v1"
+PREPROCESS_FEATURE_VERSION = "audio-preprocess-v1"
+SUPPORTED_FEATURE_VERSIONS = {PREPROCESS_FEATURE_VERSION, MODEL_FEATURE_VERSION}
 DEFAULT_MAX_REQUEST_BYTES = 4 * 1024 * 1024
 DEFAULT_DECODE_TIMEOUT_SECONDS = 20.0
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+LOGGER = logging.getLogger(__name__)
 
 
 def _positive_int(name: str, default: int) -> int:
@@ -62,6 +71,7 @@ def _normalize_hash(value: str) -> str:
 
 def create_app(
     decoder: FfmpegDecoder | None = None,
+    analyzer: AudioAnalyzer | None = None,
     *,
     max_request_bytes: int | None = None,
     concurrency: int | None = None,
@@ -72,6 +82,7 @@ def create_app(
             DEFAULT_DECODE_TIMEOUT_SECONDS,
         )
     )
+    active_analyzer = analyzer or EssentiaOnnxAnalyzer.from_environment()
     request_limit = max_request_bytes or _positive_int(
         "AUDIO_ANALYSIS_MAX_REQUEST_BYTES",
         DEFAULT_MAX_REQUEST_BYTES,
@@ -80,12 +91,17 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.ready = active_decoder.available()
+        try:
+            await asyncio.to_thread(active_analyzer.load)
+        except AudioModelError:
+            LOGGER.exception("audio analysis model startup failed")
+        app.state.ready = active_decoder.available() and active_analyzer.available()
         yield
 
     app = FastAPI(lifespan=lifespan)
     app.state.decoder = active_decoder
-    app.state.ready = active_decoder.available()
+    app.state.analyzer = active_analyzer
+    app.state.ready = active_decoder.available() and active_analyzer.available()
     app.state.analysis_slots = asyncio.Semaphore(active_concurrency)
 
     @app.exception_handler(AudioPreprocessError)
@@ -100,6 +116,14 @@ def create_app(
             status = 503
         return JSONResponse(status_code=status, content={"detail": error.code})
 
+    @app.exception_handler(AudioModelError)
+    async def model_error_handler(
+        _request: Request,
+        error: AudioModelError,
+    ) -> JSONResponse:
+        status = 503 if error.code == "models_not_ready" else 502
+        return JSONResponse(status_code=status, content={"detail": error.code})
+
     @app.get("/health/live")
     def live() -> dict[str, str]:
         return {"status": "live"}
@@ -107,8 +131,12 @@ def create_app(
     @app.get("/health/ready")
     def ready() -> dict[str, str]:
         if not app.state.ready:
-            raise HTTPException(status_code=503, detail="decoder_not_ready")
-        return {"status": "ready", "stage": "preprocess"}
+            raise HTTPException(status_code=503, detail="models_not_ready")
+        return {
+            "status": "ready",
+            "stage": "complete",
+            "featureVersion": MODEL_FEATURE_VERSION,
+        }
 
     @app.post(
         "/v1/audio-analysis",
@@ -123,8 +151,13 @@ def create_app(
         content_type = request.headers.get("content-type", "").split(";", 1)[0].lower()
         if not (content_type.startswith("audio/") or content_type == "application/octet-stream"):
             raise HTTPException(status_code=415, detail="content_type_unsupported")
-        if x_feature_version != FEATURE_VERSION:
+        if x_feature_version not in SUPPORTED_FEATURE_VERSIONS:
             raise HTTPException(status_code=409, detail="feature_version_unsupported")
+        if (
+            x_feature_version == MODEL_FEATURE_VERSION
+            and not app.state.analyzer.available()
+        ):
+            raise HTTPException(status_code=503, detail="models_not_ready")
 
         payload = await _read_bounded_body(request, request_limit)
         expected_hash = _normalize_hash(x_preview_sha256)
@@ -136,16 +169,26 @@ def create_app(
             decoded = await asyncio.to_thread(app.state.decoder.decode, payload)
             features = await asyncio.to_thread(build_features, decoded)
 
+            embedding = None
+            predictions = []
+            analysis_stage = "preprocess"
+            if x_feature_version == MODEL_FEATURE_VERSION:
+                result = await asyncio.to_thread(app.state.analyzer.analyze, decoded)
+                features = features.model_copy(update={"dsp": result.dsp})
+                embedding = result.embedding
+                predictions = result.predictions
+                analysis_stage = "complete"
+
         return AudioAnalysisResponse(
             previewHash=actual_hash,
             durationSeconds=round(decoded.duration_seconds, 8),
             sampleRate=decoded.sample_rate,
             channelCount=1,
-            featureVersion=FEATURE_VERSION,
-            analysisStage="preprocess",
+            featureVersion=x_feature_version,
+            analysisStage=analysis_stage,
             features=features,
-            embedding=None,
-            predictions=[],
+            embedding=embedding,
+            predictions=predictions,
         )
 
     return app

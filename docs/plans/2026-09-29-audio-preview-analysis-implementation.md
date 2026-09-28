@@ -11,11 +11,12 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 ## 구현 진행 상태
 
 - 2026-09-29 단계 1의 입력·decode scaffold를 구현했다.
-- 현재 `audio-preprocess-v1`은 preview SHA-256, request byte cap, 최대 30초, mono 16kHz decode, 10초 구간과 전체 신호 요약을 제공한다.
+- 2026-09-29 단계 1의 모델 통합까지 구현했다. `essentia-dsp-v1`은 Essentia DSP, MAEST 2,304차원 L2 임베딩, MAEST top 10 style과 MusiCNN 9개 binary head의 18개 label 확률을 제공한다.
+- `audio-preprocess-v1`은 preview SHA-256, request byte cap, 최대 30초, mono 16kHz decode, 10초 구간과 전체 신호 요약을 rollback 계약으로 유지한다.
 - 서비스는 backend internal network에만 연결하고 egress network를 부여하지 않는다. concurrency는 1이며 non-root·read-only container로 실행한다.
 - 기능 기준 커밋 `d436199`를 Zorin에 배포했고 운영 health와 결정적 WAV 분석을 확인했다.
-- Essentia DSP, MAEST embedding과 MusiCNN prediction은 아직 연결하지 않았다. 현재 응답은 `analysisStage: preprocess`, `embedding: null`, `predictions: []`로 이 경계를 명시한다.
-- 모델 artifact·revision·label vocabulary를 고정한 뒤 같은 API의 model 결과를 확장하며, 그 전에는 대체 벡터나 가짜 prediction을 생성하지 않는다.
+- 모델 artifact·metadata·Essentia wheel은 URL, byte 크기, SHA-256을 고정했다. startup load와 실제 shape·finite·norm·probability 검증을 통과해야 readiness와 분석 응답이 성공한다.
+- 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
 
 ## 2. 확정 결정
 
@@ -126,7 +127,7 @@ Headers:
 
 이 중 신호 요약은 decode와 경계 검증용이며 `essentia-dsp-v1`의 최종 DSP feature로 취급하거나 DB에 저장하지 않는다.
 
-`dimensions`는 모델 metadata와 실제 배열 길이에서 결정하고 구현 전에 숫자를 문서에 고정하지 않는다. 응답은 finite value, dimensions, norm, label vocabulary를 검증한 뒤에만 반환한다.
+`dimensions`는 MAEST 7번째 transformer layer의 CLS token, DIST token, 나머지 token 평균을 연결해 2,304로 고정한다. 응답은 finite value, dimensions, L2 norm, label vocabulary를 검증한 뒤에만 반환한다.
 
 ### 제한
 
