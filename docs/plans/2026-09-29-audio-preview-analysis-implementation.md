@@ -19,6 +19,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
 - 2026-09-29 단계 2는 스키마 생성과 수동 실행형 bounded worker까지만 구현한다. 자동 스케줄과 전 카탈로그 일괄 처리는 관리자 관측·sample 검증 이후로 미룬다.
 - 2026-09-29 단계 3의 관리자 관측 API와 화면을 구현하고 `e1bbe73` Web release로 Zorin에 배포했다. 활성 EMS 전체 coverage, version·오류·처리량, 트랙별 안전한 상세와 단일 track/version 재처리를 제공하며 desktop·`390x844`·키보드 동작과 운영 인증 경계를 확인했다.
+- 단계 4 전에 실제 preview 형식과 실패 분포를 확인하기 위한 8곡 bounded sample cohort를 실행했다. 첫 실행은 7곡 완료·1곡 `analysis_preview_too_long`이었고, 실패 preview가 약 60.005초인 provider 정상 응답임을 확인했다. byte·timeout·분석 sample 상한은 유지하면서 긴 preview의 앞 30초만 분석하도록 회귀 수정한 뒤 같은 한 곡을 재검증한다.
 
 ## 2. 확정 결정
 
@@ -261,6 +262,17 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 재처리는 관리자 인증 뒤 단일 유효 UUID와 명시된 허용 feature version으로만 enqueue되며, 잘못된 ID/version/body와 비활성·없는 트랙은 거절된다.
 - 관리자 화면은 loading/error/empty 상태, 수동 새로고침, status filter, 트랙 상세와 재처리 확인을 키보드와 모바일 폭에서 사용할 수 있다.
 - 성공한 test·lint·build·운영 API/화면 검증만 변경 기록에 남긴다.
+
+### 단계 3.1: bounded sample cohort 실행 설계
+
+- 대상은 아직 audio job이 없는 active numeric-TIDAL 트랙 중 기존 worker의 결정적 정렬로 선택한 8곡이다.
+- `--stage-limit 8 --batch-size 1 --max-batches 8 --request-budget 17`로 실행한다. 요청 예산은 client token 1회와 트랙별 playback info·preview 다운로드 각 1회를 넘지 않는다.
+- concurrency는 1로 유지한다. 실행 전 관련 container health, 가용 메모리와 disk를 확인하고 실행 중에는 worker 출력과 host 자원을 관측한다.
+- 429, provider 요청 예산 소진, service 5xx, host 자원 이상 또는 worker의 stop-run 신호가 발생하면 남은 claim을 반환하고 확대하지 않는다.
+- 실행 후 job status·error code, duration·coverage·embedding dimension/norm·prediction 수, feature/model version과 container restart·오류 로그를 대조한다.
+- cohort 결과는 품질·실패 분포를 측정하는 gate이며 전체 catalog 자동 enqueue나 scheduler 활성화를 포함하지 않는다. 숫자 activation 임곗값은 이 표본만으로 확정하지 않는다.
+- 첫 실행 결과는 provider 요청 17/17, completed 7, terminal failed 1, retryable·released 0이었다. 완료 7곡은 모두 30초·16kHz mono·segment 3·coverage 1.0·2,304차원 L2 embedding·prediction 28개였다.
+- 실패곡은 원본·URL을 저장하지 않는 메모리 pipe 진단에서 decoded 약 60.005초였다. 이는 codec padding이 아니라 TIDAL이 제공한 긴 `PREVIEW`이므로 입력을 거절하지 않고 FFmpeg `-t 30`으로 분석 sample을 제한한다. 4MiB request cap과 20초 decode timeout은 그대로 유지한다.
 
 ## 8. 단계 4: 사용자 오디오 프로필
 

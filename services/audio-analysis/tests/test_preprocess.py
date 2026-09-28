@@ -42,12 +42,10 @@ def test_duration_boundaries(duration: float, segments: int, coverage: float):
     assert features.summary.coverage_ratio == pytest.approx(coverage, abs=0.00000001)
 
 
-def test_rejects_over_30_seconds_and_corrupt_input():
+def test_truncates_long_provider_previews_and_rejects_corrupt_input():
     decoder = FfmpegDecoder()
 
-    padded = decoder.decode(wav_bytes(30.04))
-    assert padded.duration_seconds == 30.0
-    with pytest.raises(AudioPreprocessError, match="preview_too_long"):
-        decoder.decode(wav_bytes(30.1))
+    assert decoder.decode(wav_bytes(30.1)).duration_seconds == 30.0
+    assert decoder.decode(wav_bytes(60.01)).duration_seconds == 30.0
     with pytest.raises(AudioPreprocessError, match="preview_decode_failed"):
         decoder.decode(b"not audio")
