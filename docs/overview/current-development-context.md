@@ -14,6 +14,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 30초 프리뷰 오디오 분석 설계를 공개 구현에 맞춰 개정했다. 1차 스택은 `Essentia DSP + MAEST 30초 + 필요한 MusiCNN head`이며 text 768차원과 audio model-native vector를 별도 공간으로 유지한다. 추천은 Source → Hydrator → Filter → Scorer → Selector → SideEffect로 분리하고 다양성은 Selector, 노출 기록은 비동기 SideEffect에 둔다. 별도 audio-analysis service, `023`·`024` migration, bounded worker, 관리자 관측, shadow ranking과 제한 활성화의 파일별 구현 계획은 `docs/plans/2026-09-29-audio-preview-analysis-implementation.md`에 기록했다. 현재 변경은 문서와 관리자 요약이며 오디오 runtime·DB·hybrid serving은 아직 구현하지 않았다. 상세는 `docs/changes/2026-09-29-audio-preview-analysis-design-revision.md`에 기록한다.
 - 2026-09-29 `eee723f`에서 현재 TIDAL 플레이리스트·메타데이터·좋아요·GMS 결정 기반 취향 분석과 30초 프리뷰 오디오 분석 확장안을 `docs/overview/taste-analysis-system.md`로 통합했다. 관리자 `/admin/taste-analysis`와 `추천·취향 → 취향 분석 설계` 메뉴에서 현재 가중치·군집, 오디오 지표, 결합 점수, 처리 자원과 단계별 도입 순서를 읽을 수 있다. 관리자 4개 파일·9개 테스트, lint 오류 0, 관리자와 Web production build를 통과하고 같은 release를 Zorin Web에 배포했다. local/public 주요 경로와 health는 200, 관리자 인증 경계는 307, 새 asset은 200이며 Web은 healthy다. PostgreSQL·embedding·EMS·tunnel은 재시작하지 않았다. 오디오 수집·분석·DB·추천 반영은 문서 제안 상태이고 실제 로그인 관리자 브라우저 시각 검증은 남았다. 상세는 `docs/changes/2026-09-29-taste-analysis-admin-document.md`에 기록한다.
 - 2026-09-28 `7431f14`에서 music-pie 내부 MMS 플레이리스트 생성·이름/설명 수정·삭제와 트랙 추가·제거·위/아래 순서 변경을 구현했다. 내부 데이터는 가져온 TIDAL 플레이리스트·EMS·좋아요와 분리하고 사용자 소유권, 중복, 순서 제약을 DB와 API에서 검증한다. 검색·EMS·GMS·MMS의 주요 트랙 UI에서 추가할 수 있다. 전체 Web 116개 파일·450개 테스트, lint 오류 0, production build를 통과했고 `8b87412` release로 운영 배포했다. DB backup과 `022_mms_playlists.sql` 적용, 기존 사용자·TIDAL·EMS 집계 보존, local/public smoke, 로그인 MMS 생성 폼, EMS·DB 컨테이너 무중단을 확인했다. 상세는 `docs/changes/2026-09-28-mms-playlist-management.md`에 기록한다.
 - 2026-09-28 `f930cbf`에서 온보딩의 일반 TIDAL OAuth 연결 뒤 첫 재생에서 Device 승인을 다시 요구하던 이중 인증 흐름을 제거했다. 최초 연결은 재생 가능한 Device 승인 한 번으로 플레이리스트와 전체 재생을 함께 연결하며, `/tidal-connection`은 Device scope가 저장된 경우에만 완료로 판정한다. 운영 로그인 계정은 추가 승인 없이 연결 완료로 판정됐고 MMS 실제 트랙이 `0:02/4:32`까지 재생됐으며 browser error 0건이었다. 상세는 `docs/changes/2026-09-28-tidal-single-authorization.md`에 기록한다.
@@ -203,6 +204,8 @@
 ## 관련 문서
 
 - `docs/overview/taste-analysis-system.md`
+- `docs/plans/2026-09-29-audio-preview-analysis-implementation.md`
+- `docs/changes/2026-09-29-audio-preview-analysis-design-revision.md`
 - `docs/plans/2026-09-29-taste-analysis-admin-document.md`
 - `docs/changes/2026-09-29-taste-analysis-admin-document.md`
 - `docs/harness/portable-project-harness.md`

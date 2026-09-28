@@ -23,5 +23,12 @@ describe("taste analysis admin document", () => {
     expect(page).toContain("결합 추천 점수");
     expect(page).toContain("단계별 구현 순서");
     expect(page).toContain("오디오 확장 제안");
+    expect(page).toContain("Essentia DSP");
+    expect(page).toContain("MAEST 30s");
+    expect(page).toContain("MusiCNN heads");
+    expect(page).toContain("LAION-CLAP");
+    expect(page).toContain("model-native");
+    expect(page).toContain("audio-preview-analysis-implementation.md");
+    expect(page).not.toContain("대표 768차원 벡터");
   });
 });

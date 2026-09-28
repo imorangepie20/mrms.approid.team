@@ -23,24 +23,31 @@ const audioMetricGroups = [
   { title: "음색", summary: "spectral centroid·bandwidth·rolloff·flatness, MFCC, 저·중·고역 비율" },
   { title: "화성", summary: "key, mode, chroma, 조성 안정성, 화음 변화, 복잡도, 긴장감" },
   { title: "보컬·악기", summary: "보컬 점유율, 연주곡 확률, speechiness, 악기별 존재 확률" },
-  { title: "분위기·제작", summary: "valence, arousal, tension, danceability, acoustic·electronic, mix 질감" },
+  { title: "분위기·제작", summary: "happy·sad·relaxed·aggressive·party, danceability, acoustic·electronic 확률" },
+];
+
+const modelReferences = [
+  { name: "Essentia DSP", role: "30초와 10초 3구간의 리듬·에너지·음색·화성 측정", status: "1차 채택" },
+  { name: "MAEST 30s", role: "프리뷰 전체의 모델 native audio embedding과 장르 성향", status: "1차 채택" },
+  { name: "MusiCNN heads", role: "mood·danceability·voice/instrumental 확률", status: "선택 적용" },
+  { name: "LAION-CLAP", role: "자연어와 오디오를 연결하는 별도 임베딩 공간", status: "후속 shadow" },
 ];
 
 const pipeline = [
-  ["01", "프리뷰 준비", "30초 입력을 모델 native sample rate로 변환하고 10초씩 세 구간으로 분리"],
-  ["02", "구간 분석", "DSP 지표와 구간별 오디오 임베딩을 독립적으로 계산"],
-  ["03", "트랙 통합", "세 구간 평균·분산과 대표 오디오 임베딩을 생성"],
-  ["04", "사용자 집계", "플레이리스트·좋아요·수락 가중치로 전역 중심과 최대 3개 군집 계산"],
-  ["05", "추천 결합", "텍스트·오디오·분위기·리듬 유사도를 결합하고 GMS 근거로 기록"],
+  ["01", "프리뷰 검증", "30초 입력의 byte·duration·codec을 제한하고 SHA-256 identity 생성"],
+  ["02", "Essentia DSP", "10초 3구간과 전체 30초의 low-level feature와 변화량 계산"],
+  ["03", "오디오 모델", "MAEST 30초 embedding과 선택한 MusiCNN high-level prediction 생성"],
+  ["04", "사용자 집계", "플레이리스트·좋아요·수락 가중치로 별도 audio centroid와 군집 계산"],
+  ["05", "추천 결합", "Source부터 Selector까지 단계화하고 실제 component와 version 기록"],
 ] as const;
 
 const phases = [
-  "프리뷰 수집·디코딩·hash 계약과 bounded worker",
-  "세 구간 DSP 지표·오디오 임베딩 저장",
+  "프리뷰 identity·다운로드·decode와 bounded job",
+  "Essentia DSP 저장과 관리자 coverage 관측",
+  "MAEST embedding·MusiCNN prediction 저장",
   "트랙별 상태·지표·실패 원인 관리자 조회",
   "사용자 오디오 중심 계산과 shadow 평가",
-  "텍스트·오디오 순위 비교와 결합 점수 고정",
-  "GMS 제한 반영과 싫어요 입력 충돌 해소",
+  "여섯 단계 hybrid ranking 제한 활성화",
 ];
 
 function StatusBadge({ children, proposed = false }: { children: string; proposed?: boolean }) {
@@ -91,9 +98,9 @@ export default function TasteAnalysis() {
         <div><p className="text-xs uppercase tracking-[0.2em] text-hud-text-muted">SYSTEM SUMMARY</p><h2 className="mt-1 text-xl font-semibold" id="summary-title">분석 기준</h2></div>
         <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard icon={ListMusic} label="최소 입력" value="15 tracks" note="고유 트랙 15곡 미만이면 취향 프로필을 만들지 않습니다." />
-          <MetricCard icon={BrainCircuit} label="현재 표현" value="768 dimensions" note="텍스트 메타데이터를 L2 정규화 벡터로 변환합니다." />
+          <MetricCard icon={BrainCircuit} label="텍스트 표현" value="768 dimensions" note="현재 메타데이터 임베딩의 고정 차원입니다." />
           <MetricCard icon={AudioWaveform} label="오디오 단위" value="10s × 3" note="30초 프리뷰를 세 구간으로 나눠 평균과 변화를 함께 봅니다." />
-          <MetricCard icon={Database} label="프로필 구조" value="1 + up to 3" note="전역 취향 중심 하나와 최대 세 개의 취향 군집을 유지합니다." />
+          <MetricCard icon={Database} label="오디오 표현" value="model-native" note="MAEST 원래 차원을 저장하며 텍스트 768차원에 맞추지 않습니다." />
         </div>
       </section>
 
@@ -130,7 +137,15 @@ export default function TasteAnalysis() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {audioMetricGroups.map((group) => <article className="hud-card rounded-2xl p-5" key={group.title}><h3 className="font-semibold text-hud-text-primary">{group.title}</h3><p className="mt-3 text-sm leading-6 text-hud-text-secondary">{group.summary}</p></article>)}
         </div>
-        <p className="text-sm leading-7 text-hud-text-secondary">각 지표는 세 구간의 평균·표준편차·범위·변화 방향으로 집계합니다. 분위기·악기·제작 지표는 확정값이 아니라 모델 확률과 신뢰도로 저장합니다.</p>
+        <p className="text-sm leading-7 text-hud-text-secondary">DSP는 세 구간과 전체 30초를 함께 저장합니다. 분위기·악기·제작 지표는 채택 모델이 실제 제공하는 label만 확률과 revision으로 기록하며 이름만 보고 추정하지 않습니다.</p>
+      </section>
+
+      <section aria-labelledby="models-title" className="space-y-4">
+        <div><p className="text-xs uppercase tracking-[0.2em] text-hud-text-muted">REFERENCE STACK</p><h2 className="mt-1 text-xl font-semibold" id="models-title">참고 프로젝트와 채택 모델</h2></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {modelReferences.map((item) => <article className="hud-card rounded-2xl p-5" key={item.name}><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold text-hud-text-primary">{item.name}</h3><span className="rounded-full border border-hud-border-secondary px-2.5 py-1 text-xs text-hud-text-muted">{item.status}</span></div><p className="mt-3 text-sm leading-6 text-hud-text-secondary">{item.role}</p></article>)}
+        </div>
+        <p className="text-sm leading-7 text-hud-text-secondary">low-level DSP와 high-level prediction은 AcousticBrainz 방식처럼 별도 version으로 저장합니다. 구현 순서는 docs/plans/2026-09-29-audio-preview-analysis-implementation.md를 따릅니다.</p>
       </section>
 
       <section aria-labelledby="score-title" className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
@@ -142,21 +157,23 @@ export default function TasteAnalysis() {
   mood   × 0.10
   rhythm × 0.05
 
-recommendation_score =
+base_score =
   hybrid_similarity  × 0.65
   catalog_confidence × 0.15
   freshness          × 0.10
-  diversity          × 0.10`}</code></pre>
-          <p className="mt-4 text-sm leading-6 text-hud-text-secondary">텍스트와 오디오 임베딩은 별도 공간에서 유사도를 계산합니다. 오디오가 없으면 사용 가능한 신호만 합계 1로 재정규화합니다.</p>
+  editorial_priority × 0.10
+
+final_score = diversity_selector(base_score)`}</code></pre>
+          <p className="mt-4 text-sm leading-6 text-hud-text-secondary">텍스트와 오디오는 별도 공간에서 유사도를 계산합니다. 후보 점수는 독립적으로 계산하고 다양성은 Selector 재정렬에서 적용합니다.</p>
         </article>
         <article className="hud-card rounded-2xl p-5 sm:p-6">
           <p className="text-xs uppercase tracking-[0.2em] text-hud-text-muted">RESOURCE / TRACK</p><h2 className="mt-1 text-xl font-semibold">30초 처리 예상량</h2>
           <dl className="mt-5 grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-3 text-sm">
             <dt className="text-hud-text-secondary">320kbps 입력</dt><dd className="font-mono">약 1.2MB</dd>
             <dt className="text-hud-text-secondary">mono 16kHz PCM</dt><dd className="font-mono">약 1.83MiB</dd>
-            <dt className="text-hud-text-secondary">GPU 추론</dt><dd className="font-mono">약 0.6~3초</dd>
-            <dt className="text-hud-text-secondary">CPU 추론</dt><dd className="font-mono">약 9~43초</dd>
-            <dt className="text-hud-text-secondary">대표 768차원 벡터</dt><dd className="font-mono">약 3KB</dd>
+            <dt className="text-hud-text-secondary">임베딩 저장량</dt><dd className="font-mono">dims × 4B</dd>
+            <dt className="text-hud-text-secondary">CPU·GPU 추론</dt><dd className="font-mono">실측 예정</dd>
+            <dt className="text-hud-text-secondary">필수 benchmark</dt><dd className="font-mono">p50/p95 · RSS</dd>
           </dl>
         </article>
       </section>
