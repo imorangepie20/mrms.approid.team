@@ -4,7 +4,7 @@
 
 최신 기능 기준 커밋: `7431f14`
 
-최신 Zorin Web 배포 기준 커밋: `f930cbf` (TIDAL 최초 연결과 전체 재생 승인 통합)
+최신 Zorin Web 배포 기준 커밋: `8b87412` (MMS 내부 플레이리스트 관리)
 
 최신 Zorin EMS 배포 기준 커밋: `d0632d0` (Spotify 차트 admin worker, 상시 source-routines는 `951fb9a` image 유지)
 
@@ -14,7 +14,7 @@
 
 ## 현재 구현
 
-- 2026-09-28 `7431f14`에서 music-pie 내부 MMS 플레이리스트 생성·이름/설명 수정·삭제와 트랙 추가·제거·위/아래 순서 변경을 구현했다. 내부 데이터는 가져온 TIDAL 플레이리스트·EMS·좋아요와 분리하고 사용자 소유권, 중복, 순서 제약을 DB와 API에서 검증한다. 검색·EMS·GMS·MMS의 주요 트랙 UI에서 추가할 수 있다. 전체 Web 116개 파일·450개 테스트, lint 오류 0, production build를 통과했으며 실제 DB migration과 운영 배포는 아직 수행하지 않았다. 상세는 `docs/changes/2026-09-28-mms-playlist-management.md`에 기록한다.
+- 2026-09-28 `7431f14`에서 music-pie 내부 MMS 플레이리스트 생성·이름/설명 수정·삭제와 트랙 추가·제거·위/아래 순서 변경을 구현했다. 내부 데이터는 가져온 TIDAL 플레이리스트·EMS·좋아요와 분리하고 사용자 소유권, 중복, 순서 제약을 DB와 API에서 검증한다. 검색·EMS·GMS·MMS의 주요 트랙 UI에서 추가할 수 있다. 전체 Web 116개 파일·450개 테스트, lint 오류 0, production build를 통과했고 `8b87412` release로 운영 배포했다. DB backup과 `022_mms_playlists.sql` 적용, 기존 사용자·TIDAL·EMS 집계 보존, local/public smoke, 로그인 MMS 생성 폼, EMS·DB 컨테이너 무중단을 확인했다. 상세는 `docs/changes/2026-09-28-mms-playlist-management.md`에 기록한다.
 - 2026-09-28 `f930cbf`에서 온보딩의 일반 TIDAL OAuth 연결 뒤 첫 재생에서 Device 승인을 다시 요구하던 이중 인증 흐름을 제거했다. 최초 연결은 재생 가능한 Device 승인 한 번으로 플레이리스트와 전체 재생을 함께 연결하며, `/tidal-connection`은 Device scope가 저장된 경우에만 완료로 판정한다. 운영 로그인 계정은 추가 승인 없이 연결 완료로 판정됐고 MMS 실제 트랙이 `0:02/4:32`까지 재생됐으며 browser error 0건이었다. 상세는 `docs/changes/2026-09-28-tidal-single-authorization.md`에 기록한다.
 - 2026-09-28 `635aa7c`에서 관리자 sidebar를 1536px 미만 off-canvas, 1536px 이상 persistent 구조로 바꿔 내부 페이지 breakpoint와 실제 본문 폭을 일치시켰다. `7032b1f`에서는 Docker image에 이전·신규 관리자 자산이 함께 남아 오래된 JS가 선택되던 원인을 제거하고 JS·CSS 각각 1개를 강제했다. 운영 1024px drawer, 1272px 핵심 10개 경로, 1536px 확장·접기에서 document overflow 0, console error 0을 확인했다. Web만 교체했고 EMS 서비스와 DB는 유지했다. 상세는 `docs/changes/2026-09-28-admin-shell-responsive-layout.md`에 기록한다.
 - 2026-09-28 `6f48993`에서 관리자 Spotify 차트 화면의 4열 전환을 sidebar 폭을 고려한 `2xl`로 늦추고 main·카드·통계 값의 축소·줄바꿈 경계를 보강했다. 운영 1280px는 2열, 1536px는 4열이며 두 크기 모두 `scrollWidth=clientWidth`, 액션·실행 ID 잘림 0건, console error 0건이다. Web만 교체했고 EMS worker와 source-routines는 유지했다.
@@ -169,7 +169,7 @@
 
 ## 미검증·제약
 
-- 내부 플레이리스트용 `022_mms_playlists.sql`은 실제 PostgreSQL에 적용하지 않았다. 로그인된 실제 계정의 브라우저 CRUD와 모바일 조작, 운영 배포도 아직 검증하지 않았다.
+- 내부 플레이리스트용 `022_mms_playlists.sql`과 Web release는 운영에 반영했다. 로그인된 운영 MMS 렌더링과 생성 폼은 확인했지만 검증용 사용자 데이터를 만들지 않아 실제 생성·편집·삭제·트랙 추가·제거·순서 이동과 모바일 조작은 아직 확인하지 않았다.
 - 10k 확대와 scheduler live는 `HOLD_10K`다. 기존 MusicBrainz routine은 이미 additions-only delta를 자동 처리하지만 후보·GET hard cap, 영속 승인, report-only/live 분리, run별 rollback journal이 없어 10k 권한으로 사용할 수 없다. fault injection과 운영 상태 변경은 수행하지 않았다.
 - Home top 3·EMS 5개 rail의 desktop/mobile 시각, 키보드, 비회원 재생 recovery와 20곡의 production `FULL` manifest·실제 audio range 수신은 확인했다. 로그인 Chrome 세션을 사용할 수 없어 같은 20곡의 `HTMLAudioElement` decode·재생 위치 증가는 아직 확인하지 않았다. Web 전체 Vitest의 기존 Home copy 기대 1건과 recommendations/likes mock 3건도 별도 정리가 필요하다.
 - matched 승격 시 과거 오류 메타데이터를 지우도록 수정했고 target run의 누적 stale 오류 19건도 0으로 정리했다. run은 matched 154, pending 806, retryable 40으로 아직 완료 상태가 아니다.
@@ -191,7 +191,7 @@
 
 ## 다음 작업
 
-1. 대상 환경과 rollback 자료를 확정한 뒤 `022_mms_playlists.sql`을 적용하고 로그인 계정의 내부 플레이리스트 CRUD와 트랙 추가를 desktop/mobile에서 확인한다.
+1. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 2. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 3. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
 4. 로그인 TIDAL 브라우저 세션에서 고정 20곡의 실제 decode·재생 위치 증가를 확인한다.

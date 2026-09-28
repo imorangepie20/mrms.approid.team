@@ -39,16 +39,20 @@
 - `npm run build`: Next.js 16.3.5 production build와 TypeScript 통과, 신규 MMS API route 5개 확인
 - 저장소 `git diff --check`: 통과
 - 기능 커밋: `7431f14`
+- `8b87412`를 `origin/codex/anonymous-playback-error`에 push하고 Zorin release `/home/approid/apps/music-pie/releases/8b87412`로 배포했다.
+- 운영 Web image `sha256:794afa16307a...`를 빌드하고 Web 컨테이너만 재생성했다. 이전 release `/home/approid/apps/music-pie/releases/3d3c14c`와 image `music-pie-web:pre-mms-playlists-8b87412` (`sha256:99ea67a3b7d2...`)를 rollback 대상으로 보존했다.
+- migration 전 custom-format DB backup `/home/approid/apps/music-pie/shared/backups/pre-mms-playlists-8b87412.dump` 176,768,160 bytes를 만들고 `pg_restore --list`로 확인했다. SHA-256은 `7c8eacc93861d619594d800e3c29cc5025d44ee90ef7fcbc87a5dc48275634e0`다.
+- 운영 migration runner로 `022_mms_playlists.sql` 한 건을 적용했다. 적용 전후 기존 집계는 사용자 1명, TIDAL 플레이리스트 5개, 연결 트랙 204개, 음악 트랙 203개, 좋아요 0개, EMS 트랙 39,099개로 같고 신규 두 테이블은 0건이다.
+- local/public `/`, `/mms`, `/gms`, `/search`, `/api/health/live`, `/api/health/ready`는 HTTP 200이고 비로그인 `/api/mms/playlists`는 HTTP 401이다. Web은 healthy이며 최근 Web error 로그는 0건이다.
+- 로그인된 운영 Chrome 세션에서 MMS의 `내 플레이리스트 0개`, `새 플레이리스트` 진입과 이름·설명·취소·비활성 생성 버튼을 확인하고 데이터 변경 없이 닫았다.
+- `ems-pipeline`, `ems-source-routines`, PostgreSQL, embedding, tunnel의 container ID·image·시작 시각이 배포 전후 동일함을 확인했다.
 
-## 미검증·미적용
+## 남은 검증
 
-- `022_mms_playlists.sql`을 실제 개발·운영 PostgreSQL에 적용하지 않았다.
-- 로그인된 실제 계정에서 생성·편집·삭제·트랙 추가·제거·순서 이동을 브라우저로 확인하지 않았다.
+- 로그인된 실제 계정에서 생성·편집·삭제·트랙 추가·제거·순서 이동의 데이터 변경 흐름은 수행하지 않았다. 운영 사용자 데이터에 검증용 항목을 남기지 않기 위한 범위 제한이다.
 - 실제 모바일 기기의 대화상자와 긴 트랙 목록 조작은 확인하지 않았다.
-- 운영 image build, 배포, 공개 주소 smoke test는 수행하지 않았다.
 
 ## 다음 작업
 
-1. 대상 환경을 확정한 뒤 rollback 자료를 준비하고 migration runner로 `022_mms_playlists.sql`을 적용한다.
-2. 로그인된 계정에서 검색·EMS·GMS·MMS의 트랙 추가와 MMS CRUD를 데스크톱·모바일로 확인한다.
-3. 검증 통과 후 별도 승인 범위에 따라 운영 image build와 배포를 수행한다.
+1. 검증용 플레이리스트 생성·삭제가 허용된 계정에서 검색·EMS·GMS·MMS의 트랙 추가와 MMS CRUD를 데스크톱·모바일로 확인한다.
+2. 실제 모바일 기기에서 긴 트랙 목록의 순서 이동과 대화상자 스크롤을 확인한다.
