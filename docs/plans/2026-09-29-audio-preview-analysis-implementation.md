@@ -14,7 +14,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - 2026-09-29 단계 1의 모델 통합까지 구현했다. `essentia-dsp-v1`은 Essentia DSP, MAEST 2,304차원 L2 임베딩, MAEST top 10 style과 MusiCNN 9개 binary head의 18개 label 확률을 제공한다.
 - `audio-preprocess-v1`은 preview SHA-256, request byte cap, 최대 30초, mono 16kHz decode, 10초 구간과 전체 신호 요약을 rollback 계약으로 유지한다.
 - 서비스는 backend internal network에만 연결하고 egress network를 부여하지 않는다. concurrency는 1이며 non-root·read-only container로 실행한다.
-- 기능 기준 커밋 `d436199`를 Zorin에 배포했고 운영 health와 결정적 WAV 분석을 확인했다.
+- decode scaffold 기준 커밋 `d436199`와 모델 통합 기준 커밋 `bada8f3`를 Zorin에 배포했고 운영 health와 결정적 WAV 분석을 확인했다.
 - 모델 artifact·metadata·Essentia wheel은 URL, byte 크기, SHA-256을 고정했다. startup load와 실제 shape·finite·norm·probability 검증을 통과해야 readiness와 분석 응답이 성공한다.
 - 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
 

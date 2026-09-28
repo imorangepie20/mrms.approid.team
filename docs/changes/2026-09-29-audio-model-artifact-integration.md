@@ -42,8 +42,27 @@
 - Windows에서는 운영 절대경로 secret file이 없어 전체 Compose config를 확정하지 못했다. Zorin 배포 전 preflight에서 다시 검증한다.
 - 사용자별 저장, profile 집계, hybrid GMS scoring은 아직 연결하지 않았다.
 
+## 배포 결과
+
+- 기능 커밋: `bada8f3`
+- release: `/home/approid/apps/music-pie/releases/bada8f3`
+- 운영 image: `sha256:dbbcad7125bcb3840edbff6565b57a2541a42951ea9c99fe692ce7fd625525ce`
+- rollback image: `music-pie-audio-analysis:pre-bada8f3` → `sha256:422e8e8be6688af6fa8ba4a36f0cd1cc8eacf4375ee143b3d81f0a55bad417cf`
+- container: `c7f4aa9b20cab3038d95412778d743c653568af90b8da083158a0c32da7ea735`
+- 시작 시각: `2026-09-28T22:29:35.452871348Z`
+- 실행 경계: UID 10002, read-only, `cap_drop: ALL`, backend network만 연결, memory 3 GiB, CPU 2
+- 배포 후 health: `healthy`, OOM false, restart 0, 오류 로그 0건
+- 운영 30초 440 Hz smoke:
+  - 8.407초, response 55,957 bytes
+  - `analysisStage: complete`
+  - embedding 2,304차원, norm 1.0
+  - embedding SHA-256 `91056c8567884426ea8f509c56b39dcfcc26b9ffef1be679c7a128aa331c72d1`
+  - prediction 28개, BPM 90.9899, key A, DSP error 없음
+  - 요청 후 memory 1.555 GiB, OOM 없음
+- Web, EMS, embedding, PostgreSQL container ID가 배포 전후 동일함을 확인했다.
+
 ## 다음 작업
 
-1. Zorin에서 기존 image를 rollback tag로 보존하고 `audio-analysis`만 교체한다.
-2. 운영 내부 network에서 readiness와 실제 30초 분석을 확인한다.
-3. `023_ems_audio_analysis.sql`과 bounded preview worker를 구현한다.
+1. `023_ems_audio_analysis.sql`과 bounded preview worker를 구현한다.
+2. 실제 preview corpus에 대해 feature coverage와 오류율을 shadow로 측정한다.
+3. 사용자별 audio profile과 hybrid GMS shadow score를 연결한다.
