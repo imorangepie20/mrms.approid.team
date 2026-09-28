@@ -73,10 +73,13 @@ services:
     env_file: /home/approid/apps/music-pie/shared/secrets/ems.env
     environment:
       EMBEDDING_SERVICE_URL: http://embedding:8000
+      AUDIO_ANALYSIS_SERVICE_URL: http://audio-analysis:8000
     depends_on:
       postgres:
         condition: service_healthy
       embedding:
+        condition: service_healthy
+      audio-analysis:
         condition: service_healthy
     networks: [backend, egress]
     healthcheck:

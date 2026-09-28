@@ -17,6 +17,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - decode scaffold 기준 커밋 `d436199`와 모델 통합 기준 커밋 `bada8f3`를 Zorin에 배포했고 운영 health와 결정적 WAV 분석을 확인했다.
 - 모델 artifact·metadata·Essentia wheel은 URL, byte 크기, SHA-256을 고정했다. startup load와 실제 shape·finite·norm·probability 검증을 통과해야 readiness와 분석 응답이 성공한다.
 - 실제 30초 tone 컨테이너 smoke에서 cold 20.225초, warm 14.039초, 추론 중 약 1.88 GiB를 측정해 운영 상한을 3 GiB·2 CPU로 정했다.
+- 2026-09-29 단계 2는 스키마 생성과 수동 실행형 bounded worker까지만 구현한다. 자동 스케줄과 전 카탈로그 일괄 처리는 관리자 관측·sample 검증 이후로 미룬다.
 
 ## 2. 확정 결정
 
@@ -162,14 +163,15 @@ Headers:
 - `track_id` PK/FK → `ems_tracks`
 - `preview_hash`, `feature_version`
 - `status`: `pending`, `running`, `completed`, `retryable`, `failed`
-- `attempt_count`, `claimed_at`, `lease_expires_at`
-- `last_error_code`, `last_error_at`, `updated_at`
+- `attempt_count`, `claimed_at`, `lease_expires_at`, `next_attempt_at`
+- `last_error_code`, `last_error_at`, `completed_at`, `created_at`, `updated_at`
+- migration은 기존 39k 카탈로그를 자동 enqueue하지 않는다. worker 실행 시 `--stage-limit` 범위에서만 active track을 stage한다.
 
 #### `ems_track_audio_features`
 
 - PK: `track_id`, `feature_version`, `preview_hash`
 - `duration_seconds`, `sample_rate`, `segment_count`, `coverage_ratio`
-- `whole_features`, `segment_features`, `summary_features` JSONB
+- `whole_features`, `segment_features`, `summary_features`, `dsp_features` JSONB
 - `created_at`
 
 #### `ems_track_audio_embeddings`
@@ -196,7 +198,7 @@ low-level feature와 high-level prediction은 별도 version이므로 모델 hea
 
 ### worker 계약
 
-1. `FOR UPDATE SKIP LOCKED`로 lease 만료 또는 pending job을 claim한다.
+1. `FOR UPDATE SKIP LOCKED`로 lease 만료 또는 pending/retryable job을 claim한다.
 2. 한 batch의 수와 전체 실행의 최대 batch를 모두 제한한다.
 3. preview 응답 status, content type, byte와 duration을 검증한다.
 4. SHA-256이 이미 completed이면 재사용한다.
@@ -204,7 +206,9 @@ low-level feature와 high-level prediction은 별도 version이므로 모델 hea
 6. timeout·5xx는 retryable, preview 없음·지원 불가 입력은 terminal failed로 분류한다.
 7. 중단 시 처리하지 않은 claim을 원래 상태로 돌린다.
 
-실제 preview 획득 API와 인증 주체는 기존 TIDAL 구현에서 확인한 경로만 사용한다. 문서 단계에서 새 provider 계약을 추정하지 않는다.
+실제 preview 획득은 Web의 `apps/web/src/lib/tidal/playback-stream.ts`가 이미 사용하는 `/tracks/{id}/playbackinfo` 계약을 재사용하되 `assetpresentation=PREVIEW`, `audioquality=LOW`로 제한한다. 인증은 EMS의 기존 client-credentials token을 사용한다. 응답은 PREVIEW·HTTPS·unencrypted direct stream만 허용하고 DASH/HLS는 terminal unsupported로 닫는다. preview byte는 메모리에서만 다루며 URL·token·원본 음원을 DB와 로그에 남기지 않는다.
+
+worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attempts 5`로 제한한다. 네트워크·429·5xx는 지수 backoff가 있는 retryable, 없음·비지원 형식·크기 초과는 terminal failed로 분류한다. 같은 `preview_hash + feature_version`의 완료 결과는 전역 재사용하고, feature·embedding·prediction·job 완료는 한 transaction에서 저장한다. 분석 service 응답의 hash, version, stage, 16 kHz mono, 최대 30초, 2,304차원 finite L2 embedding과 probability 범위를 모두 검증하지 못하면 결과를 저장하지 않는다.
 
 ## 7. 단계 3: 관리자 관측
 

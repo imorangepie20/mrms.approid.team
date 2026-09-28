@@ -53,6 +53,13 @@ def build_parser() -> argparse.ArgumentParser:
     embed.add_argument("--batch-size", type=int, default=16)
     embed.add_argument("--max-batches", type=int, default=None)
     embed.add_argument("--embedding-service-url", default=None)
+    analyze_audio = subparsers.add_parser("analyze-audio")
+    analyze_audio.add_argument("--stage-limit", type=int, default=16)
+    analyze_audio.add_argument("--batch-size", type=int, default=1)
+    analyze_audio.add_argument("--max-batches", type=int, default=1)
+    analyze_audio.add_argument("--max-attempts", type=int, default=5)
+    analyze_audio.add_argument("--request-budget", type=int, default=3)
+    analyze_audio.add_argument("--audio-analysis-service-url", default=None)
     subparsers.add_parser("serve-admin-jobs")
     subparsers.add_parser("serve-source-routines")
     tidal_metadata = subparsers.add_parser("backfill-tidal-metadata")
@@ -273,6 +280,45 @@ def main(argv: list[str] | None = None) -> int:
                 if result["embedded"] == 0:
                     break
         print(json.dumps({"embedded": total, "batches": batch_count}, sort_keys=True))
+        return 0
+    if args.command == "analyze-audio":
+        from .audio_analysis import (
+            AudioAnalysisClient,
+            TidalPreviewClient,
+            run_audio_worker,
+            stage_audio_jobs,
+        )
+
+        database_url = os.environ.get("DATABASE_URL", "").strip()
+        client_id = os.environ.get("TIDAL_CLIENT_ID", "").strip()
+        client_secret = os.environ.get("TIDAL_CLIENT_SECRET", "").strip()
+        if not database_url or not client_id or not client_secret:
+            raise SystemExit("DATABASE_URL, TIDAL_CLIENT_ID and TIDAL_CLIENT_SECRET are required")
+        analysis_url = (
+            args.audio_analysis_service_url
+            or os.environ.get("AUDIO_ANALYSIS_SERVICE_URL", "http://audio-analysis:8000")
+        ).strip()
+        with psycopg.connect(database_url, row_factory=dict_row) as connection:
+            with connection.transaction():
+                staged = stage_audio_jobs(connection, limit=args.stage_limit)
+            with httpx.Client(timeout=90) as http_client:
+                preview_client = TidalPreviewClient(
+                    client_id,
+                    client_secret,
+                    country_code=os.environ.get("TIDAL_COUNTRY_CODE", "KR"),
+                    http_client=http_client,
+                    request_budget=args.request_budget,
+                )
+                analysis_client = AudioAnalysisClient(analysis_url, http_client=http_client)
+                counts = run_audio_worker(
+                    connection,
+                    preview_client,
+                    analysis_client,
+                    batch_size=args.batch_size,
+                    max_batches=args.max_batches,
+                    max_attempts=args.max_attempts,
+                )
+        print(json.dumps({"staged": staged, "requests_used": preview_client.used_requests, "counts": counts}, sort_keys=True))
         return 0
     if args.command == "backfill-tidal-metadata":
         from .metadata_backfill import backfill_tidal_metadata
