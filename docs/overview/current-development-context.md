@@ -2,11 +2,11 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `e1bbe73`
+최신 기능 기준 커밋: `db8c230`
 
 최신 Zorin Web 배포 기준 커밋: `e1bbe73` (오디오 분석 관리자 관측)
 
-최신 Zorin audio-analysis 배포 기준 커밋: `f4a3402` (실제 TIDAL preview codec padding 보정)
+최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
 최신 Zorin EMS 배포 기준 커밋: `f4a3402` (bounded TIDAL preview 분석 worker, 상시 source-routines는 기존 container 유지)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `db8c230`에서 8곡 bounded audio sample cohort를 실행하고 긴 TIDAL preview 처리 오류를 수정했다. 첫 실행은 provider 요청 17/17에서 7곡 completed, 1곡 `analysis_preview_too_long`이었으며 실패 입력은 저장 없이 메모리 pipe로 측정한 결과 약 60.005초의 정상 `PREVIEW`였다. audio-analysis는 4MiB request cap과 20초 timeout을 유지한 채 FFmpeg에서 앞 30초만 decode·분석하도록 변경했다. 수정 뒤 실패곡을 요청 3회로 재처리해 최종 sample 8/8, 전체 job 9/9 completed를 확인했다. 모든 결과는 30초·16kHz mono·segment 3·coverage 1.0·2,304차원 L2 embedding·prediction 28개이며 오류·대기 job은 0이다. audio-analysis만 교체했고 Web·PostgreSQL·embedding·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-sample-cohort.md`에 기록한다.
 - 2026-09-29 `e1bbe73`에서 `/admin/audio-analysis`와 관리자 API를 추가하고 Zorin Web release로 배포했다. 활성 EMS 39,102곡의 분석 coverage와 상태·feature/model version·오류·7일 처리량을 집계하며, 트랙 상세는 preview hash·DSP·prediction과 embedding metadata만 제공하고 URL·token·embedding vector는 노출하지 않는다. 재처리는 활성 numeric-TIDAL 트랙 한 건과 정확한 `essentia-dsp-v1` version으로 제한하고 `running` job은 거부하며 기존 결과는 보존한다. Web 전체 120개 파일·463개 테스트와 PostgreSQL 통합 1개, Admin 12개 테스트, lint 오류 0, 두 production build를 통과했다. 운영 Web만 교체했고 local/public health 200, 비인증 관리자 화면 307·API 401, 최근 Web 오류 0건과 desktop·`390x844`·키보드 탐색을 확인했다. PostgreSQL·embedding·audio-analysis·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-admin-observability.md`에 기록한다.
 - 2026-09-29 `2ccd756`에서 `023_ems_audio_analysis.sql`과 `ems-pipeline analyze-audio`를 추가하고, 실제 TIDAL preview의 codec padding 보정 `f4a3402`까지 Zorin release로 배포했다. migration은 기존 39,102개 active EMS를 자동 enqueue하지 않으며 기본 worker 실행은 stage 16·batch 1·최대 1 batch·provider 요청 3회로 제한된다. preview 원본·signed URL·token은 저장·로그하지 않고, lease·retry·중단 반환·동일 hash 재사용·분석 응답 검증 뒤 transaction 저장을 적용했다. 실제 canary 1건은 30초·16kHz mono·구간 3개·2,304차원 L2 norm 1.0·prediction 28개로 완료됐고 실패·대기 작업은 0이다. 최종 audio-analysis·EMS는 healthy, restart 0, 오류 로그 0건이며 Web·DB·embedding·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-ems-audio-preview-worker.md`에 기록한다.
 - 2026-09-29 `d436199`에서 내부 `services/audio-analysis`를 구현하고 Zorin에 배포했다. `audio-preprocess-v1`은 기본 4MiB request cap, SHA-256 대조, FFmpeg mono 16kHz decode, 최대 30초와 20초 timeout, 전체·10초 구간 신호 요약을 제공한다. 8개 fixture·경계 테스트와 Docker build를 통과했고 운영 1초 440Hz WAV는 HTTP 200, duration 1.0초, RMS `0.35354234`로 분석됐다. 서비스는 healthy, 최근 오류 0건이며 UID 10002, read-only, capability 제거, 포트 미공개, backend internal network 전용으로 실행한다. 기존 Web·DB·embedding·EMS·tunnel은 재시작하지 않았다. 모델 artifact가 아직 고정되지 않아 `embedding: null`, `predictions: []`를 명시하며 Essentia·MAEST·MusiCNN, preview worker, DB와 추천 반영은 다음 단계다. 상세는 `docs/changes/2026-09-29-audio-analysis-service-scaffold.md`에 기록한다.
@@ -111,6 +112,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-29 | Zorin 8곡 bounded worker, 실패곡 메모리 pipe 진단, audio-analysis pytest·container build/smoke, 단일 서비스 release와 한 곡 재처리 | 요청·sample 상한, 긴 provider preview 30초 truncate, 모델 계약, 실패·대기 0, 다른 서비스 보존 | 통과: 첫 실행 `7 completed/1 failed`, 원인 60.005초 정상 PREVIEW; 수정 뒤 표본 8/8·전체 9/9 completed, 요청 `17+3`, 30초·16kHz·segment 3·coverage 1.0·2,304차원 L2·prediction 28, audio-analysis 13개·EMS 74개 테스트, release `db8c230`, restart 0·오류 로그 0·public ready 200 |
 | 2026-09-29 | `apps/web`·`apps/admin` Vitest, ESLint, production build, 임시 PostgreSQL 통합 테스트, Zorin Web-only release, local/public HTTP와 로그인 관리자 desktop·`390x844`·키보드 QA | 집계·상세·단일 재처리 경계, 민감 데이터 비노출, 인증·반응형·키보드 동작, 기존 서비스 보존 | 통과: Web 120개 파일·463개 테스트와 PostgreSQL 통합 1개(Admin 관련 integration 기본 1개 skip), Admin 5개 파일·12개 테스트, lint 오류 0(기존 경고 Web 5·Admin 38), 두 build, release `e1bbe73`, health 200·비인증 화면 307·API 401·최근 Web 오류 0, 비-Web container ID·시작 시각 불변 |
 | 2026-09-28 | `apps/web`: 기능 관련 Vitest, 전체 `npm test`, `npm run lint`, `npm run build`; 저장소 `git diff --check` | MMS 내부 플레이리스트 CRUD와 트랙 추가·제거·재정렬, 사용자 격리·중복·오류 경계 | 통과: 관련 12개 파일·52개 테스트, 전체 116개 파일·450개 테스트, lint 오류 0(기존 경고 5개), Next.js 16.3.5 build·TypeScript, diff check |
 | 2026-09-28 | pipeline/Web/admin test·lint·build·audit, Zorin backup·migration·Web/EMS worker release, 관리자 실행, DB/API/browser QA | 4개×50곡, 예산 준수, completed snapshot만 전시, duplicate 0, 기존 EMS·사용자 데이터 보존 | 통과: run `8ca016f7...`, Spotify `4/4`, TIDAL `121/450`, matched/not_found `91/19`, public `46/36/45/38`, active `39,035→39,099`, 사용자 집계 `1,5,0,1` 동일, desktop·`390x844` overflow·console 오류 0. Web 전체 test는 기존 Auth mock 3건 실패 |
@@ -199,7 +201,7 @@
 
 ## 다음 작업
 
-1. 통합 취향 분석 문서의 1단계인 프리뷰 hash·분석 상태 계약과 bounded audio worker를 구현한다.
+1. `024_user_audio_taste_profiles.sql`과 사용자별 audio centroid·가중 통계 계산을 구현한다. 운영 적용은 현재 분석된 트랙만 사용하는 shadow profile로 제한하고 text profile과 GMS 순서는 변경하지 않는다.
 2. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 3. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 4. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
