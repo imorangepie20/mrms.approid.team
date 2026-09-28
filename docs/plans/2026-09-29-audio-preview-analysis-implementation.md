@@ -13,6 +13,7 @@ EMS 트랙의 30초 프리뷰를 bounded worker로 분석해 설명 가능한 DS
 - 2026-09-29 단계 1의 입력·decode scaffold를 구현했다.
 - 현재 `audio-preprocess-v1`은 preview SHA-256, request byte cap, 최대 30초, mono 16kHz decode, 10초 구간과 전체 신호 요약을 제공한다.
 - 서비스는 backend internal network에만 연결하고 egress network를 부여하지 않는다. concurrency는 1이며 non-root·read-only container로 실행한다.
+- 기능 기준 커밋 `d436199`를 Zorin에 배포했고 운영 health와 결정적 WAV 분석을 확인했다.
 - Essentia DSP, MAEST embedding과 MusiCNN prediction은 아직 연결하지 않았다. 현재 응답은 `analysisStage: preprocess`, `embedding: null`, `predictions: []`로 이 경계를 명시한다.
 - 모델 artifact·revision·label vocabulary를 고정한 뒤 같은 API의 model 결과를 확장하며, 그 전에는 대체 벡터나 가짜 prediction을 생성하지 않는다.
 

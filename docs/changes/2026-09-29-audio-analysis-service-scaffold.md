@@ -27,6 +27,18 @@
 - container 실행 UID `10002` 확인
 - container 내부에서 생성한 1초 440Hz WAV 분석 HTTP 200, duration 1.0초, RMS `0.35354234`, `embedding: null` 확인
 
+## 배포 결과
+
+- 기능 기준 커밋 `d436199`를 `origin/codex/anonymous-playback-error`에 push하고 Zorin release `/home/approid/apps/music-pie/releases/d436199`로 배포했다.
+- 운영 image는 `sha256:422e8e8be6688af6fa8ba4a36f0cd1cc8eacf4375ee143b3d81f0a55bad417cf`다.
+- `music-pie-audio-analysis-1` container는 healthy이며 배포 후 로그의 `error|exception|fatal` 집계는 0건이다.
+- 운영 container에서 생성한 1초 440Hz WAV를 내부 API로 분석해 HTTP 200, duration 1.0초, RMS `0.35354234`, `embedding: null`, 빈 prediction을 다시 확인했다.
+- 운영 container는 UID `10002`, read-only root filesystem, memory 512MiB, CPU 1, `cap_drop: ALL`, `no-new-privileges`로 실행한다.
+- published port는 없고 `music-pie-backend` internal network에만 연결했다.
+- local/public의 `/`, `/ems`, `/gms`, `/search`, `/api/health/live`, `/api/health/ready`는 모두 HTTP 200을 유지한다.
+- Web, PostgreSQL, embedding, EMS pipeline, EMS source routines와 tunnel의 container ID·시작 시각이 배포 전과 같아 기존 서비스를 재시작하지 않았음을 확인했다.
+- 이전 audio-analysis service는 없었으므로 rollback은 새 service 제거와 `current` symlink를 이전 `08f63cb` release로 복구하는 방식이다.
+
 ## 구현·미구현 경계
 
 - 이 단계의 신호 요약은 decode 계약 검증용이며 Essentia 최종 DSP feature가 아니다.
