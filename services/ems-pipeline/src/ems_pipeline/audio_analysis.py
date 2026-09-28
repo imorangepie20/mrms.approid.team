@@ -299,7 +299,12 @@ class AudioAnalysisClient:
         if response.status_code >= 500:
             raise AudioJobError("analysis_unavailable", retryable=True)
         if response.status_code >= 400:
-            raise AudioJobError("analysis_rejected", retryable=False)
+            try:
+                detail = response.json().get("detail")
+            except (ValueError, AttributeError):
+                detail = None
+            safe_detail = detail if isinstance(detail, str) and re.fullmatch(r"[a-z0-9_]+", detail) else "rejected"
+            raise AudioJobError(f"analysis_{safe_detail}", retryable=False)
         try:
             payload = response.json()
         except ValueError as error:

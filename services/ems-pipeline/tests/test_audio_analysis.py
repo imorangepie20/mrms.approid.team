@@ -117,6 +117,18 @@ def test_analysis_client_validates_hash_shape_and_l2_contract():
         validate_analysis(invalid, "a" * 64)
 
 
+def test_analysis_client_preserves_only_safe_service_error_codes():
+    preview = PreviewPayload(b"bytes", "audio/mp4", "a" * 64)
+    client = AudioAnalysisClient(
+        "http://audio-analysis:8000",
+        http_client=httpx.Client(transport=httpx.MockTransport(
+            lambda _request: httpx.Response(413, json={"detail": "preview_too_long"})
+        )),
+    )
+    with pytest.raises(AudioJobError, match="analysis_preview_too_long"):
+        client.analyze(preview)
+
+
 class FakeResult:
     def __init__(self, rows=None, rowcount=0):
         self.rows = rows or []

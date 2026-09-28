@@ -135,6 +135,7 @@ Headers:
 - request byte hard cap: 기본 4MiB, 환경 변수로 더 작게만 조정해 canary 가능
 - decode wall-clock timeout: 기본 20초
 - 최대 30초 sample만 분석
+- provider MP3의 codec padding은 최대 50ms까지만 허용해 정확히 30초로 trim하고, 그보다 긴 입력은 거절
 - service concurrency 기본 1
 - 단계 1 readiness는 FFmpeg decoder 사용 가능 시 200이다. 모델 연결 뒤에는 startup load 완료 조건을 추가한다.
 - access log에 body, URL, provider token을 남기지 않음

@@ -11,6 +11,7 @@ from .contracts import FeatureSummary, PreprocessFeatures, SegmentSummary, Signa
 SAMPLE_RATE = 16_000
 CHANNEL_COUNT = 1
 MAX_DURATION_SECONDS = 30.0
+CODEC_PADDING_TOLERANCE_SECONDS = 0.05
 SEGMENT_SECONDS = 10.0
 
 
@@ -55,7 +56,7 @@ class FfmpegDecoder:
             "-ar",
             str(SAMPLE_RATE),
             "-t",
-            "30.01",
+            str(MAX_DURATION_SECONDS + CODEC_PADDING_TOLERANCE_SECONDS + 0.01),
             "-f",
             "f32le",
             "pipe:1",
@@ -85,8 +86,13 @@ class FfmpegDecoder:
             samples.byteswap()
 
         max_samples = int(MAX_DURATION_SECONDS * SAMPLE_RATE)
-        if len(samples) > max_samples:
+        tolerance_samples = math.ceil(
+            (MAX_DURATION_SECONDS + CODEC_PADDING_TOLERANCE_SECONDS) * SAMPLE_RATE
+        )
+        if len(samples) > tolerance_samples:
             raise AudioPreprocessError("preview_too_long")
+        if len(samples) > max_samples:
+            del samples[max_samples:]
         if not samples:
             raise AudioPreprocessError("preview_decode_empty")
         if any(not math.isfinite(value) for value in samples):
