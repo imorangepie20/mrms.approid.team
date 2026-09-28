@@ -26,12 +26,16 @@
 - `apps/admin`: `npm run build` 성공, TypeScript와 Vite production bundle 생성
 - `apps/web`: `npm run build` 성공, `/admin/[[...slug]]`를 포함한 Next.js production build 생성
 - 저장소 루트: `git diff --check` 성공
+- 기능 커밋 `eee723f`를 `origin/codex/anonymous-playback-error`에 push하고 Zorin release `/home/approid/apps/music-pie/releases/eee723f`로 배포했다.
+- 운영 Web image `sha256:60ec9e3e5485...`를 빌드하고 Web 컨테이너만 재생성했다. 직전 image `sha256:794afa16307a...`는 `music-pie-web:pre-taste-analysis-eee723f`로 보존했다.
+- local/public `/`, `/ems`, `/gms`, `/search`, `/api/health/live`, `/api/health/ready`는 모두 HTTP 200이다.
+- 비로그인 local/public `/admin/taste-analysis`는 인증 경계에 따라 HTTP 307이고 새 관리자 asset은 HTTP 200이다. 배포 asset에서 `통합 취향 분석 설계` 문구를 확인했다.
+- Web은 healthy이고 최근 10분 오류 로그는 0건이다. PostgreSQL, embedding, EMS pipeline, EMS source routines, tunnel의 container ID와 시작 시각은 배포 전후 동일하다.
 
 ## 미구현·미검증 항목
 
 - 30초 프리뷰 수집, 오디오 디코딩, 특징·임베딩 계산, DB 저장과 결합 추천은 설계만 기록했으며 런타임에는 적용하지 않았다.
 - 실제 로그인 관리자 브라우저에서의 메뉴 이동과 desktop/mobile 시각 검증은 아직 하지 않았다.
-- 운영 배포는 이번 변경 범위에 포함하지 않았다.
 - 관리자 번들은 기존과 같이 단일 JavaScript chunk가 500kB를 넘는 Vite 경고가 남는다.
 
 ## 다음 작업
