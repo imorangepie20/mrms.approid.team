@@ -32,12 +32,22 @@
 - 관리자 bundle에서 `MAEST 30s`, `model-native`, 구현 계획 경로 확인
 - 저장소 `git diff --check` 성공
 
+## 배포 결과
+
+- 기능 기준 커밋 `08f63cb`를 `origin/codex/anonymous-playback-error`에 push하고 Zorin Web release `/home/approid/apps/music-pie/releases/08f63cb`로 배포했다.
+- Web image는 `sha256:dab7bb86eccdb6b17f18812e236aafaf46693ee20d2aad47d8593a8881539db4`이며, 교체 전 image `sha256:60ec9e3e5485889efd95d22c1cf32417cb68151daaeab4eaf7fa980b560353ac`를 `music-pie-web:pre-audio-preview-design-08f63cb`로 보존했다.
+- local/public의 `/`, `/ems`, `/gms`, `/search`, `/api/health/live`, `/api/health/ready`가 모두 HTTP 200을 반환했다.
+- local/public `/admin/taste-analysis`는 비로그인 상태에서 HTTP 307로 인증 경계를 유지했고, `/admin/assets/index-NGuzwsyC.js`는 HTTP 200을 반환했다.
+- 배포 bundle에서 `MAEST 30s`, `model-native`, `audio-preview-analysis-implementation.md`를 다시 확인했다.
+- Web은 healthy이고 배포 후 10분 로그의 `error|exception|fatal` 집계는 0건이다.
+- PostgreSQL, embedding, EMS pipeline과 tunnel의 container ID·시작 시각이 유지되어 Web 외 서비스가 재시작되지 않았음을 확인했다. PostgreSQL, embedding, EMS pipeline은 모두 healthy다.
+
 ## 구현·미구현 경계
 
 - 이번 변경은 설계 문서, 구현 계획과 관리자 읽기 화면을 갱신한다.
 - preview 다운로드, Essentia·MAEST·MusiCNN 설치, audio-analysis service, DB migration과 hybrid GMS scoring은 아직 구현하지 않았다.
 - 실제 모델 weight·revision·dimension은 모델 artifact를 고정하고 검증하는 구현 단계에서 확정한다.
-- 실제 로그인 관리자 화면의 desktop/mobile 시각 검증은 남아 있다.
+- 실제 로그인 관리자 화면의 desktop/mobile 시각 검증은 남아 있다. 이번 배포 검증은 인증 경계와 정적 bundle까지 수행했다.
 
 ## 다음 작업
 
