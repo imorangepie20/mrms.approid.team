@@ -23,6 +23,7 @@ import {
     Image,
     Database,
     Monitor,
+    BrainCircuit,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -60,6 +61,11 @@ const menuItems: MenuItem[] = [
             { title: '메인 화면', path: '/screens/home' },
             { title: 'EMS 화면', path: '/screens/ems' },
         ],
+    },
+    {
+      title: '추천·취향',
+      icon: <BrainCircuit size={20} />,
+      children: [{ title: '취향 분석 설계', path: '/taste-analysis' }],
     },
     { title: 'Analytics', icon: <BarChart3 size={20} />, path: '/analytics' },
     {

@@ -46,6 +46,7 @@ import SourceRoutines from "./pages/SourceRoutines";
 import EmsStatistics from "./pages/Statistics";
 import UrlImports from "./pages/UrlImports";
 import SpotifyCharts from "./pages/SpotifyCharts";
+import TasteAnalysis from "./pages/TasteAnalysis";
 
 function TemplateRoutes() {
   return (
@@ -96,6 +97,7 @@ function TemplateRoutes() {
         <Route path="ems/url-imports" element={<UrlImports />} />
         <Route path="ems/spotify" element={<SpotifyCharts />} />
         <Route path="ems/routines" element={<SourceRoutines />} />
+        <Route path="taste-analysis" element={<TasteAnalysis />} />
         <Route path="*" element={<Error404 />} />
       </Route>
       <Route path="login" element={<Navigate to="/" replace />} />
