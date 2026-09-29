@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `e92f7e5`
+최신 기능 기준 커밋: `63f25ee`
 
-최신 Zorin Web 배포 기준 커밋: `e92f7e5` (GMS 추천 이력 개별 트랙 삭제)
+최신 Zorin Web 배포 기준 커밋: `63f25ee` (메인 회원가입 링크 수정)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `63f25ee`에서 메인 익명 사용자용 `회원가입` 링크를 `/api/auth/login?screen_hint=signup`으로 직접 연결하고 Zorin Web에 배포했다. 기존 `/api/auth/signup`은 reverse proxy의 내부 origin을 사용해 `https://0.0.0.0:3000/...`으로 보내던 문제를 host 독립적인 상대 307 redirect로 복구했다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build를 통과했다. 공개 메인 href·legacy redirect·Auth0 `screen_hint`, Web 오류 0건과 다른 서비스 무중단을 확인했고, 운영 브라우저에서는 기존 Auth0 세션으로 `/tidal-connection`까지 정상 복귀했다. 상세는 `docs/changes/2026-09-29-home-signup-link-fix.md`에 기록한다.
 - 2026-09-29 `e92f7e5`에서 `/gms/history`의 개별 트랙 삭제를 구현하고 Zorin에 배포했다. 삭제는 사용자·batch 소유권을 확인한 tombstone으로 화면에서만 숨기며 원본 snapshot·영구 exposure·결정 기록은 보존해 다시 추천되지 않는다. DELETE API는 UUID·인증·소유권·멱등 경계를 적용하고 UI는 확인, 처리 중 중복 차단, 즉시 숨김, 실패 안내를 제공한다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build와 격리 PostgreSQL 030 apply/down/reapply를 통과했다. 운영 backup·030·Web만 배포하고 batch 2건·exposure 24건을 보존했으며 로그인 desktop·`390x844`에서 24개 삭제 버튼과 browser 오류 0건을 확인했다. 실제 사용자 데이터 삭제는 실행하지 않았다. 상세는 `docs/changes/2026-09-29-gms-recommendation-history-track-removal.md`에 기록한다.
 - 2026-09-29 `dbc4a39`에서 `/gms/history` 사용자 추천 트랙 이력 페이지를 구현하고 Zorin Web에 배포했다. current·replaced·exhausted batch 전체를 최신순 10개 단위로 조회하고 최신 트랙 결정을 결합해 표시하며, 각 batch를 별도 대기열로 재생할 수 있다. GMS 접이식 최근 이력은 독립 페이지 링크로 교체했다. Web 전체 142개 파일·539개 테스트 중 536개 통과·3개 skip, lint 오류 0, 51개 route build와 로컬 `390x844`를 통과했다. 운영 로그인 화면에서 총 2회·각 12곡, current/replaced 상태와 accept/reject/미결정 label을 확인했고 Web 외 컨테이너는 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-gms-recommendation-history-page.md`에 기록한다.
 - 2026-09-29 `d1f9954`에서 사용자별 GMS current batch와 영구 exposure를 구현하고 Zorin에 배포했다. 반복 page/GET은 같은 12곡을 유지하고 `다시 추천 받기`만 expected batch ID·사용자 row lock transaction으로 unseen batch를 생성한다. `(user_id, track_id)` unique로 무액션 트랙도 재추천하지 않으며 accept·reject는 current 대기 목록에서만 숨기고 제공 batch는 이력 snapshot으로 보존한다. 후보가 없으면 영구 `exhausted` 상태로 닫는다. Web 전체 137개 파일·528개 테스트, lint 오류 0, 50개 route build, 격리 PostgreSQL 029 apply/down/reapply와 unique·cascade 동작을 통과했다. 운영 reserve는 7개 bounded cohort·provider 요청 151회로 다음 후보 120/120 exact component coverage를 확보했고, migration 029와 Web만 배포했다. 로그인 GMS 새로고침 전후 동일 12곡, current batch 1·exposure 12·shadow 1, full coverage와 browser error 0건을 확인했다. 상세는 `docs/changes/2026-09-29-gms-permanent-recommendation-history.md`에 기록한다.
