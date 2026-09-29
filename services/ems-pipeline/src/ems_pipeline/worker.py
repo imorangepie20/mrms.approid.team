@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from .catalog_policy import apply_catalog_policy
 from .importer import TidalMatch, promote_match
 from .select import Candidate
 from .tidal import CatalogRequestPaused, ResolveResult, ResolveStatus
@@ -162,6 +163,7 @@ def run_worker(
                         (row["id"],),
                     )
                 raise
+            result = apply_catalog_policy(connection, candidate, result)
             counts[result.status.value] += 1
             if result.status == ResolveStatus.MATCHED and result.tidal_id:
                 promote_match(

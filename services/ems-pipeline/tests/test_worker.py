@@ -131,3 +131,53 @@ def test_run_worker_stops_on_rate_limit_and_releases_remaining_claims(monkeypatc
     assert counts["retryable"] == 1
     assert marked == ["candidate-a"]
     assert [row["id"] for row in released] == ["candidate-b"]
+
+
+def test_run_worker_marks_excluded_match_unavailable_without_promoting(monkeypatch) -> None:
+    rows = [{
+        "id": "candidate-a",
+        "candidate_key": "a",
+        "title": "Track",
+        "artist": "Artist",
+        "isrc": "TR0330603709",
+        "selection_bucket": "editorial",
+        "attempt_count": 1,
+        "previous_status": "pending",
+    }]
+    marked: list[ResolveResult] = []
+    promoted: list[str] = []
+    monkeypatch.setattr(worker_module, "claim_candidates", lambda *_args, **_kwargs: rows)
+    monkeypatch.setattr(
+        worker_module,
+        "mark_resolution",
+        lambda _connection, _candidate_id, result, **_kwargs: marked.append(result),
+    )
+    monkeypatch.setattr(
+        worker_module,
+        "promote_match",
+        lambda _connection, candidate_id, _match: promoted.append(candidate_id),
+    )
+
+    class MatchedCatalog:
+        def resolve(self, _candidate):
+            return ResolveResult(
+                ResolveStatus.MATCHED,
+                tidal_id="tidal-a",
+                title="Track",
+                artist="Artist",
+                album="Album",
+                duration_ms=180_000,
+            )
+
+    counts = worker_module.run_worker(
+        FakeConnection(),
+        "run-a",
+        MatchedCatalog(),
+        batch_size=1,
+        max_batches=1,
+    )
+
+    assert counts["matched"] == 0
+    assert counts["unavailable"] == 1
+    assert promoted == []
+    assert marked[0].error_code == "catalog_policy_excluded_tr_isrc"

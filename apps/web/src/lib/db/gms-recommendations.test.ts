@@ -85,7 +85,10 @@ function executorWithRows(rows = candidateRows) {
       ? [profileRow]
       : rows,
   }));
-  return { query: query as unknown as TransactionExecutor["query"] };
+  return {
+    query: query as unknown as TransactionExecutor["query"],
+    queryMock: query,
+  };
 }
 
 describe("GMS personalized recommendation repository", () => {
@@ -134,6 +137,10 @@ describe("GMS personalized recommendation repository", () => {
       similarity: expect.any(Number),
       diversity: 1,
     });
+    expect(executor.queryMock.mock.calls[1]?.[0]).toMatch(
+      /COALESCE\(e\.mb_first_release_date, e\.tidal_album_release_date, e\.release_date\)/i,
+    );
+    expect(executor.queryMock.mock.calls[1]?.[0]).not.toMatch(/now\(\) - e\.updated_at/i);
   });
 
   it("keeps the approved similarity contract and stable tie ordering", () => {

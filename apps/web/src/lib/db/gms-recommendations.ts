@@ -546,7 +546,16 @@ export async function preparePersonalizedEmsRecommendations(
          e.catalog_priority,
          (e.status = 'active') AS is_active,
          availability.playable AS is_playable,
-         GREATEST(0, 1 - EXTRACT(EPOCH FROM (now() - e.updated_at)) / (365 * 86400))::float8 AS freshness,
+         CASE
+           WHEN COALESCE(e.mb_first_release_date, e.tidal_album_release_date, e.release_date) IS NULL
+             THEN 0::float8
+           ELSE LEAST(1, GREATEST(
+             0,
+             1 - EXTRACT(EPOCH FROM (
+               now() - COALESCE(e.mb_first_release_date, e.tidal_album_release_date, e.release_date)::timestamptz
+             )) / (365 * 86400)
+           ))::float8
+         END AS freshness,
          cs.similarity_global,
          cs.similarity_cluster,
          CASE WHEN cs.similarity_cluster IS NULL
