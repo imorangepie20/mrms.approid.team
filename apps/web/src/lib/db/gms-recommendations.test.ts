@@ -268,7 +268,7 @@ describe("GMS personalized recommendation repository", () => {
     ]);
   });
 
-  it("serves hybrid only for an allowlisted subject meeting the explicit coverage gate", async () => {
+  it("serves hybrid only for an allowlisted subject with complete component coverage", async () => {
     const audioProfile = {
       ...profileRow,
       audio_model_revision: "2",
@@ -280,7 +280,14 @@ describe("GMS personalized recommendation repository", () => {
     const query = vi.fn(async (sql: string) => ({
       rows: sql.includes("/* recommendation_profiles */")
         ? [audioProfile]
-        : candidateRows,
+        : candidateRows.map((row) => ({
+            ...row,
+            audio_similarity_cluster: row.audio_similarity_cluster ?? 0.8,
+            audio_similarity_global: row.audio_similarity_global ?? 0.8,
+            candidate_bpm: row.candidate_bpm ?? 110,
+            candidate_predictions: row.candidate_predictions
+              ?? { happy: 0.7, non_happy: 0.3 },
+          })),
     }));
     const prepared = await preparePersonalizedEmsRecommendations(
       "auth0|listener",
@@ -310,7 +317,7 @@ describe("GMS personalized recommendation repository", () => {
       executorWithRows(),
     );
     expect(prepared.shadow).not.toBeNull();
-    const query = vi.fn(async (sql: string) => ({
+    const query = vi.fn(async (sql: string, _params?: unknown[]) => ({
       rows: sql.includes("INSERT INTO user_recommendation_shadow_runs")
         ? [{ id: "shadow-run-a" }]
         : [],
@@ -333,6 +340,8 @@ describe("GMS personalized recommendation repository", () => {
     expect(sql.at(-1)).toBe("COMMIT");
     expect(sql.filter((text) => text.includes("INSERT INTO user_recommendation_shadow_candidates")))
       .toHaveLength(candidateRows.length);
+    expect(sql.at(-2)).toMatch(/prune_recommendation_shadow_runs/i);
+    expect(query.mock.calls.at(-2)?.[1]).toEqual(["user-a", 30, 100]);
   });
 
   it("rolls back shadow recording without affecting the recommendation result", async () => {

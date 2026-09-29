@@ -52,6 +52,8 @@ describe("recommendation serving", () => {
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
       environment,
+      moodCoverageRatio: 0.8,
+      rhythmCoverageRatio: 0.8,
     })).toMatchObject({
       fallbackReason,
       servedRankingVersion: "baseline",
@@ -70,6 +72,8 @@ describe("recommendation serving", () => {
       audioProfileAvailable: false,
       auth0Subject: "auth0|listener",
       environment,
+      moodCoverageRatio: 0.8,
+      rhythmCoverageRatio: 0.8,
     })).toMatchObject({
       fallbackReason: "audio_profile_unavailable",
       servedRankingVersion: "baseline",
@@ -79,15 +83,19 @@ describe("recommendation serving", () => {
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
       environment,
+      moodCoverageRatio: 1,
+      rhythmCoverageRatio: 1,
     })).toMatchObject({
-      fallbackReason: "audio_coverage_below_threshold",
+      fallbackReason: "component_coverage_incomplete",
       servedRankingVersion: "baseline",
     });
     expect(decideRecommendationServing({
-      audioCoverageRatio: 0.6,
+      audioCoverageRatio: 1,
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
       environment,
+      moodCoverageRatio: 1,
+      rhythmCoverageRatio: 1,
     })).toEqual({
       fallbackReason: null,
       minimumAudioCoverage: 0.6,
@@ -95,4 +103,29 @@ describe("recommendation serving", () => {
       servedRankingVersion: "hybrid-v0",
     });
   });
+
+  it.each([
+    [0.99, 1, 1],
+    [1, 0.99, 1],
+    [1, 1, 0.99],
+  ])(
+    "fails closed unless audio, mood, and rhythm coverage are all complete (%s, %s, %s)",
+    (audioCoverageRatio, moodCoverageRatio, rhythmCoverageRatio) => {
+      expect(decideRecommendationServing({
+        audioCoverageRatio,
+        audioProfileAvailable: true,
+        auth0Subject: "auth0|listener",
+        environment: {
+          GMS_HYBRID_AUTH0_SUBJECTS: "auth0|listener",
+          GMS_HYBRID_MIN_AUDIO_COVERAGE: "0.5",
+          GMS_RANKING_VERSION: "hybrid-v0",
+        },
+        moodCoverageRatio,
+        rhythmCoverageRatio,
+      })).toMatchObject({
+        fallbackReason: "component_coverage_incomplete",
+        servedRankingVersion: "baseline",
+      });
+    },
+  );
 });

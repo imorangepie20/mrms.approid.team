@@ -60,6 +60,9 @@ const TERMINAL_AUDIO_CANDIDATE_ERROR_CODES = [
   "preview_unavailable",
 ] as const;
 
+const RECOMMENDATION_SHADOW_RETENTION_DAYS = 30;
+const RECOMMENDATION_SHADOW_MAX_RUNS_PER_USER = 100;
+
 export function isTerminalAudioCandidateFailure(
   status: string | null | undefined,
   errorCode: string | null | undefined,
@@ -688,6 +691,8 @@ export function selectPreparedPersonalizedRecommendations(
     audioProfileAvailable: Boolean(prepared.shadow?.audioProfileId),
     auth0Subject,
     environment,
+    moodCoverageRatio: prepared.shadow?.moodCoverageRatio ?? 0,
+    rhythmCoverageRatio: prepared.shadow?.rhythmCoverageRatio ?? 0,
   });
   return {
     recommendations: serving.servedRankingVersion === "hybrid-v0"
@@ -818,6 +823,14 @@ export async function recordRecommendationShadow(
         ],
       );
     }
+    await transaction.query(
+      `SELECT prune_recommendation_shadow_runs($1::uuid, $2, $3) AS deleted_runs`,
+      [
+        shadow.userId,
+        RECOMMENDATION_SHADOW_RETENTION_DAYS,
+        RECOMMENDATION_SHADOW_MAX_RUNS_PER_USER,
+      ],
+    );
     await transaction.query("COMMIT");
   } catch (error) {
     await transaction.query("ROLLBACK");

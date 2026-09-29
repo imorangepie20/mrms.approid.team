@@ -5,7 +5,8 @@ export type RecommendationServingFallbackReason =
   | "subject_not_allowlisted"
   | "coverage_threshold_unconfigured"
   | "audio_profile_unavailable"
-  | "audio_coverage_below_threshold";
+  | "audio_coverage_below_threshold"
+  | "component_coverage_incomplete";
 
 export type RecommendationServingConfig = {
   hybridAuth0Subjects: string[];
@@ -59,6 +60,8 @@ export function decideRecommendationServing(input: {
   audioProfileAvailable: boolean;
   auth0Subject: string;
   environment?: ServingEnvironment;
+  moodCoverageRatio: number;
+  rhythmCoverageRatio: number;
 }): RecommendationServingDecision {
   const config = parseRecommendationServingConfig(input.environment);
   const fallback = (
@@ -81,6 +84,13 @@ export function decideRecommendationServing(input: {
   }
   if (!input.audioProfileAvailable) {
     return fallback("audio_profile_unavailable");
+  }
+  if (
+    input.audioCoverageRatio !== 1
+    || input.moodCoverageRatio !== 1
+    || input.rhythmCoverageRatio !== 1
+  ) {
+    return fallback("component_coverage_incomplete");
   }
   if (input.audioCoverageRatio < config.minimumAudioCoverage) {
     return fallback("audio_coverage_below_threshold");
