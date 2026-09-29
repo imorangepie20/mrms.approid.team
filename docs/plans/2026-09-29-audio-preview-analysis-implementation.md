@@ -441,6 +441,23 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 실행 결과는 `docs/changes/2026-09-29-gms-candidate-audio-cohort-2.md`에 기록했다. baseline rank 13..24의 12곡은 provider 요청 25/25로 모두 분석됐고 전체 audio job은 completed 39건, 다른 상태 0건이다. 40% coverage shadow는 overlap@K 0.5, 평균 절대 rank displacement 3.3666666666666667, top K selector 변경 12건이며 두 번째 cohort 6곡이 top 12에 진입했다. 다만 분석된 24곡과 미분석 36곡의 hybrid score 구간이 계속 완전히 분리돼 있어 추가 분석 전에 missing-component 재정규화와 calibration을 검토한다. profile refresh와 hybrid 환경 변경은 하지 않았고 serving은 `ranking_disabled` baseline을 유지한다.
 
+### 2026-09-29 단계 6.4: 부분 coverage score calibration 검토
+
+- 구현은 문서대로 available component를 재정규화하지만 서로 다른 모델 공간의 raw similarity를 직접 합산한다. 운영 분석 24곡의 평균은 text 0.783469, audio 0.858244, mood 0.765526, rhythm 0.827843이다.
+- 동일 후보의 text-only counterfactual 대비 hybrid base score는 평균 0.019717 증가했고 23/24곡이 상승했다. baseline rank 13..24의 6곡은 counterfactual top 12에는 없지만 hybrid base와 Selector 결과 모두 top 12에 진입했다. Selector가 아니라 component 결합 점수가 교체 원인이다.
+- baseline 상위 순서로 분석 대상을 골랐다는 선택 편향이 있으므로 analyzed/unavailable 점수 구간 분리만으로 가중치를 바꾸지 않는다. 사용자 판단 label과 100% candidate coverage가 없는 상태에서 임의 z-score·percentile·새 weight를 추가하지 않는다.
+- partial coverage shadow는 관찰 전용이다. 활성화 전에는 audio·mood·rhythm coverage 1.0을 fail-closed serving 조건으로 고정해야 하며, 현재 1 미만 threshold를 허용하는 gate는 pre-activation blocker로 남긴다.
+- 상세 결정은 `docs/decisions/2026-09-29-hybrid-partial-coverage-calibration.md`에 기록한다. 이번 검토는 code·DB·profile·환경 변수를 변경하지 않고 관련 Vitest 3개 파일·11개 테스트만 통과했다.
+
+### 2026-09-29 단계 6.5: GMS baseline rank 25..36 candidate audio cohort
+
+- 대상은 최신 40% coverage 자연 shadow의 baseline rank 25..36인 정확한 12곡이다. 모두 active·numeric TIDAL ID이고 기존 audio job이 없다. ranks 37..60은 건드리지 않는다.
+- 정확한 12개 UUID를 반복 `--track-id`로 지정하고 `--stage-limit 12 --batch-size 1 --max-batches 12 --request-budget 25`로 실행한다. concurrency는 1이며 token 1회와 곡별 playback info·preview 다운로드 각 1회만 허용한다.
+- 실행 전 새 custom-format DB backup·checksum·`pg_restore --list`, container health, disk와 available memory를 확인한다. 첫 429, request budget 소진, audio-analysis 오류, host 자원 이상 또는 stop-run에서 중단하고 확대하지 않는다.
+- 완료 조건은 exact 12곡 모두 completed, 30초·16 kHz mono·coverage 1.0, exact feature·MAEST 2,304차원 L2 embedding·MusicNN 18개 label이며 전체 job의 다른 상태가 0이어야 한다.
+- 완료 뒤 profile refresh 없이 인증된 GMS 자연 방문 1회로 60% shadow를 만든다. 0%·20%·40%·60% run 지표와 함께 text-only counterfactual 대비 score delta, 상승·하락 수, baseline rank 25..36의 hybrid base·selected top K 진입 수를 비교한다.
+- hybrid 환경 변수는 미설정으로 유지한다. 이 단계에서도 부분 coverage serving, calibration 변경, activation threshold 확정 또는 ranks 37..60 자동 확대를 하지 않는다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
