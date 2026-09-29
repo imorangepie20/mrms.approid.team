@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `3f4fba3`
+최신 기능 기준 커밋: `41c4c2c`
 
-최신 Zorin Web 배포 기준 커밋: `3f4fba3` (사용자 오디오 취향 프로필 shadow 기반)
+최신 Zorin Web 배포 기준 커밋: `41c4c2c` (하이브리드 추천 shadow ranking)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `41c4c2c`에서 기존 GMS 응답과 순서를 바꾸지 않는 `hybrid-v0` shadow ranking을 구현하고 Zorin에 배포했다. 같은 최대 `limit × 5` 후보에 text·exact-version audio·mood·rhythm similarity와 catalog·freshness를 계산하고, 0.075 같은 artist 감점 Selector를 별도로 실행한다. 사용자·text/audio profile·model provenance, 후보 component와 overlap@K·rank displacement·coverage·fallback을 새 025 테이블에 저장하되 vector·원본 DSP·preview URL·token은 저장하지 않는다. Next.js `after()`의 transaction 실패는 baseline 응답에 영향을 주지 않는다. 전체 Web 128개 파일·488개 테스트, PostgreSQL 25개 migration·통합·025 rollback/재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 025와 Web만 배포했으며 local/public smoke, 비인증 401, 최근 오류 0건과 비-Web container 무중단을 확인했다. 운영 audio profile과 shadow 행은 아직 0이며 `GMS_RANKING_VERSION`·활성화 threshold·보관/정리 정책은 추가하지 않았다. 상세는 `docs/changes/2026-09-29-hybrid-recommendation-shadow-ranking.md`에 기록한다.
 - 2026-09-29 `3f4fba3`에서 text 768차원 프로필과 분리된 사용자 오디오 취향 프로필 schema·계산·repository를 구현하고 Zorin에 배포했다. 입력은 사용자별 선택 playlist·TIDAL track 좋아요·GMS accept 중 active EMS에 연결되고 reject되지 않은 곡이며, exact `essentia-dsp-v1`·MAEST 2,304차원 L2·MusicNN 18개 high-level label만 analyzed로 사용한다. 가중치·군집 기준은 text 프로필과 공유하고, DSP·prediction 요약·coverage·SHA-256 fingerprint와 독립 UUID version을 transaction으로 저장한다. GMS·사용자 요청·scheduler에는 연결하지 않았다. Web 전체 123개 파일·474개 테스트, PostgreSQL 통합, 24개 migration과 024 rollback·재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 024와 Web만 배포했으며 읽기 전용 교집합은 eligible 6·analyzed 0이라 profile을 생성하지 않았다. public smoke와 인증 경계, 오류 로그 0건을 확인했고 Web 외 container는 유지했다. 상세는 `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`에 기록한다.
 - 2026-09-29 `db8c230`에서 8곡 bounded audio sample cohort를 실행하고 긴 TIDAL preview 처리 오류를 수정했다. 첫 실행은 provider 요청 17/17에서 7곡 completed, 1곡 `analysis_preview_too_long`이었으며 실패 입력은 저장 없이 메모리 pipe로 측정한 결과 약 60.005초의 정상 `PREVIEW`였다. audio-analysis는 4MiB request cap과 20초 timeout을 유지한 채 FFmpeg에서 앞 30초만 decode·분석하도록 변경했다. 수정 뒤 실패곡을 요청 3회로 재처리해 최종 sample 8/8, 전체 job 9/9 completed를 확인했다. 모든 결과는 30초·16kHz mono·segment 3·coverage 1.0·2,304차원 L2 embedding·prediction 28개이며 오류·대기 job은 0이다. audio-analysis만 교체했고 Web·PostgreSQL·embedding·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-sample-cohort.md`에 기록한다.
 - 2026-09-29 `e1bbe73`에서 `/admin/audio-analysis`와 관리자 API를 추가하고 Zorin Web release로 배포했다. 활성 EMS 39,102곡의 분석 coverage와 상태·feature/model version·오류·7일 처리량을 집계하며, 트랙 상세는 preview hash·DSP·prediction과 embedding metadata만 제공하고 URL·token·embedding vector는 노출하지 않는다. 재처리는 활성 numeric-TIDAL 트랙 한 건과 정확한 `essentia-dsp-v1` version으로 제한하고 `running` job은 거부하며 기존 결과는 보존한다. Web 전체 120개 파일·463개 테스트와 PostgreSQL 통합 1개, Admin 12개 테스트, lint 오류 0, 두 production build를 통과했다. 운영 Web만 교체했고 local/public health 200, 비인증 관리자 화면 307·API 401, 최근 Web 오류 0건과 desktop·`390x844`·키보드 탐색을 확인했다. PostgreSQL·embedding·audio-analysis·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-admin-observability.md`에 기록한다.

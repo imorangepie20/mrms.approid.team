@@ -373,6 +373,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 4. recommendation route test에서 `after()` scheduling, 응답 불변과 side-effect 실패 격리를 검증한다.
 5. 격리 PostgreSQL migration 25개·integration·down restore, 전체 Web Vitest·type·lint·build를 통과한 뒤 additive migration과 Web-only release를 배포한다.
 
+실행 결과는 `41c4c2c`과 `docs/changes/2026-09-29-hybrid-recommendation-shadow-ranking.md`에 기록했다. 전체 Web 128개 파일·488개 테스트, 타입·lint·build와 두 차례의 격리 PostgreSQL 25 migration·integration을 통과했고 025 down이 기존 profile 테이블을 보존하는지 확인했다. 운영 backup 뒤 025와 Web release만 배포했으며 baseline 응답은 그대로다. 운영 audio profile과 인증된 자연 요청이 없어 shadow run·candidate 행은 0이다. 실제 cohort 없이 activation threshold를 만들지 않았고 보관 기간·자동 정리 정책도 단계 6 결정으로 남겼다.
+
 ## 10. 단계 6: 제한된 serving과 활성화
 
 - `GMS_RANKING_VERSION=baseline|hybrid-v0` server setting으로 전환한다.
