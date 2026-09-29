@@ -476,6 +476,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - EMS 원본, `STREAM` availability, 사용자 profile 입력과 `reject` 영구 제외 규칙은 변경하지 않는다.
 - 새 정책의 운영 배포와 자연 shadow provenance 확인 전에는 ranks 37..60 provider 분석과 hybrid activation을 진행하지 않는다.
 
+구현과 운영 배포는 `f2aeac4`에서 완료했다. `027` migration, Web·EMS 교체와 health·HTTP·인증 경계·환경 변수 미설정을 확인했다. 기존 `preview_info_rejected` 실패 행은 호환 terminal 집합에 포함되며 실제 로그인 자연 shadow의 제외·backfill provenance 확인은 다음 단계로 남긴다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health

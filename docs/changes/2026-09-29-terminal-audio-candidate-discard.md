@@ -21,9 +21,20 @@
 - 변경 Web 파일 ESLint 오류·경고 0, 전체 ESLint 오류 0·기존 경고 5개다. Next.js production build와 TypeScript, 49개 route 생성을 통과했다.
 - `git diff --check` whitespace 오류가 없다.
 
+## 운영 배포
+
+- 기능 커밋 `f2aeac4`를 local `main`에 fast-forward하고 `origin/main`만 push했다. 원격 `codex/anonymous-playback-error`는 `e1bbe73` 그대로 유지했다.
+- release archive SHA-256은 `8721be59c93f8efe6ee6213740785edb0a2d2f19df7f03cf6fc1bb733b5df7aa`, Zorin release는 `/home/approid/apps/music-pie/releases/f2aeac4`다.
+- migration 전 custom-format backup `/home/approid/apps/music-pie/backups/pre-027-terminal-audio-20260929-143907.dump`를 만들고 `pg_restore --list`로 판독했다. 크기는 187,775,595바이트, SHA-256은 `82bda4a65f5db389c5c62eaf53637015a16201c7e393ab3a48e71aed3772bef2`다.
+- 운영 migration은 27개로 증가했고 최신 ID는 `027_terminal_audio_candidate_provenance.sql`이다. 새 provenance 열 4개를 확인했다.
+- 새 Web image는 `sha256:94f08273292b63ed16418674ce55fb8828554bbe81c4dda8e4a7982f484072d8`, container는 `58b7899f440d`다. 새 EMS image는 `sha256:801b7b4cf308ec437838a3f0828a8b2fd16c488e482b0818d5935e399aaea6d6`, container는 `70208048b7c2`다. rollback image는 각각 `music-pie-web:pre-f2aeac4`, `music-pie-ems-pipeline:pre-f2aeac4`로 보존했다.
+- PostgreSQL `9cc7a8abe9d6`, embedding `ec92b779e416`, audio-analysis `55e9d9e9dc3f`, source-routines `d5e6f27110e6`, tunnel `7d7bf370d6b7`는 재생성하지 않았다.
+- Web·EMS는 healthy다. local live·ready·Home·EMS·GMS·Search와 public ready·Home·EMS·GMS·Search는 HTTP 200, 비인증 recommendation API는 HTTP 401이다. 최근 5분 Web·EMS 오류 로그는 0건이다.
+- 세 hybrid 환경 변수는 모두 미설정이다. 기존 실패 행은 `failed|preview_info_rejected`를 유지하며 새 호환 terminal 집합에서 제외 대상으로 판정되는 것을 읽기 전용으로 확인했다.
+
 ## 미검증·다음 작업
 
-- 운영 migration·Web·EMS 배포와 기존 `preview_info_rejected` 행을 통한 자연 shadow 생성은 아직 수행하지 않았다.
+- 로그인된 자연 GMS 요청으로 기존 `preview_info_rejected` 행의 제외·backfill provenance가 새 shadow에 저장되는 과정은 아직 확인하지 않았다.
 - 이 정책은 후보 집합을 정규화할 뿐 partial coverage activation을 허용하지 않는다. hybrid 환경 변수는 계속 미설정으로 두고 full eligible coverage gate와 실제 순위 지표를 별도로 확인한다.
 - 다음 provider cohort는 새 정책 배포 후 exact eligible 후보와 backfill provenance를 읽기 전용으로 확인한 뒤 별도 bounded 요청 예산으로 진행한다.
 
