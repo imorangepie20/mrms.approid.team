@@ -415,6 +415,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 6곡 검증 뒤 해당 인증 세션에서 profile refresh를 1회 실행하고 eligible/analyzed count, coverage, completed 상태, centroid dimension만 확인한다. token·cookie·원본 vector·Auth0 subject는 출력하거나 문서화하지 않는다.
 - `GMS_RANKING_VERSION`, `GMS_HYBRID_AUTH0_SUBJECTS`, `GMS_HYBRID_MIN_AUDIO_COVERAGE`는 계속 미설정으로 둔다. profile 생성은 baseline serving을 바꾸지 않으며 자연 GMS 요청에서 shadow cohort가 생긴 뒤에만 activation threshold를 별도로 결정한다.
 
+실행 결과는 `b4f48dd`, `5d72f07`과 `docs/changes/2026-09-29-user-audio-profile-cohort.md`에 기록했다. 대상 6곡은 provider 요청 13/13으로 모두 exact-version 분석을 완료했고 실패·재시도·release는 없었다. 인증된 GMS에서 completed 6/6 audio profile과 2,304차원 global centroid를 만들었다. 새 profile을 참조한 자연 shadow는 생성됐지만 추천 후보 audio coverage가 0이므로 serving은 `ranking_disabled` baseline을 유지한다. 후보 카탈로그 확대와 activation threshold는 별도 단계로 남긴다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
