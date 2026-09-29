@@ -417,6 +417,16 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 실행 결과는 `b4f48dd`, `5d72f07`과 `docs/changes/2026-09-29-user-audio-profile-cohort.md`에 기록했다. 대상 6곡은 provider 요청 13/13으로 모두 exact-version 분석을 완료했고 실패·재시도·release는 없었다. 인증된 GMS에서 completed 6/6 audio profile과 2,304차원 global centroid를 만들었다. 새 profile을 참조한 자연 shadow는 생성됐지만 추천 후보 audio coverage가 0이므로 serving은 `ranking_disabled` baseline을 유지한다. 후보 카탈로그 확대와 activation threshold는 별도 단계로 남긴다.
 
+### 2026-09-29 단계 6.2: GMS 상위 12곡 candidate audio shadow cohort
+
+- 대상은 completed audio profile을 참조한 최신 자연 shadow run의 baseline rank 1..12다. 이는 현재 GMS 응답 한도와 동일한 실제 노출 후보이며 임의 activation threshold가 아니다.
+- 실행 전 조회에서 shadow 후보는 총 60곡이고 exact-version audio 완료는 0곡이다. 상위 12곡은 모두 active·numeric TIDAL ID이고 기존 audio job이 없다.
+- 정확한 12개 UUID를 반복 `--track-id`로 지정하고 `--stage-limit 12 --batch-size 1 --max-batches 12 --request-budget 25`로 실행한다. 요청 상한은 token 1회와 곡별 playback info·preview 다운로드 각 1회이며 concurrency는 1이다.
+- 실행 전 새 custom-format DB backup·checksum·`pg_restore --list`, container health, disk와 메모리를 확인한다. 429, 예산 소진, 분석 service 오류, host 자원 이상 또는 stop-run에서 남은 claim을 반환하고 확대하지 않는다.
+- 완료 조건은 정확한 12개 job 모두 completed, 30초·16 kHz mono·coverage 1.0, exact feature·MAEST embedding·MusicNN 18개 label이다. 실패나 버전 불일치가 있으면 자연 shadow 요청과 후속 확대를 진행하지 않는다.
+- 후보 분석은 사용자의 profile 입력을 바꾸지 않으므로 profile refresh를 하지 않는다. 완료 뒤 인증된 GMS를 한 번 새로고침해 새 shadow를 만들고, candidate 60곡 중 audio·mood·rhythm coverage, overlap@K, 평균 rank displacement, selector 변경 수와 fallback을 이전 0-coverage run과 비교한다.
+- `GMS_RANKING_VERSION`, `GMS_HYBRID_AUTH0_SUBJECTS`, `GMS_HYBRID_MIN_AUDIO_COVERAGE`는 계속 미설정이다. 이 1회 bounded cohort만으로 activation threshold를 확정하거나 hybrid를 serving하지 않는다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
