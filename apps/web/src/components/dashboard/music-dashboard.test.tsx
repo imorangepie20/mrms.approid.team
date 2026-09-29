@@ -151,6 +151,34 @@ it("keeps GMS recommendation decisions separate from persistent hearts", async (
   expect(session.playTrack).not.toHaveBeenCalled();
 });
 
+it("refreshes the authenticated user's audio profile from GMS", async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({
+    analyzedTrackCount: 6,
+    coverageRatio: 1,
+    created: true,
+    eligibleTrackCount: 6,
+  }));
+  vi.stubGlobal("fetch", fetcher);
+  const user = userEvent.setup();
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "오디오 취향 반영" }));
+
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/recommendations/audio-profile",
+    { method: "POST" },
+  );
+  expect(await screen.findByText("6/6곡 반영 완료")).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});
+
 it("does not fall back to fixture tracks when personalized recommendations are unavailable", () => {
   renderDashboard(
     <MusicDashboard

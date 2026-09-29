@@ -66,7 +66,48 @@ export function MusicDashboard({ access, importedPlaylists = [], mmsPlaylists = 
     setQueue(tracks, source);
     void playTrack(track, source);
   };
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <p className="notice"><span aria-hidden="true" className="notice-mark" />싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><AudioProfileRefreshControl /></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+}
+
+type AudioProfileRefreshResponse = {
+  analyzedTrackCount: number;
+  coverageRatio: number;
+  created: boolean;
+  eligibleTrackCount: number;
+};
+
+function AudioProfileRefreshControl() {
+  const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [summary, setSummary] = useState("");
+
+  const refresh = async () => {
+    setState("loading");
+    setSummary("");
+    try {
+      const response = await fetch("/api/recommendations/audio-profile", { method: "POST" });
+      if (!response.ok) throw new Error("audio_profile_refresh_failed");
+      const result = await response.json() as AudioProfileRefreshResponse;
+      setSummary(result.created
+        ? `${result.analyzedTrackCount}/${result.eligibleTrackCount}곡 반영 완료`
+        : "분석이 완료된 곡을 기다리고 있어요");
+      setState("success");
+    } catch {
+      setSummary("오디오 취향을 반영하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      setState("error");
+    }
+  };
+
+  return (
+    <div className="gms-audio-profile-control">
+      <div>
+        <b>오디오 취향 프로필</b>
+        <span aria-live="polite">{summary || "분석된 곡의 사운드를 추천에 반영합니다."}</span>
+      </div>
+      <button disabled={state === "loading"} type="button" onClick={refresh}>
+        {state === "loading" ? "반영 중…" : "오디오 취향 반영"}
+      </button>
+    </div>
+  );
 }
 
 function PersonalizationGate({ access, returnTo }: { access: PersonalizationAccess; returnTo: string }) {

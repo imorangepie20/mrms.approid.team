@@ -411,7 +411,7 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 실행은 대상 UUID 6개, `--stage-limit 6 --batch-size 1 --max-batches 6 --request-budget 13`으로 제한한다. 요청 상한은 token 1회와 곡별 playback info·preview 다운로드 각 1회를 합친 값이며 concurrency는 1이다.
 - 실행 전 custom-format DB backup·checksum·`pg_restore --list`, container health, disk와 메모리를 확인한다. 429, 예산 소진, 분석 service 오류, host 자원 이상 또는 stop-run에서 남은 claim을 반환하고 확대하지 않는다.
 - 결과는 정확한 6개 job의 completed 상태, preview hash, 30초·16kHz mono, segment·coverage, `essentia-dsp-v1`, MAEST 2,304차원 L2, MusicNN revision 1·vocabulary 2의 18개 label을 확인한다. 실패나 버전 불일치가 있으면 profile을 만들지 않는다.
-- Web에는 인증된 사용자 본인의 `refreshAudioTasteProfile`만 호출하는 `POST /api/recommendations/audio-profile`을 추가한다. 다른 subject나 임의 user ID를 입력받지 않으며, 분석 0건은 write 없이 coverage 0으로 반환하고 내부 실패는 안전한 오류 코드로만 반환한다.
+- Web에는 인증된 사용자 본인의 `refreshAudioTasteProfile`만 호출하는 `POST /api/recommendations/audio-profile`과 GMS의 명시적 갱신 버튼을 추가한다. 다른 subject나 임의 user ID를 입력받지 않으며, 분석 0건은 write 없이 coverage 0으로 반환하고 내부 실패는 안전한 오류 코드로만 반환한다.
 - 6곡 검증 뒤 해당 인증 세션에서 profile refresh를 1회 실행하고 eligible/analyzed count, coverage, completed 상태, centroid dimension만 확인한다. token·cookie·원본 vector·Auth0 subject는 출력하거나 문서화하지 않는다.
 - `GMS_RANKING_VERSION`, `GMS_HYBRID_AUTH0_SUBJECTS`, `GMS_HYBRID_MIN_AUDIO_COVERAGE`는 계속 미설정으로 둔다. profile 생성은 baseline serving을 바꾸지 않으며 자연 GMS 요청에서 shadow cohort가 생긴 뒤에만 activation threshold를 별도로 결정한다.
 

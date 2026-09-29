@@ -10,12 +10,13 @@
 - 명시된 UUID allowlist를 job staging과 claim 양쪽에 적용했다. 옵션을 생략하면 기존 bounded 동작을 유지한다.
 - 중복 UUID는 제거하고, 잘못된 UUID는 DB 접근 전에 CLI에서 거절한다.
 - 인증된 사용자 본인의 `refreshAudioTasteProfile`만 실행하는 `POST /api/recommendations/audio-profile`을 추가했다. 임의 사용자 식별자는 입력받지 않고 내부 오류 세부 정보는 응답하지 않는다.
+- GMS에 키보드와 모바일 폭에서 사용할 수 있는 명시적 `오디오 취향 반영` 버튼과 진행·성공·실패 상태를 추가했다.
 - 단계 6.1 실행 경계와 main-only push 정책을 구현 계획에 기록했다.
 
 ## 검증
 
 - `services/ems-pipeline`: `python -m pytest -q` — 78 passed
-- `apps/web`: `npm test` — 132 files passed, 3 skipped; 504 tests passed, 3 skipped
+- `apps/web`: `npm test` — 132 files passed, 3 skipped; 505 tests passed, 3 skipped
 - `apps/web`: `npx tsc --noEmit` — 성공
 - `apps/web`: `npm run lint` — 오류 0, 기존 경고 5
 - `apps/web`: `npm run build` — 성공, 49 routes

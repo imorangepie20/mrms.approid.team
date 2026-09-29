@@ -340,6 +340,56 @@
   content: "";
 }
 
+.gms-audio-profile-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.gms-audio-profile-control div {
+  display: grid;
+  gap: 3px;
+}
+
+.gms-audio-profile-control b {
+  color: var(--foreground);
+  font-size: 14px;
+}
+
+.gms-audio-profile-control span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.gms-audio-profile-control button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(155, 92, 255, 0.45);
+  border-radius: 9px;
+  background: rgba(124, 58, 237, 0.22);
+  color: var(--brand-soft);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gms-audio-profile-control button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .gms-audio-profile-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .empty-state {
   margin-top: 24px;
   padding: 24px;
