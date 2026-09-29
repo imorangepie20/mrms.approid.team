@@ -8,7 +8,10 @@ describe("AuthControls", () => {
     render(<AuthControls user={null} />);
 
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/api/auth/login");
-    expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute("href", "/api/auth/signup");
+    expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute(
+      "href",
+      "/api/auth/login?screen_hint=signup",
+    );
   });
 
   it("shows account and logout actions for an authenticated user", () => {

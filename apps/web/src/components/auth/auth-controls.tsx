@@ -24,7 +24,7 @@ export function AuthControls({ user, isAdmin = false }: AuthControlsProps) {
   return (
     <div className="auth-controls">
       <a href="/api/auth/login">로그인</a>
-      <a href="/api/auth/signup">회원가입</a>
+      <a href="/api/auth/login?screen_hint=signup">회원가입</a>
     </div>
   );
 }
