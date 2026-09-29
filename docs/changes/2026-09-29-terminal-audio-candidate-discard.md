@@ -31,10 +31,13 @@
 - PostgreSQL `9cc7a8abe9d6`, embedding `ec92b779e416`, audio-analysis `55e9d9e9dc3f`, source-routines `d5e6f27110e6`, tunnel `7d7bf370d6b7`는 재생성하지 않았다.
 - Web·EMS는 healthy다. local live·ready·Home·EMS·GMS·Search와 public ready·Home·EMS·GMS·Search는 HTTP 200, 비인증 recommendation API는 HTTP 401이다. 최근 5분 Web·EMS 오류 로그는 0건이다.
 - 세 hybrid 환경 변수는 모두 미설정이다. 기존 실패 행은 `failed|preview_info_rejected`를 유지하며 새 호환 terminal 집합에서 제외 대상으로 판정되는 것을 읽기 전용으로 확인했다.
+- 로그인된 Chrome에서 `/gms`를 새 탭으로 열어 추천 12곡 렌더링을 확인했다. 재생·추천 결정·오디오 profile 갱신 버튼은 누르지 않았다.
+- 자연 shadow `58c1ebf6-33e2-4c4d-9a78-be5515752225`는 candidate 60곡, 실제 baseline·비교 baseline·hybrid top K가 각각 12곡이고 terminal 제외 1곡·backfill 1곡을 기록했다.
+- 제외 트랙은 `28dc235d-d739-4d97-a252-405f3fbf3c63|preview_info_rejected`, backfill은 `d0ad1a2d-f6b9-4de2-a8ab-c94e90a6fbad|More Hearts Than Mine|Ingrid Andress`다. 제외 트랙의 shadow candidate 행은 0건이고 backfill은 audio unavailable fallback 후보로 저장됐다.
+- audio·mood·rhythm coverage는 모두 `35/60 = 0.5833333333333334`, fallback 후보는 25곡이다. 실제 제공 baseline 12곡은 직전 40% shadow의 baseline 12곡과 정확히 같았다. requested/served는 모두 `baseline`, fallback은 `ranking_disabled`다.
 
 ## 미검증·다음 작업
 
-- 로그인된 자연 GMS 요청으로 기존 `preview_info_rejected` 행의 제외·backfill provenance가 새 shadow에 저장되는 과정은 아직 확인하지 않았다.
 - 이 정책은 후보 집합을 정규화할 뿐 partial coverage activation을 허용하지 않는다. hybrid 환경 변수는 계속 미설정으로 두고 full eligible coverage gate와 실제 순위 지표를 별도로 확인한다.
-- 다음 provider cohort는 새 정책 배포 후 exact eligible 후보와 backfill provenance를 읽기 전용으로 확인한 뒤 별도 bounded 요청 예산으로 진행한다.
+- 다음 provider cohort는 새 shadow의 eligible text baseline 순서를 기준으로 exact UUID를 다시 산출하고 별도 bounded 요청 예산으로 진행한다.
 

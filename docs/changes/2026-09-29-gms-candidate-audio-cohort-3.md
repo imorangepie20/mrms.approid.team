@@ -28,4 +28,4 @@
 ## 미검증 항목과 다음 작업
 
 - partial coverage shadow는 activation 근거로 사용하지 않는다.
-- provider가 영구 거절하는 후보가 있어 raw candidate 60곡의 100% audio coverage는 현재 정의로 달성할 수 없다. terminal-unavailable 후보를 분모·candidate set·설명 코드에서 어떻게 처리할지 정하기 전 ranks 37..60을 분석하거나 새 shadow를 만들지 않는다.
+- 후속 `f2aeac4`에서 provider terminal 후보를 EMS 원본·실제 baseline에는 유지하고 audio/hybrid 후보에서 제외한 뒤 다음 정상 후보를 backfill하는 정책을 배포했다. 새 자연 shadow는 실패곡 제외 1·backfill 1·coverage 35/60을 기록했다. 상세는 `docs/changes/2026-09-29-terminal-audio-candidate-discard.md`에 있다.
