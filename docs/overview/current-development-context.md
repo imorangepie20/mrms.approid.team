@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `d5d6314`
+최신 기능 기준 커밋: `1291bf9`
 
-최신 Zorin Web 배포 기준 커밋: `d5d6314` (회원가입 뒤 플레이리스트 온보딩 복귀 수정)
+최신 Zorin Web 배포 기준 커밋: `1291bf9` (온보딩 취향 분석 진행률 표시)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `1291bf9`에서 회원가입·TIDAL 연결 뒤 플레이리스트 저장은 무한 진행, MusicBrainz는 실제 처리·남은 수, 취향 벡터는 성공·남음·실패 수 기반 진행률을 표시하도록 온보딩을 보완했다. `profileReady`일 때만 100% 완료하며 실패·재시도에도 마지막 진행 상태를 유지한다. 추천 자동 생성·자동 이동, DB/API 계약과 새로고침 복구는 변경하지 않았다. Web 전체 144개 파일·555개 테스트 중 552개 통과·3개 skip, lint 오류 0, 52개 route build와 코드 검토를 통과했다. 운영 Web만 교체했고 local/public readiness 200, Web 오류 0건과 비-Web container 무중단을 확인했다. 로그인 온보딩과 플레이리스트 목록은 읽기 전용으로 확인했으며 실제 import는 실행하지 않았다. 상세는 `docs/changes/2026-09-29-onboarding-taste-analysis-progress.md`에 기록한다.
 - 2026-09-29 `d5d6314`에서 회원가입 진입점과 legacy signup redirect에 `returnTo=/onboarding?tidal=connected`를 추가해 Auth0 가입과 TIDAL Device 승인 뒤 플레이리스트 선택 화면으로 복귀하도록 수정했다. 이미 연결된 사용자의 `플레이리스트 가져오기`도 같은 목적지로 통일했다. 일반 로그인·관리자 callback·same-origin 검증은 유지했다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build와 코드·보안 검토를 통과했다. 운영 Web만 교체했고 local/public readiness 200, Auth0 가입 파라미터·state 보존, Web 오류 0건과 비-Web container 무중단을 확인했다. 기존 로그인 세션에서는 실제 플레이리스트 선택 화면과 TIDAL 목록 로드까지 확인했으며 신규 계정 생성은 수행하지 않았다. 상세는 `docs/changes/2026-09-29-signup-onboarding-return.md`에 기록한다.
 - 2026-09-29 `63f25ee`에서 메인 익명 사용자용 `회원가입` 링크를 `/api/auth/login?screen_hint=signup`으로 직접 연결하고 Zorin Web에 배포했다. 기존 `/api/auth/signup`은 reverse proxy의 내부 origin을 사용해 `https://0.0.0.0:3000/...`으로 보내던 문제를 host 독립적인 상대 307 redirect로 복구했다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build를 통과했다. 공개 메인 href·legacy redirect·Auth0 `screen_hint`, Web 오류 0건과 다른 서비스 무중단을 확인했고, 운영 브라우저에서는 기존 Auth0 세션으로 `/tidal-connection`까지 정상 복귀했다. 상세는 `docs/changes/2026-09-29-home-signup-link-fix.md`에 기록한다.
 - 2026-09-29 `e92f7e5`에서 `/gms/history`의 개별 트랙 삭제를 구현하고 Zorin에 배포했다. 삭제는 사용자·batch 소유권을 확인한 tombstone으로 화면에서만 숨기며 원본 snapshot·영구 exposure·결정 기록은 보존해 다시 추천되지 않는다. DELETE API는 UUID·인증·소유권·멱등 경계를 적용하고 UI는 확인, 처리 중 중복 차단, 즉시 숨김, 실패 안내를 제공한다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build와 격리 PostgreSQL 030 apply/down/reapply를 통과했다. 운영 backup·030·Web만 배포하고 batch 2건·exposure 24건을 보존했으며 로그인 desktop·`390x844`에서 24개 삭제 버튼과 browser 오류 0건을 확인했다. 실제 사용자 데이터 삭제는 실행하지 않았다. 상세는 `docs/changes/2026-09-29-gms-recommendation-history-track-removal.md`에 기록한다.
