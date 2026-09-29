@@ -158,6 +158,8 @@ class TidalPreviewClient:
             raise AudioJobError("preview_info_upstream_5xx", retryable=True)
         if response.status_code in {404, 410}:
             raise AudioJobError("preview_unavailable", retryable=False)
+        if response.status_code == 403:
+            raise AudioJobError("preview_forbidden", retryable=False)
         if response.status_code >= 400:
             raise AudioJobError("preview_info_rejected", retryable=False)
         try:

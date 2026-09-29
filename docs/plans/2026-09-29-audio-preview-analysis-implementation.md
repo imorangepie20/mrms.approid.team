@@ -468,6 +468,14 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 다음 구현 전에 403·404·410 등 terminal preview 상태의 오류 taxonomy, shadow candidate provenance, denominator, source backfill 여부와 사용자 설명 코드를 설계한다. baseline 응답과 영구 싫어요·사용자 격리 규칙은 변경하지 않는다.
 - 정책과 실패 테스트가 확정되기 전에는 새로운 provider cohort, 60% shadow 또는 hybrid activation을 진행하지 않는다.
 
+### 2026-09-29 단계 6.7: terminal audio 후보 제외와 backfill
+
+- HTTP 403 playback-info는 `preview_forbidden`, 404·410은 `preview_unavailable` terminal 오류로 분류한다. 기존 403 저장 행의 `preview_info_rejected`는 호환 코드로 읽되 새 403에는 사용하지 않는다.
+- 기존 `limit × 5` pool은 실제 baseline에 그대로 사용한다. hybrid pool은 terminal 후보를 제외하고 동일 text 순서의 다음 정상 후보로 같은 크기까지 채운다.
+- coverage와 hybrid 순위 비교는 제외·backfill 후 같은 후보 집합의 text baseline을 기준으로 한다. 실제 제공 baseline, terminal 제외 트랙·오류 코드와 backfill 트랙은 shadow run에 별도 저장한다.
+- EMS 원본, `STREAM` availability, 사용자 profile 입력과 `reject` 영구 제외 규칙은 변경하지 않는다.
+- 새 정책의 운영 배포와 자연 shadow provenance 확인 전에는 ranks 37..60 provider 분석과 hybrid activation을 진행하지 않는다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health

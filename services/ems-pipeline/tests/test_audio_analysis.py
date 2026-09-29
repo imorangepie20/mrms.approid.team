@@ -103,6 +103,27 @@ def test_tidal_preview_rejects_oversized_content_before_reading_body():
     assert caught.value.retryable is False
 
 
+def test_tidal_preview_marks_track_specific_403_as_terminal_forbidden():
+    def handler(request: httpx.Request):
+        if request.url.host == "auth.tidal.com":
+            return httpx.Response(200, json={"access_token": "token"})
+        return httpx.Response(403, json={"status": 403})
+
+    client = TidalPreviewClient(
+        "client",
+        "secret",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+        request_budget=2,
+    )
+
+    with pytest.raises(AudioJobError, match="preview_forbidden") as caught:
+        client.download("123")
+
+    assert caught.value.retryable is False
+    assert caught.value.stop_run is False
+    assert client.used_requests == 2
+
+
 def test_analysis_client_validates_hash_shape_and_l2_contract():
     preview = PreviewPayload(b"bytes", "audio/mp4", "a" * 64)
     client = AudioAnalysisClient(

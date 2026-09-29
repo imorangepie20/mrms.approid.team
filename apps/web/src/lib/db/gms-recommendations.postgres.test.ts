@@ -115,6 +115,11 @@ suite("recommendation shadow PostgreSQL integration", () => {
       ) VALUES ($1, $2, $3, 'completed', now())
     `, [analyzedTrackId, AUDIO_FEATURE_VERSION, "c".repeat(64)]);
     await client.query(`
+      INSERT INTO ems_track_audio_jobs (
+        track_id, feature_version, status, last_error_code, last_error_at
+      ) VALUES ($1, $2, 'failed', 'preview_forbidden', now())
+    `, [trackIds[1], AUDIO_FEATURE_VERSION]);
+    await client.query(`
       INSERT INTO ems_track_audio_features (
         track_id, feature_version, preview_hash, duration_seconds,
         sample_rate, channel_count, segment_count, coverage_ratio,
@@ -172,10 +177,14 @@ suite("recommendation shadow PostgreSQL integration", () => {
     expect(prepared.shadow).toMatchObject({
       audioModelRevision: AUDIO_EMBEDDING_MODEL_REVISION,
       audioProfileId,
-      candidateCount: 3,
+      candidateCount: 2,
       fallbackUsed: true,
       rankingVersion: "hybrid-v0",
     });
+    expect(prepared.shadow?.audioDiscardedCandidates).toEqual([{
+      errorCode: "preview_forbidden",
+      trackId: trackIds[1],
+    }]);
     expect(prepared.shadow?.candidates.filter((candidate) => candidate.audioAvailable))
       .toHaveLength(1);
 
@@ -194,6 +203,8 @@ suite("recommendation shadow PostgreSQL integration", () => {
       SELECT run.ranking_version, run.requested_ranking_version,
              run.served_ranking_version, run.serving_fallback_reason,
              run.candidate_count, run.fallback_used,
+             run.audio_discarded_track_ids,
+             run.audio_discarded_error_codes,
              count(candidate.track_id)::integer AS saved_candidates
       FROM user_recommendation_shadow_runs AS run
       INNER JOIN user_recommendation_shadow_candidates AS candidate ON candidate.run_id = run.id
@@ -201,11 +212,13 @@ suite("recommendation shadow PostgreSQL integration", () => {
       GROUP BY run.id
     `, [userId]);
     expect(saved.rows).toEqual([{
-      candidate_count: 3,
+      audio_discarded_error_codes: ["preview_forbidden"],
+      audio_discarded_track_ids: [trackIds[1]],
+      candidate_count: 2,
       fallback_used: true,
       ranking_version: "hybrid-v0",
       requested_ranking_version: "baseline",
-      saved_candidates: 3,
+      saved_candidates: 2,
       served_ranking_version: "baseline",
       serving_fallback_reason: "ranking_disabled",
     }]);

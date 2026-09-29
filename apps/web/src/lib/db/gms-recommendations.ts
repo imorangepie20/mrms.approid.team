@@ -33,6 +33,9 @@ export type EmsCandidateRow = {
   album: string | null;
   artist: string;
   artwork_url: string | null;
+  audio_discarded?: boolean;
+  audio_error_code?: string | null;
+  audio_job_status?: string | null;
   audio_similarity_cluster?: number | null;
   audio_similarity_global?: number | null;
   candidate_bpm?: number | null;
@@ -46,9 +49,24 @@ export type EmsCandidateRow = {
   match_confidence: number;
   similarity_cluster: number | null;
   similarity_global: number;
+  source_rank?: number;
   tidal_id: string;
   title: string;
 };
+
+const TERMINAL_AUDIO_CANDIDATE_ERROR_CODES = [
+  "preview_forbidden",
+  "preview_info_rejected",
+  "preview_unavailable",
+] as const;
+
+export function isTerminalAudioCandidateFailure(
+  status: string | null | undefined,
+  errorCode: string | null | undefined,
+): boolean {
+  return status === "failed"
+    && TERMINAL_AUDIO_CANDIDATE_ERROR_CODES.some((code) => code === errorCode);
+}
 
 export type RecommendationScoreComponents = {
   audio?: number;
@@ -100,10 +118,15 @@ export type RecommendationShadowCandidate = {
 
 export type RecommendationShadowPayload = {
   audioCoverageRatio: number;
+  audioDiscardedCandidates: Array<{
+    errorCode: string;
+    trackId: string;
+  }>;
   audioModelRevision: string | null;
   audioProfileId: string | null;
   audioProfileVersion: string | null;
   baselineTrackIds: string[];
+  backfilledTrackIds: string[];
   candidateCount: number;
   candidates: RecommendationShadowCandidate[];
   fallbackUsed: boolean;
@@ -116,6 +139,7 @@ export type RecommendationShadowPayload = {
   rhythmCoverageRatio: number;
   sameArtistRatio: number;
   selectorChangedCount: number;
+  servedBaselineTrackIds: string[];
   textProfileId: string;
   textProfileVersion: string;
   userId: string;
@@ -257,6 +281,10 @@ function buildShadowPayload(
   rows: EmsCandidateRow[],
   baseline: ReturnType<typeof rankEmsCandidates>,
   limit: number,
+  provenance: Pick<
+    RecommendationShadowPayload,
+    "audioDiscardedCandidates" | "backfilledTrackIds" | "servedBaselineTrackIds"
+  >,
 ): RecommendationShadowPayload {
   const bpm = profileBpm(profile.audio_summary_features);
   const profilePredictions = numericRecord(profile.audio_prediction_features);
@@ -284,10 +312,12 @@ function buildShadowPayload(
 
   return {
     audioCoverageRatio: evaluation.audioCoverageRatio,
+    audioDiscardedCandidates: provenance.audioDiscardedCandidates,
     audioModelRevision: profile.audio_model_revision,
     audioProfileId: profile.audio_profile_id,
     audioProfileVersion: profile.audio_profile_version,
     baselineTrackIds: baseline.slice(0, limit).map((candidate) => candidate.id),
+    backfilledTrackIds: provenance.backfilledTrackIds,
     candidateCount: evaluation.candidateCount,
     candidates: hybrid.map((candidate) => ({
       audioAvailable: candidate.audioAvailable,
@@ -315,6 +345,7 @@ function buildShadowPayload(
     rhythmCoverageRatio: evaluation.rhythmCoverageRatio,
     sameArtistRatio: evaluation.sameArtistRatio,
     selectorChangedCount: evaluation.selectorChangedCount,
+    servedBaselineTrackIds: provenance.servedBaselineTrackIds,
     textProfileId: profile.id,
     textProfileVersion: profile.algorithm_version,
     userId: profile.user_id,
@@ -498,85 +529,133 @@ export async function preparePersonalizedEmsRecommendations(
        WHERE audio_profile.id = $4::uuid
          AND audio_profile.status = 'completed'
        GROUP BY embedding.track_id, feature.dsp_features, prediction_set.predictions
+     ),
+     candidate_source AS (
+       SELECT
+         e.id,
+         e.tidal_id,
+         e.title,
+         e.artist,
+         e.album,
+         e.duration_ms,
+         e.artwork_url,
+         e.match_confidence,
+         e.catalog_priority,
+         (e.status = 'active') AS is_active,
+         availability.playable AS is_playable,
+         GREATEST(0, 1 - EXTRACT(EPOCH FROM (now() - e.updated_at)) / (365 * 86400))::float8 AS freshness,
+         cs.similarity_global,
+         cs.similarity_cluster,
+         CASE WHEN cs.similarity_cluster IS NULL
+           THEN cs.similarity_global
+           ELSE 0.3 * cs.similarity_global + 0.7 * cs.similarity_cluster
+         END AS text_similarity,
+         audio.audio_similarity_global,
+         audio.audio_similarity_cluster,
+         audio.candidate_bpm,
+         audio.candidate_predictions,
+         candidate_audio_job.status AS audio_job_status,
+         candidate_audio_job.last_error_code AS audio_error_code
+       FROM ems_tracks AS e
+       INNER JOIN centroid_similarity AS cs ON cs.id = e.id
+       LEFT JOIN audio_candidate AS audio ON audio.track_id = e.id
+       LEFT JOIN ems_track_audio_jobs AS candidate_audio_job
+         ON candidate_audio_job.track_id = e.id
+       JOIN LATERAL (
+         SELECT a.playable
+         FROM ems_availability_events AS a
+         WHERE a.track_id = e.id AND a.region = 'KR' AND a.capability = 'STREAM'
+         ORDER BY a.observed_at DESC, a.id DESC
+         LIMIT 1
+       ) AS availability ON availability.playable = true
+       WHERE e.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM music_tracks AS owned
+           INNER JOIN user_playlist_tracks AS playlist_track ON playlist_track.track_id = owned.id
+           INNER JOIN user_playlists AS playlist
+             ON playlist.id = playlist_track.playlist_id
+            AND playlist.user_id = $2
+            AND playlist.selected = true
+           WHERE owned.user_id = $2 AND owned.tidal_track_id = e.tidal_id
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM user_recommendation_decisions AS decision
+           WHERE decision.user_id = $2
+             AND decision.source_track_id = e.id
+             AND decision.decision IN ('accept', 'reject')
+         )
+     ),
+     classified_candidate AS (
+       SELECT
+         candidate_source.*,
+         COALESCE(
+           audio_job_status = 'failed' AND audio_error_code = ANY($6::text[]),
+           false
+         ) AS audio_discarded
+       FROM candidate_source
+     ),
+     ranked_candidate AS (
+       SELECT
+         classified_candidate.*,
+         (row_number() OVER (
+           ORDER BY text_similarity DESC, id ASC
+         ))::integer AS source_rank,
+         (count(*) FILTER (WHERE NOT audio_discarded) OVER (
+           ORDER BY text_similarity DESC, id ASC
+           ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+         ))::integer AS eligible_source_rank
+       FROM classified_candidate
      )
-     SELECT
-       e.id,
-       e.tidal_id,
-       e.title,
-       e.artist,
-       e.album,
-       e.duration_ms,
-       e.artwork_url,
-       e.match_confidence,
-       e.catalog_priority,
-       (e.status = 'active') AS is_active,
-       availability.playable AS is_playable,
-       GREATEST(0, 1 - EXTRACT(EPOCH FROM (now() - e.updated_at)) / (365 * 86400))::float8 AS freshness,
-       cs.similarity_global,
-       cs.similarity_cluster,
-       audio.audio_similarity_global,
-       audio.audio_similarity_cluster,
-       audio.candidate_bpm,
-       audio.candidate_predictions
-     FROM ems_tracks AS e
-     INNER JOIN centroid_similarity AS cs ON cs.id = e.id
-     LEFT JOIN audio_candidate AS audio ON audio.track_id = e.id
-     JOIN LATERAL (
-       SELECT a.playable
-       FROM ems_availability_events AS a
-       WHERE a.track_id = e.id AND a.region = 'KR' AND a.capability = 'STREAM'
-       ORDER BY a.observed_at DESC, a.id DESC
-       LIMIT 1
-     ) AS availability ON availability.playable = true
-     WHERE e.status = 'active'
-       AND NOT EXISTS (
-         SELECT 1
-         FROM music_tracks AS owned
-         INNER JOIN user_playlist_tracks AS playlist_track ON playlist_track.track_id = owned.id
-         INNER JOIN user_playlists AS playlist
-           ON playlist.id = playlist_track.playlist_id
-          AND playlist.user_id = $2
-          AND playlist.selected = true
-         WHERE owned.user_id = $2 AND owned.tidal_track_id = e.tidal_id
-       )
-       AND NOT EXISTS (
-         SELECT 1
-         FROM user_recommendation_decisions AS decision
-         WHERE decision.user_id = $2
-           AND decision.source_track_id = e.id
-           AND decision.decision IN ('accept', 'reject')
-       )
-     ORDER BY
-       CASE WHEN cs.similarity_cluster IS NULL
-         THEN cs.similarity_global
-         ELSE 0.3 * cs.similarity_global + 0.7 * cs.similarity_cluster
-       END DESC,
-       e.id ASC
-     LIMIT $3`,
+     SELECT *
+     FROM ranked_candidate
+     WHERE source_rank <= $3
+        OR (NOT audio_discarded AND eligible_source_rank <= $3)
+     ORDER BY source_rank`,
     [
       profile.id,
       profile.user_id,
       Math.min(120, safeLimit * 5),
       profile.audio_profile_id,
       [...AUDIO_PREDICTION_LABELS],
+      [...TERMINAL_AUDIO_CANDIDATE_ERROR_CODES],
     ],
   );
-  const filteredRows = filterRankingCandidates(candidateResult.rows.map((row) => ({
+  const candidatePoolSize = Math.min(120, safeLimit * 5);
+  const filteredRows = filterRankingCandidates(candidateResult.rows.map((row, index) => ({
     ...row,
+    audioDiscarded: row.audio_discarded
+      ?? isTerminalAudioCandidateFailure(row.audio_job_status, row.audio_error_code),
     isActive: row.is_active ?? true,
     isPlayable: row.is_playable ?? true,
+    sourceRank: row.source_rank ?? index + 1,
   })), new Set());
-  const baseline = rankEmsCandidates(filteredRows, filteredRows.length);
+  const baselineRows = filteredRows.filter((row) => row.sourceRank <= candidatePoolSize);
+  const hybridRows = filteredRows
+    .filter((row) => !row.audioDiscarded)
+    .slice(0, candidatePoolSize);
+  const baseline = rankEmsCandidates(baselineRows, baselineRows.length);
+  const hybridBaseline = rankEmsCandidates(hybridRows, hybridRows.length);
   const recommendations = {
     profileReady: true,
     profileVersion: profile.algorithm_version,
     rankingVersion: "baseline" as const,
     tracks: baseline.slice(0, safeLimit).map(mapRecommendation),
   };
-  const shadow = filteredRows.length === 0
+  const shadow = hybridRows.length === 0
     ? null
-    : buildShadowPayload(profile, filteredRows, baseline, safeLimit);
-  const rowsById = new Map(filteredRows.map((row) => [row.id, row]));
+    : buildShadowPayload(profile, hybridRows, hybridBaseline, safeLimit, {
+        audioDiscardedCandidates: baselineRows.flatMap((row) =>
+          row.audioDiscarded && row.audio_error_code
+            ? [{ errorCode: row.audio_error_code, trackId: row.id }]
+            : []),
+        backfilledTrackIds: hybridRows
+          .filter((row) => row.sourceRank > candidatePoolSize)
+          .map((row) => row.id),
+        servedBaselineTrackIds: baseline.slice(0, safeLimit).map((row) => row.id),
+      });
+  const rowsById = new Map(hybridRows.map((row) => [row.id, row]));
   const shadowCandidatesById = new Map(
     shadow?.candidates.map((candidate) => [candidate.trackId, candidate]) ?? [],
   );
@@ -659,7 +738,9 @@ export async function recordRecommendationShadow(
          selector_changed_count, audio_coverage_ratio,
          mood_coverage_ratio, rhythm_coverage_ratio, fallback_used,
          requested_ranking_version, served_ranking_version,
-         minimum_audio_coverage, serving_fallback_reason
+         minimum_audio_coverage, serving_fallback_reason,
+         served_baseline_track_ids, audio_discarded_track_ids,
+         audio_discarded_error_codes, backfilled_track_ids
        )
        SELECT
          user_row.id, $3::uuid, $4,
@@ -667,7 +748,8 @@ export async function recordRecommendationShadow(
          $8, $9, $10,
          $11::uuid[], $12::uuid[], $13,
          $14, $15, $16, $17, $18, $19, $20,
-         $21, $22, $23, $24
+         $21, $22, $23, $24,
+         $25::uuid[], $26::uuid[], $27::text[], $28::uuid[]
        FROM app_users AS user_row
        WHERE user_row.auth0_subject = $1 AND user_row.id = $2::uuid
        RETURNING id`,
@@ -696,6 +778,10 @@ export async function recordRecommendationShadow(
         serving.servedRankingVersion,
         serving.minimumAudioCoverage,
         serving.fallbackReason,
+        shadow.servedBaselineTrackIds,
+        shadow.audioDiscardedCandidates.map((candidate) => candidate.trackId),
+        shadow.audioDiscardedCandidates.map((candidate) => candidate.errorCode),
+        shadow.backfilledTrackIds,
       ],
     );
     const runId = runResult.rows[0]?.id;

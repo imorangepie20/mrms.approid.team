@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { TransactionExecutor } from "./music-library";
 import {
+  isTerminalAudioCandidateFailure,
   listPersonalizedEmsRecommendations,
   preparePersonalizedEmsRecommendations,
   rankEmsCandidates,
@@ -88,6 +89,14 @@ function executorWithRows(rows = candidateRows) {
 }
 
 describe("GMS personalized recommendation repository", () => {
+  it("classifies only failed terminal preview access codes as discardable", () => {
+    expect(isTerminalAudioCandidateFailure("failed", "preview_forbidden")).toBe(true);
+    expect(isTerminalAudioCandidateFailure("failed", "preview_info_rejected")).toBe(true);
+    expect(isTerminalAudioCandidateFailure("failed", "preview_unavailable")).toBe(true);
+    expect(isTerminalAudioCandidateFailure("retryable", "preview_forbidden")).toBe(false);
+    expect(isTerminalAudioCandidateFailure("failed", "analysis_unavailable")).toBe(false);
+  });
+
   it("returns no candidates until a completed profile exists", async () => {
     const query = vi.fn(async () => ({ rows: [] }));
 
@@ -200,6 +209,63 @@ describe("GMS personalized recommendation repository", () => {
     });
     expect(query.mock.calls[1]?.[0]).toMatch(/audio_profile\.embedding_model_revision/i);
     expect(query.mock.calls[1]?.[0]).toMatch(/prediction\.model_revision = audio_profile\.prediction_model_revision/i);
+  });
+
+  it("keeps the served baseline but discards and backfills terminal audio candidates", async () => {
+    const audioProfile = {
+      ...profileRow,
+      audio_model_revision: "2",
+      audio_prediction_features: { happy: 0.8, non_happy: 0.2 },
+      audio_profile_id: "audio-profile-a",
+      audio_profile_version: "44444444-4444-4444-8444-444444444444",
+      audio_summary_features: { rhythm: { bpm: 120 } },
+    };
+    const rows = [
+      {
+        ...candidateRows[0],
+        audio_discarded: true,
+        audio_error_code: "preview_info_rejected",
+        audio_job_status: "failed",
+        source_rank: 1,
+      },
+      { ...candidateRows[1], source_rank: 2 },
+      { ...candidateRows[2], source_rank: 3 },
+      { ...candidateRows[2], id: "track-c", source_rank: 4, tidal_id: "tidal-c", title: "Track C" },
+      { ...candidateRows[2], id: "track-d", source_rank: 5, tidal_id: "tidal-d", title: "Track D" },
+      { ...candidateRows[2], id: "track-f", source_rank: 6, tidal_id: "tidal-f", title: "Track F" },
+    ];
+    let candidateParams: unknown[] | undefined;
+    const query = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (!sql.includes("/* recommendation_profiles */")) candidateParams = params;
+      return {
+        rows: sql.includes("/* recommendation_profiles */") ? [audioProfile] : rows,
+      };
+    });
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      1,
+      { query: query as unknown as TransactionExecutor["query"] },
+    );
+
+    expect(prepared.recommendations.tracks[0]?.id).toBe("track-a");
+    expect(prepared.shadow?.servedBaselineTrackIds).toEqual(["track-a"]);
+    expect(prepared.shadow?.audioDiscardedCandidates).toEqual([{
+      errorCode: "preview_info_rejected",
+      trackId: "track-a",
+    }]);
+    expect(prepared.shadow?.backfilledTrackIds).toEqual(["track-f"]);
+    expect(prepared.shadow?.candidates).toHaveLength(5);
+    expect(prepared.shadow?.candidates.map((candidate) => candidate.trackId))
+      .not.toContain("track-a");
+    expect(prepared.shadow?.candidates.map((candidate) => candidate.trackId))
+      .toContain("track-f");
+    expect(query.mock.calls[1]?.[0]).toMatch(/eligible_source_rank <= \$3/i);
+    expect(candidateParams?.[5]).toEqual([
+      "preview_forbidden",
+      "preview_info_rejected",
+      "preview_unavailable",
+    ]);
   });
 
   it("serves hybrid only for an allowlisted subject meeting the explicit coverage gate", async () => {
