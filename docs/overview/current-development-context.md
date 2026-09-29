@@ -2,13 +2,13 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `696a215`
+최신 기능 기준 커밋: `5d72f07`
 
-최신 Zorin Web 배포 기준 커밋: `696a215` (하이브리드 추천 제한 serving 안전 기반, baseline 유지)
+최신 Zorin Web 배포 기준 커밋: `5d72f07` (본인 audio profile 갱신 UI·API, baseline 유지)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS 배포 기준 커밋: `f4a3402` (bounded TIDAL preview 분석 worker, 상시 source-routines는 기존 container 유지)
+최신 Zorin EMS 배포 기준 커밋: `b4f48dd` (명시적 track allowlist bounded audio 분석)
 
 ## 이번 목표
 
@@ -16,6 +16,8 @@
 
 ## 현재 구현
 
+- 2026-09-29 상위 GMS 후보 12곡의 bounded audio cohort를 실행했다. 최신 자연 shadow의 baseline rank 1..12만 exact UUID allowlist로 지정해 provider 요청 25/25, analyzed 12/12를 완료했고 전체 audio job은 completed 27건, 다른 상태 0건이다. 새 자연 shadow의 60개 후보에서 audio·mood·rhythm coverage는 각각 0.2, overlap@K는 1.0, 평균 절대 rank displacement는 1.2, top K selector 변경은 11건이다. profile refresh와 hybrid 환경 변경은 하지 않아 requested/served 모두 baseline이고 fallback은 `ranking_disabled`다. 상세는 `docs/changes/2026-09-29-gms-candidate-audio-cohort.md`에 기록한다.
+- 2026-09-29 `b4f48dd`, `5d72f07`에서 EMS `analyze-audio`의 반복 가능한 exact `--track-id` allowlist, 인증된 본인 전용 audio profile 갱신 API와 GMS `오디오 취향 반영` UI를 구현하고 Zorin에 배포했다. eligible 사용자 6곡은 provider 요청 13/13으로 분석됐고 completed 6/6, coverage 1.0, 2,304차원 global centroid profile을 생성했다. 후보 coverage가 없던 첫 자연 shadow는 audio·mood·rhythm 0, baseline `ranking_disabled`였으며 hybrid 설정은 계속 미설정이다. 전체 EMS 78개 테스트, Web 132개 파일·505개 테스트, 타입·lint·49개 경로 build를 통과했다. 상세는 `docs/changes/2026-09-29-user-audio-profile-cohort.md`에 기록한다.
 - 2026-09-29 `696a215`에서 hybrid 제한 serving의 fail-closed 설정·allowlist·coverage gate와 요청별 provenance를 구현하고 Zorin에 배포했다. `GMS_RANKING_VERSION=hybrid-v0`, 명시적 subject allowlist, 근거 기반 minimum audio coverage가 모두 설정되고 completed audio profile과 후보 coverage가 충족될 때만 hybrid를 선택하며 나머지는 이유와 함께 baseline으로 fallback한다. 실제 `/gms` 서버 페이지와 API가 같은 selection을 사용하고 `after()`에서 관찰을 저장하며, recommendation decision도 실제 ranking version을 기록한다. 전체 Web 131개 파일·501개 테스트, PostgreSQL 26개 migration·통합·026 rollback/재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 026과 Web만 배포했으며 세 hybrid 설정은 미설정이라 baseline을 유지한다. local/public smoke, 비인증 401, 최근 오류 0건과 비-Web container 무중단을 확인했다. 운영 audio profile·shadow·decision 행은 0이며 activation threshold와 보관 정책은 확정하지 않았다. 상세는 `docs/changes/2026-09-29-hybrid-recommendation-serving-gate.md`에 기록한다.
 - 2026-09-29 `41c4c2c`에서 기존 GMS 응답과 순서를 바꾸지 않는 `hybrid-v0` shadow ranking을 구현하고 Zorin에 배포했다. 같은 최대 `limit × 5` 후보에 text·exact-version audio·mood·rhythm similarity와 catalog·freshness를 계산하고, 0.075 같은 artist 감점 Selector를 별도로 실행한다. 사용자·text/audio profile·model provenance, 후보 component와 overlap@K·rank displacement·coverage·fallback을 새 025 테이블에 저장하되 vector·원본 DSP·preview URL·token은 저장하지 않는다. Next.js `after()`의 transaction 실패는 baseline 응답에 영향을 주지 않는다. 전체 Web 128개 파일·488개 테스트, PostgreSQL 25개 migration·통합·025 rollback/재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 025와 Web만 배포했으며 local/public smoke, 비인증 401, 최근 오류 0건과 비-Web container 무중단을 확인했다. 운영 audio profile과 shadow 행은 아직 0이며 `GMS_RANKING_VERSION`·활성화 threshold·보관/정리 정책은 추가하지 않았다. 상세는 `docs/changes/2026-09-29-hybrid-recommendation-shadow-ranking.md`에 기록한다.
 - 2026-09-29 `3f4fba3`에서 text 768차원 프로필과 분리된 사용자 오디오 취향 프로필 schema·계산·repository를 구현하고 Zorin에 배포했다. 입력은 사용자별 선택 playlist·TIDAL track 좋아요·GMS accept 중 active EMS에 연결되고 reject되지 않은 곡이며, exact `essentia-dsp-v1`·MAEST 2,304차원 L2·MusicNN 18개 high-level label만 analyzed로 사용한다. 가중치·군집 기준은 text 프로필과 공유하고, DSP·prediction 요약·coverage·SHA-256 fingerprint와 독립 UUID version을 transaction으로 저장한다. GMS·사용자 요청·scheduler에는 연결하지 않았다. Web 전체 123개 파일·474개 테스트, PostgreSQL 통합, 24개 migration과 024 rollback·재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 024와 Web만 배포했으며 읽기 전용 교집합은 eligible 6·analyzed 0이라 profile을 생성하지 않았다. public smoke와 인증 경계, 오류 로그 0건을 확인했고 Web 외 container는 유지했다. 상세는 `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`에 기록한다.
@@ -204,7 +206,7 @@
 
 ## 다음 작업
 
-1. eligible 사용자 트랙에 exact-version audio analysis coverage를 만든 뒤 baseline과 audio hybrid의 순위·점수 분포를 기록하는 shadow ranking pipeline을 구현한다. text profile과 실제 GMS 순서는 activation 승인 전까지 변경하지 않는다.
+1. 후보 60곡 중 12곡 coverage 0.2 shadow에서 관측한 rank displacement와 selector 변경을 검토하고, 다음 bounded 후보 cohort의 크기·request budget·중단 기준을 별도 설계한다. activation 근거가 확정되기 전까지 hybrid 환경 변수와 실제 GMS 순서는 변경하지 않는다.
 2. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 3. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 4. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
@@ -218,6 +220,8 @@
 - `docs/plans/2026-09-29-audio-preview-analysis-implementation.md`
 - `docs/changes/2026-09-29-audio-preview-analysis-design-revision.md`
 - `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`
+- `docs/changes/2026-09-29-user-audio-profile-cohort.md`
+- `docs/changes/2026-09-29-gms-candidate-audio-cohort.md`
 - `docs/plans/2026-09-29-taste-analysis-admin-document.md`
 - `docs/changes/2026-09-29-taste-analysis-admin-document.md`
 - `docs/harness/portable-project-harness.md`
