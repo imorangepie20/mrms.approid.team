@@ -6,7 +6,7 @@ import os
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 import httpx
@@ -60,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze_audio.add_argument("--max-attempts", type=int, default=5)
     analyze_audio.add_argument("--request-budget", type=int, default=3)
     analyze_audio.add_argument("--audio-analysis-service-url", default=None)
+    analyze_audio.add_argument("--track-id", action="append", type=_track_id, default=None)
     subparsers.add_parser("serve-admin-jobs")
     subparsers.add_parser("serve-source-routines")
     tidal_metadata = subparsers.add_parser("backfill-tidal-metadata")
@@ -69,6 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
     musicbrainz_tags.add_argument("--derived-archive", type=Path, required=True)
     musicbrainz_tags.add_argument("--snapshot-id", required=True)
     return parser
+
+
+def _track_id(value: str) -> str:
+    try:
+        return str(UUID(value))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("track ID must be a UUID") from error
 
 
 def execute_run(
@@ -300,7 +308,11 @@ def main(argv: list[str] | None = None) -> int:
         ).strip()
         with psycopg.connect(database_url, row_factory=dict_row) as connection:
             with connection.transaction():
-                staged = stage_audio_jobs(connection, limit=args.stage_limit)
+                staged = stage_audio_jobs(
+                    connection,
+                    limit=args.stage_limit,
+                    track_ids=args.track_id,
+                )
             with httpx.Client(timeout=90) as http_client:
                 preview_client = TidalPreviewClient(
                     client_id,
@@ -317,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
                     batch_size=args.batch_size,
                     max_batches=args.max_batches,
                     max_attempts=args.max_attempts,
+                    track_ids=args.track_id,
                 )
         print(json.dumps({"staged": staged, "requests_used": preview_client.used_requests, "counts": counts}, sort_keys=True))
         return 0

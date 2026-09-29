@@ -91,3 +91,28 @@ def test_parser_accepts_editorial_section_sync() -> None:
     assert args.command == "sync-editorial-sections"
     assert args.dry_run is True
     assert args.playlist_limit == 8
+
+
+def test_parser_accepts_bounded_audio_track_ids() -> None:
+    args = cli.build_parser().parse_args([
+        "analyze-audio",
+        "--track-id", "11111111-1111-4111-8111-111111111111",
+        "--track-id", "22222222-2222-4222-8222-222222222222",
+        "--stage-limit", "2",
+        "--max-batches", "2",
+        "--request-budget", "5",
+    ])
+
+    assert args.track_id == [
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
+    ]
+
+
+def test_parser_rejects_invalid_audio_track_id() -> None:
+    try:
+        cli.build_parser().parse_args(["analyze-audio", "--track-id", "not-a-uuid"])
+    except SystemExit as error:
+        assert error.code == 2
+    else:
+        raise AssertionError("invalid UUID must be rejected")

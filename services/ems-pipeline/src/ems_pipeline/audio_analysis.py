@@ -312,8 +312,17 @@ class AudioAnalysisClient:
         return validate_analysis(payload, preview.preview_hash, feature_version)
 
 
-def stage_audio_jobs(connection: Any, *, limit: int = 16, feature_version: str = FEATURE_VERSION) -> int:
+def stage_audio_jobs(
+    connection: Any,
+    *,
+    limit: int = 16,
+    feature_version: str = FEATURE_VERSION,
+    track_ids: list[str] | None = None,
+) -> int:
     safe_limit = max(1, min(100, int(limit)))
+    requested_track_ids = list(dict.fromkeys(track_ids)) if track_ids else None
+    if requested_track_ids is not None:
+        safe_limit = min(safe_limit, len(requested_track_ids))
     result = connection.execute(
         """
         WITH candidates AS (
@@ -322,6 +331,7 @@ def stage_audio_jobs(connection: Any, *, limit: int = 16, feature_version: str =
             LEFT JOIN ems_track_audio_jobs AS job ON job.track_id = track.id
            WHERE track.status = 'active'
              AND track.tidal_id ~ '^[0-9]+$'
+             AND (%s::uuid[] IS NULL OR track.id = ANY(%s::uuid[]))
              AND (job.track_id IS NULL OR job.feature_version <> %s)
            ORDER BY track.updated_at DESC, track.id
            LIMIT %s
@@ -341,14 +351,21 @@ def stage_audio_jobs(connection: Any, *, limit: int = 16, feature_version: str =
           completed_at = NULL,
           updated_at = now()
         """,
-        (feature_version, safe_limit, feature_version),
+        (requested_track_ids, requested_track_ids, feature_version, safe_limit, feature_version),
     )
     return max(0, int(result.rowcount))
 
 
-def claim_audio_jobs(connection: Any, *, limit: int = 1, lease_seconds: int = 300) -> list[AudioJob]:
+def claim_audio_jobs(
+    connection: Any,
+    *,
+    limit: int = 1,
+    lease_seconds: int = 300,
+    track_ids: list[str] | None = None,
+) -> list[AudioJob]:
     safe_limit = max(1, min(8, int(limit)))
     safe_lease = max(60, min(1800, int(lease_seconds)))
+    requested_track_ids = list(dict.fromkeys(track_ids)) if track_ids else None
     rows = connection.execute(
         """
         WITH claimed AS (
@@ -358,6 +375,7 @@ def claim_audio_jobs(connection: Any, *, limit: int = 1, lease_seconds: int = 30
              (job.status IN ('pending', 'retryable') AND (job.next_attempt_at IS NULL OR job.next_attempt_at <= now()))
              OR (job.status = 'running' AND job.lease_expires_at <= now())
            )
+             AND (%s::uuid[] IS NULL OR job.track_id = ANY(%s::uuid[]))
            ORDER BY job.updated_at, job.track_id
            FOR UPDATE SKIP LOCKED
            LIMIT %s
@@ -374,7 +392,7 @@ def claim_audio_jobs(connection: Any, *, limit: int = 1, lease_seconds: int = 30
            AND track.id = job.track_id
         RETURNING job.track_id::text, track.tidal_id
         """,
-        (safe_limit, safe_lease),
+        (requested_track_ids, requested_track_ids, safe_limit, safe_lease),
     ).fetchall()
     return [AudioJob(str(row["track_id"]), str(row["tidal_id"])) for row in rows]
 
@@ -568,12 +586,13 @@ def run_audio_worker(
     batch_size: int = 1,
     max_batches: int = 1,
     max_attempts: int = 5,
+    track_ids: list[str] | None = None,
 ) -> dict[str, int]:
     safe_batches = max(1, min(100, int(max_batches)))
     counts = {"claimed": 0, "analyzed": 0, "reused": 0, "retryable": 0, "failed": 0, "released": 0}
     for _ in range(safe_batches):
         with connection.transaction():
-            jobs = claim_audio_jobs(connection, limit=batch_size)
+            jobs = claim_audio_jobs(connection, limit=batch_size, track_ids=track_ids)
         if not jobs:
             break
         counts["claimed"] += len(jobs)

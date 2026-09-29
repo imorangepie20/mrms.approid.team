@@ -160,7 +160,27 @@ def test_stage_jobs_is_bounded_and_resets_only_changed_versions():
     sql, values = connection.calls[0]
     assert "LIMIT %s" in sql
     assert "job.feature_version <> %s" in sql
-    assert values == ("essentia-dsp-v1", 100, "essentia-dsp-v1")
+    assert values == (None, None, "essentia-dsp-v1", 100, "essentia-dsp-v1")
+
+
+def test_stage_jobs_limits_candidates_to_explicit_track_ids():
+    connection = FakeConnection([FakeResult(rowcount=2)])
+    track_ids = [
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
+        "11111111-1111-4111-8111-111111111111",
+    ]
+
+    assert stage_audio_jobs(connection, limit=16, track_ids=track_ids) == 2
+    sql, values = connection.calls[0]
+    assert "track.id = ANY(%s::uuid[])" in sql
+    assert values == (
+        track_ids[:2],
+        track_ids[:2],
+        "essentia-dsp-v1",
+        2,
+        "essentia-dsp-v1",
+    )
 
 
 def test_claim_uses_skip_locked_and_caps_batch_size():
@@ -172,7 +192,17 @@ def test_claim_uses_skip_locked_and_caps_batch_size():
     assert jobs == [AudioJob("track-a", "123"), AudioJob("track-b", "456")]
     sql, values = connection.calls[0]
     assert "FOR UPDATE SKIP LOCKED" in sql
-    assert values == (8, 60)
+    assert values == (None, None, 8, 60)
+
+
+def test_claim_limits_pending_jobs_to_explicit_track_ids():
+    track_ids = ["11111111-1111-4111-8111-111111111111"]
+    connection = FakeConnection([FakeResult([])])
+
+    assert claim_audio_jobs(connection, track_ids=track_ids) == []
+    sql, values = connection.calls[0]
+    assert "job.track_id = ANY(%s::uuid[])" in sql
+    assert values == (track_ids, track_ids, 1, 300)
 
 
 def test_worker_releases_unprocessed_claims_when_request_budget_stops_run(monkeypatch):

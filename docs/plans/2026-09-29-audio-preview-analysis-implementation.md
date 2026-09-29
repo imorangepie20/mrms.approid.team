@@ -404,6 +404,17 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 실행 결과는 `696a215`와 `docs/changes/2026-09-29-hybrid-recommendation-serving-gate.md`에 기록했다. 전체 Web 131개 파일·501개 테스트, 타입·lint·48개 경로 build와 격리 PostgreSQL 26 migration·integration을 통과했고 026 down이 기존 shadow 테이블과 run을 보존하는지 확인한 뒤 재적용했다. 운영 backup 뒤 026과 Web release만 배포했으며 세 hybrid 환경 변수는 모두 미설정이라 `baseline`을 유지한다. 실제 `/gms` 페이지도 자연 방문 뒤 serving provenance를 기록할 수 있지만 운영 audio profile과 shadow 행은 아직 0이다. 실제 cohort 없이 allowlist·threshold를 설정하지 않았고 보관 기간·자동 정리 정책도 미확정으로 남겼다.
 
+### 2026-09-29 단계 6.1: 사용자 eligible 6곡 bounded 분석과 profile 생성
+
+- 운영 읽기 전용 조회에서 사용자는 1명이고, 선택 playlist·TIDAL 좋아요·GMS accept 합집합에서 영구 reject를 제외한 eligible EMS 트랙은 정확히 6곡이다. 6곡 모두 active·numeric TIDAL ID이며 기존 audio job은 없다.
+- 기존 `analyze-audio`의 최신 active 트랙 선별과 전체 pending claim은 사용자 cohort 경계를 보장하지 못한다. CLI에 반복 가능한 `--track-id`를 추가하고 staging과 claim 양쪽에서 같은 UUID allowlist를 적용한다. 지정하지 않은 기존 동작은 유지한다.
+- 실행은 대상 UUID 6개, `--stage-limit 6 --batch-size 1 --max-batches 6 --request-budget 13`으로 제한한다. 요청 상한은 token 1회와 곡별 playback info·preview 다운로드 각 1회를 합친 값이며 concurrency는 1이다.
+- 실행 전 custom-format DB backup·checksum·`pg_restore --list`, container health, disk와 메모리를 확인한다. 429, 예산 소진, 분석 service 오류, host 자원 이상 또는 stop-run에서 남은 claim을 반환하고 확대하지 않는다.
+- 결과는 정확한 6개 job의 completed 상태, preview hash, 30초·16kHz mono, segment·coverage, `essentia-dsp-v1`, MAEST 2,304차원 L2, MusicNN revision 1·vocabulary 2의 18개 label을 확인한다. 실패나 버전 불일치가 있으면 profile을 만들지 않는다.
+- Web에는 인증된 사용자 본인의 `refreshAudioTasteProfile`만 호출하는 `POST /api/recommendations/audio-profile`을 추가한다. 다른 subject나 임의 user ID를 입력받지 않으며, 분석 0건은 write 없이 coverage 0으로 반환하고 내부 실패는 안전한 오류 코드로만 반환한다.
+- 6곡 검증 뒤 해당 인증 세션에서 profile refresh를 1회 실행하고 eligible/analyzed count, coverage, completed 상태, centroid dimension만 확인한다. token·cookie·원본 vector·Auth0 subject는 출력하거나 문서화하지 않는다.
+- `GMS_RANKING_VERSION`, `GMS_HYBRID_AUTH0_SUBJECTS`, `GMS_HYBRID_MIN_AUDIO_COVERAGE`는 계속 미설정으로 둔다. profile 생성은 baseline serving을 바꾸지 않으며 자연 GMS 요청에서 shadow cohort가 생긴 뒤에만 activation threshold를 별도로 결정한다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
@@ -417,7 +428,7 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 ## 12. 배포 순서
 
-1. code·test·build 완료 커밋을 원격에 push한다.
+1. code·test·build 완료 커밋을 로컬 작업 브랜치에 만들고, 준비가 끝나면 `main`에 fast-forward 병합한 뒤 `main`만 원격에 push한다. feature branch는 push하지 않는다.
 2. 운영 DB custom-format backup과 checksum을 만든다.
 3. `023` migration 적용 후 row count와 기존 EMS fingerprint를 확인한다.
 4. audio-analysis image를 배포하고 internal health만 확인한다.
