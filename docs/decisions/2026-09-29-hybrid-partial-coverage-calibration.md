@@ -6,7 +6,7 @@
 
 - `hybrid-v0`의 text 0.45·audio 0.40·mood 0.10·rhythm 0.05 가중치와 현재 계산식을 이 표본만으로 변경하지 않는다.
 - audio·mood·rhythm이 일부 후보에만 있는 shadow는 관찰용으로만 사용하고 hybrid serving 활성화 근거로 사용하지 않는다.
-- hybrid serving 전에는 요청 후보 전체의 audio·mood·rhythm coverage 1.0을 fail-closed 조건으로 고정해야 한다. 현재 gate가 1 미만의 `GMS_HYBRID_MIN_AUDIO_COVERAGE`를 허용하는 것은 활성화 전 해결할 blocker다.
+- hybrid serving 전에는 요청 후보 전체의 audio·mood·rhythm coverage 1.0을 fail-closed 조건으로 고정해야 한다. 다만 실제 후보에서 terminal preview 403이 확인돼 raw candidate 전체 1.0은 현재 정의로 달성 불가능하다. terminal-unavailable denominator·filter·backfill 정책과 현재 gate가 1 미만 threshold를 허용하는 문제를 모두 활성화 전에 해결한다.
 - 100% coverage shadow를 만들기 위한 후보 분석은 기존처럼 12곡 단위·concurrency 1·명시적 UUID allowlist·provider request budget 25로만 점진 진행한다. 각 단계는 별도 backup·검증·중단 기준을 갖고 자동 확대하지 않는다.
 - 100% coverage에서 같은 candidate set의 score·순위·사용자 판단을 확인하기 전 activation threshold와 component calibration을 확정하지 않는다.
 
@@ -27,6 +27,6 @@
 
 ## 다음 작업
 
-- 최신 40% coverage shadow의 baseline rank 25..36인 exact 12곡으로 세 번째 bounded cohort를 실행한다.
-- 60% shadow에서도 text-only counterfactual과 hybrid base를 함께 비교해 availability uplift, top K 진입, component 분포를 기록한다.
-- ranks 37..60은 세 번째 cohort 결과를 검토하기 전 분석하지 않는다.
+- 세 번째 cohort는 exact 12곡 중 11곡 completed, 1곡 preview 403 terminal failure로 끝났고 새 shadow는 만들지 않았다.
+- 403·404·410 등 terminal preview 상태의 오류 taxonomy, shadow provenance, coverage denominator와 candidate backfill 여부를 먼저 설계한다.
+- 정책과 실패 테스트가 확정되기 전 ranks 37..60을 분석하거나 hybrid를 활성화하지 않는다.

@@ -458,6 +458,16 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 완료 뒤 profile refresh 없이 인증된 GMS 자연 방문 1회로 60% shadow를 만든다. 0%·20%·40%·60% run 지표와 함께 text-only counterfactual 대비 score delta, 상승·하락 수, baseline rank 25..36의 hybrid base·selected top K 진입 수를 비교한다.
 - hybrid 환경 변수는 미설정으로 유지한다. 이 단계에서도 부분 coverage serving, calibration 변경, activation threshold 확정 또는 ranks 37..60 자동 확대를 하지 않는다.
 
+실행 결과는 `docs/changes/2026-09-29-gms-candidate-audio-cohort-3.md`에 기록했다. exact 12곡 중 11곡은 provider 요청 24회 안에서 완료됐지만 baseline rank 28 한 곡은 `preview_info_rejected`로 non-retryable 실패했다. 별도 2-request 진단에서 token 200 뒤 해당 preview playback-info 403을 확인했다. 실패곡에는 partial 분석 결과가 없고 전체 job은 completed 50·failed 1이다. exact 12/12 조건을 충족하지 못해 새 자연 shadow를 만들지 않았고 최신 coverage는 40% 그대로다. terminal-unavailable 후보의 denominator·filter·provenance 정책을 정하기 전 ranks 37..60으로 확대하지 않는다.
+
+### 2026-09-29 단계 6.6: terminal-unavailable 후보 정책 blocker
+
+- `preview_info_rejected` 403은 동일 실행의 다른 11곡과 별도 진단에서 재현된 track-specific terminal failure다. 재시도·대체 분석·가짜 component 생성으로 숨기지 않는다.
+- 현재 `audio_coverage_ratio`의 분모는 raw candidate 60곡 전체다. 실패곡을 그대로 두면 full coverage gate를 충족할 수 없고, text fallback을 허용하면 단계 6.4에서 확인한 availability uplift가 다시 생긴다.
+- 실패곡을 hybrid candidate에서 제외하고 다음 후보를 backfill하면 baseline과 hybrid candidate universe가 달라진다. 단순히 분모에서 제외하면 coverage가 실제보다 높아질 수 있다. 어느 쪽도 근거 없이 적용하지 않는다.
+- 다음 구현 전에 403·404·410 등 terminal preview 상태의 오류 taxonomy, shadow candidate provenance, denominator, source backfill 여부와 사용자 설명 코드를 설계한다. baseline 응답과 영구 싫어요·사용자 격리 규칙은 변경하지 않는다.
+- 정책과 실패 테스트가 확정되기 전에는 새로운 provider cohort, 60% shadow 또는 hybrid activation을 진행하지 않는다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health

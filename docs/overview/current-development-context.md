@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 세 번째 GMS 후보 audio cohort는 baseline rank 25..36 exact 12곡 중 11곡을 완료하고 1곡에서 중단됐다. 전체 job은 completed 50·failed 1이고 완료곡은 exact feature·MAEST·MusicNN 계약을 모두 충족한다. 실패곡 `Lovers In A Past Life`는 token 200 뒤 KR `PREVIEW` playback-info 403으로 재현된 track-specific non-retryable 경계이며 partial 결과는 없다. exact 12/12 조건을 충족하지 못해 새 shadow를 만들지 않았고 coverage는 40% 그대로다. raw candidate 100% coverage가 불가능할 수 있으므로 terminal-unavailable 오류 taxonomy·provenance·denominator·backfill 정책을 정하기 전 ranks 37..60과 hybrid activation을 중단했다. 상세는 `docs/changes/2026-09-29-gms-candidate-audio-cohort-3.md`에 기록한다.
 - 2026-09-29 40% coverage shadow의 calibration을 읽기 전용으로 검토했다. 분석 24곡의 raw similarity 평균은 text 0.783469, audio 0.858244, mood 0.765526, rhythm 0.827843이고 같은 후보의 text-only counterfactual 대비 hybrid base score는 평균 0.019717 상승했으며 23/24곡이 상승했다. 두 번째 cohort 6곡은 counterfactual top 12에는 없지만 hybrid base와 Selector 결과 모두 top 12에 들어 Selector가 아닌 component 결합이 교체 원인이다. 표본·label 부족과 baseline 순서 선택 편향 때문에 가중치는 바꾸지 않았다. partial coverage는 shadow 전용으로 한정하고 활성화 전 full audio·mood·rhythm coverage gate를 blocker로 기록했다. 운영 코드·DB·profile·환경 변수는 변경하지 않았다. 상세는 `docs/decisions/2026-09-29-hybrid-partial-coverage-calibration.md`에 기록한다.
 - 2026-09-29 GMS 후보 baseline rank 1..12와 13..24를 각각 12곡·provider 요청 25회로 bounded 분석했다. 전체 audio job은 completed 39건, 다른 상태 0건이다. 자연 shadow coverage는 0%→20%→40%로 증가했고 40% run에서 overlap@K 0.5, 평균 절대 rank displacement 3.3666666666666667, top K selector 변경 12건, 두 번째 cohort의 top 12 진입 6건을 기록했다. 다만 분석된 24곡의 hybrid score가 미분석 36곡보다 모두 높아 추가 확대 전 missing-component 재정규화와 calibration 검토가 필요하다. profile refresh와 hybrid 환경 변경은 하지 않아 requested/served 모두 baseline이고 fallback은 `ranking_disabled`다. 상세는 `docs/changes/2026-09-29-gms-candidate-audio-cohort.md`와 `docs/changes/2026-09-29-gms-candidate-audio-cohort-2.md`에 기록한다.
 - 2026-09-29 `b4f48dd`, `5d72f07`에서 EMS `analyze-audio`의 반복 가능한 exact `--track-id` allowlist, 인증된 본인 전용 audio profile 갱신 API와 GMS `오디오 취향 반영` UI를 구현하고 Zorin에 배포했다. eligible 사용자 6곡은 provider 요청 13/13으로 분석됐고 completed 6/6, coverage 1.0, 2,304차원 global centroid profile을 생성했다. 후보 coverage가 없던 첫 자연 shadow는 audio·mood·rhythm 0, baseline `ranking_disabled`였으며 hybrid 설정은 계속 미설정이다. 전체 EMS 78개 테스트, Web 132개 파일·505개 테스트, 타입·lint·49개 경로 build를 통과했다. 상세는 `docs/changes/2026-09-29-user-audio-profile-cohort.md`에 기록한다.
@@ -207,7 +208,7 @@
 
 ## 다음 작업
 
-1. 최신 40% coverage shadow의 baseline rank 25..36 exact 12곡을 세 번째 bounded cohort로 분석하고 60% shadow를 text-only counterfactual과 비교한다. ranks 37..60은 결과 검토 전 분석하지 않으며, activation 근거가 확정되기 전까지 hybrid 환경 변수와 실제 GMS 순서는 변경하지 않는다.
+1. terminal preview 403·404·410의 오류 taxonomy, shadow candidate provenance, coverage denominator와 hybrid candidate backfill 여부를 설계하고 실패 테스트를 먼저 고정한다. 그 전에는 ranks 37..60을 분석하지 않으며 hybrid 환경 변수와 실제 GMS 순서도 변경하지 않는다.
 2. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 3. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 4. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
