@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `f2aeac4`
+최신 기능 기준 커밋: `8401f94`
 
-최신 Zorin Web 배포 기준 커밋: `f2aeac4` (terminal audio 후보 제외·backfill, baseline 유지)
+최신 Zorin Web 배포 기준 커밋: `8401f94` (full-coverage hybrid 한 명 제한 활성화)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `8401f94`에서 eligible 후보의 audio 분석을 완료하고 full-coverage hybrid를 현재 사용자 한 명에 제한 활성화했다. source routine의 후보 교체를 반영한 최종 자연 shadow는 candidate 60, terminal 제외 2, backfill 2, audio·mood·rhythm coverage 60/60, fallback·null component 0이다. fail-closed gate는 세 coverage가 모두 정확히 1일 때만 hybrid를 허용하고 아니면 `component_coverage_incomplete`로 baseline fallback한다. shadow는 최대 30일·사용자별 최신 100회로 제한하며 저장 transaction에서 같은 사용자만 정리한다. Web 전체 134개 파일·515개 테스트, lint 오류 0, production build, 임시 PostgreSQL의 migration 28개·cleanup·down/up을 통과했다. 운영 backup 뒤 028과 Web만 배포하고 현재 subject 한 명·minimum 1을 설정했다. 로그인 shadow `a96ec455-e570-4fc8-8c3e-ea958cf79642`는 requested/served `hybrid-v0`, fallback null이고 화면 12곡과 DB hybrid top 12가 일치한다. 상세는 `docs/decisions/2026-09-29-hybrid-full-coverage-activation.md`와 `docs/changes/2026-09-29-hybrid-full-coverage-activation.md`에 기록한다.
 - 2026-09-29 `f2aeac4`에서 terminal preview 후보 제외와 backfill을 구현하고 Zorin에 배포했다. HTTP 403은 새 `preview_forbidden` non-retryable 코드로 분류하고, 기존 `preview_info_rejected`·`preview_unavailable` terminal 행은 EMS 원본과 실제 baseline에는 남기되 audio/hybrid 후보에서 제외한다. 비는 자리는 동일 text 순서의 다음 정상 후보로 채우며 shadow에는 실제 제공 baseline, 제외 트랙·오류, backfill 트랙을 별도 기록한다. EMS 전체 79개 테스트, Web 전체 133개 파일·509개 테스트, lint 오류 0, 49개 route build, 임시 PostgreSQL의 27개 migration과 실제 통합 테스트를 통과했다. 운영 backup 뒤 027과 Web·EMS만 배포했고 local/public smoke, 비인증 401, 오류 로그 0건을 확인했다. 로그인 자연 shadow는 candidate 60, terminal 제외 1, backfill 1, audio·mood·rhythm coverage 35/60을 기록했고 실제 baseline 12곡은 직전 run과 같았다. hybrid 설정은 계속 미설정이다. 상세는 `docs/changes/2026-09-29-terminal-audio-candidate-discard.md`에 기록한다.
 - 2026-09-29 세 번째 GMS 후보 audio cohort는 baseline rank 25..36 exact 12곡 중 11곡을 완료하고 1곡에서 중단됐다. 전체 job은 completed 50·failed 1이고 완료곡은 exact feature·MAEST·MusicNN 계약을 모두 충족한다. 실패곡 `Lovers In A Past Life`는 token 200 뒤 KR `PREVIEW` playback-info 403으로 재현된 track-specific non-retryable 경계이며 partial 결과는 없다. exact 12/12 조건을 충족하지 못해 새 shadow를 만들지 않았고 coverage는 40% 그대로다. raw candidate 100% coverage가 불가능할 수 있으므로 terminal-unavailable 오류 taxonomy·provenance·denominator·backfill 정책을 정하기 전 ranks 37..60과 hybrid activation을 중단했다. 상세는 `docs/changes/2026-09-29-gms-candidate-audio-cohort-3.md`에 기록한다.
 - 2026-09-29 40% coverage shadow의 calibration을 읽기 전용으로 검토했다. 분석 24곡의 raw similarity 평균은 text 0.783469, audio 0.858244, mood 0.765526, rhythm 0.827843이고 같은 후보의 text-only counterfactual 대비 hybrid base score는 평균 0.019717 상승했으며 23/24곡이 상승했다. 두 번째 cohort 6곡은 counterfactual top 12에는 없지만 hybrid base와 Selector 결과 모두 top 12에 들어 Selector가 아닌 component 결합이 교체 원인이다. 표본·label 부족과 baseline 순서 선택 편향 때문에 가중치는 바꾸지 않았다. partial coverage는 shadow 전용으로 한정하고 활성화 전 full audio·mood·rhythm coverage gate를 blocker로 기록했다. 운영 코드·DB·profile·환경 변수는 변경하지 않았다. 상세는 `docs/decisions/2026-09-29-hybrid-partial-coverage-calibration.md`에 기록한다.
@@ -210,7 +211,7 @@
 
 ## 다음 작업
 
-1. 새 terminal 제외 shadow의 eligible text baseline을 기준으로 다음 exact 12곡 cohort를 다시 산출하고 provider 요청 상한·중단 조건을 기록한다. 실행 전까지 hybrid 환경 변수와 실제 GMS 순서는 변경하지 않는다.
+1. 현재 사용자 canary의 accept·reject label, coverage fallback, Web 오류를 관찰한 뒤 가중치 조정이나 다른 사용자 확대 여부를 별도 결정한다.
 2. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 3. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 4. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
@@ -231,6 +232,9 @@
 - `docs/changes/2026-09-29-gms-candidate-audio-cohort-3.md`
 - `docs/plans/2026-09-29-terminal-audio-candidate-discard.md`
 - `docs/changes/2026-09-29-terminal-audio-candidate-discard.md`
+- `docs/plans/2026-09-29-hybrid-full-coverage-activation.md`
+- `docs/decisions/2026-09-29-hybrid-full-coverage-activation.md`
+- `docs/changes/2026-09-29-hybrid-full-coverage-activation.md`
 - `docs/plans/2026-09-29-taste-analysis-admin-document.md`
 - `docs/changes/2026-09-29-taste-analysis-admin-document.md`
 - `docs/harness/portable-project-harness.md`
