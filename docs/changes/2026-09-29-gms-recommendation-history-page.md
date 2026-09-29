@@ -24,6 +24,16 @@ GMS의 기존 `이전 추천 기록`은 현재 화면 아래 접이식 영역에
 
 ## 미검증·다음 작업
 
-- 로그인된 운영 화면의 실제 current batch·트랙 결정 label·재생은 배포 뒤 확인한다.
+- 로그인된 운영 화면에서 실제 current·replaced batch와 트랙 결정 label을 확인했다. 이력에서 실제 재생 버튼은 사용자 재생 상태를 바꾸므로 실행하지 않았다.
 - 실제 `다시 추천 받기`는 비가역적으로 새 exposure를 만드는 동작이므로 이 페이지 검증을 위해 실행하지 않는다.
+
+## 운영 배포
+
+- 기능 커밋 `dbc4a39`를 local `main`에 fast-forward하고 `origin/main`만 push했다. 원격 `codex/anonymous-playback-error`는 `e1bbe73` 그대로 유지했다.
+- release archive는 6,307,840바이트, SHA-256 `a77b384b83cbdf695b8aec57276f347323ad8f6ecbfe965b8a6ef869fb28901e`이며 Zorin release는 `/home/approid/apps/music-pie/releases/dbc4a39`다.
+- 새 migration은 없다. Web image는 `sha256:1acdcd39bc089bf9b2a73c1b8498610580605b95de83870fcca97f3fcf094c8f`, container는 `74313287d9a7`이고 healthy·restart 0이다. rollback image `music-pie-web:pre-gms-history-page-dbc4a39`는 `sha256:6653a7eabbb9ebb39768084a5e05db36f863333aec6dc8fa86e3275e48ae9d3a`다.
+- PostgreSQL `9cc7a8abe9d6`, embedding `ec92b779e416`, audio-analysis `55e9d9e9dc3f`, EMS `70208048b7c2`, source-routines `d5e6f27110e6`, tunnel `7d7bf370d6b7`는 재생성하지 않았다.
+- local/public ready·GMS·`/gms/history`는 HTTP 200이고 비인증 recommendation API는 401이다. 최근 10분 Web 오류 로그는 0건이다.
+- 로그인 Chrome에서 이력 총 2회, 현재 baseline 12곡과 지난 hybrid 12곡을 확인했다. 과거 batch의 실제 accept 1건은 `MMS로 보냄`, reject 1건은 `싫어요`, 나머지는 `결정 없음`으로 표시됐다.
+- 첫 Compose 실행에서 프로젝트 이름을 생략해 시작되지 않은 `infra-web-1`이 생성됐지만 기존 Web은 계속 healthy였다. 생성 상태의 해당 컨테이너만 제거하고 `-p music-pie`를 명시해 Web만 정상 교체했으며 잔여 `infra-web-1`이 없음을 확인했다.
 
