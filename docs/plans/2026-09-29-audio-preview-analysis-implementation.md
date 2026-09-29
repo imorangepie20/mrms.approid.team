@@ -298,6 +298,26 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 `coverage_ratio = analyzed_track_count / eligible_track_count`를 저장하되 activation 임곗값은 실제 cohort 분포를 측정한 뒤 결정한다.
 
+### 2026-09-29 단계 4 실행 설계
+
+- `user_audio_taste_profiles`는 사용자 FK, 독립 `profile_version`, feature·embedding·prediction·algorithm version, eligible/analyzed count, 생성 coverage, input fingerprint, weighted DSP·prediction summary와 completed 시각을 저장한다.
+- `user_audio_taste_centroids`는 profile FK 아래 global index 0과 선택된 cluster 1..3을 2,304차원 vector로 저장한다. profile 또는 사용자 삭제 시 cascade하고 text 768차원 테이블과 결합하지 않는다.
+- eligible 입력은 해당 사용자의 저장 TIDAL 트랙 중 active EMS와 연결된 트랙, TIDAL track 좋아요, GMS accept의 합집합이다. 어떤 경로로 들어왔든 그 사용자의 reject 이력이 있으면 제외한다.
+- analyzed 입력은 eligible 중 `completed` job, `essentia-dsp-v1`, MAEST `essentia/discogs-maest-30s-pw-519l@2`, 2,304차원 L2 vector와 MusicNN revision 1·vocabulary 2의 18개 high-level label이 모두 있는 트랙만 사용한다.
+- playlist 중복, artist 완화와 positive feedback 2배 가중치는 text profile과 같은 함수를 재사용한다. 오디오 global centroid는 analyzed 1곡 이상이면 만들고, cluster는 analyzed 60곡 이상·cluster별 10곡 이상·silhouette 0.10 이상일 때만 만든다.
+- weighted summary는 BPM·beat confidence/count, RMS·peak·zero crossing·clipping, spectral centroid·rolloff·flatness, MFCC 평균, tonal key/mode 분포와 18개 high-level probability를 포함한다.
+- fingerprint는 정렬된 track ID·preview hash·playlist/feedback weight와 모든 version identity를 SHA-256으로 계산한다.
+- 새 profile·centroid·summary는 한 transaction에서 building → completed로 전환한다. 계산이나 저장 실패 시 기존 completed row와 centroids는 rollback으로 유지한다.
+- 이번 단계는 repository와 명시적 refresh 함수를 제공하지만 GMS 조회·순서·응답과 사용자 요청 경로에는 연결하지 않는다. 운영 migration 뒤 실제 사용자와 분석 트랙의 교집합을 읽기 전용으로 확인하며, coverage가 없으면 profile을 임의 생성하지 않는다.
+
+### 단계 4 변경 파일과 검증
+
+1. `024_user_audio_taste_profiles.sql`·down SQL·migration test로 additive schema와 안전한 rollback을 고정한다.
+2. `recommendations/audio-taste-profile.ts`와 test에 metadata 검증, 동일 가중치 centroid, summary, coverage와 fingerprint를 구현한다.
+3. `db/audio-taste-profiles.ts`와 test에 사용자 격리 loader, 영구 거절 제외, exact-version join과 atomic replace·refresh를 구현한다.
+4. opt-in PostgreSQL integration에서 24개 migration, user isolation, reject 제외, exact vector와 atomic replacement를 검증한다.
+5. 관련·전체 Vitest, lint, production build, 격리 PostgreSQL migration/down restore를 통과한 뒤 additive migration과 Web release를 배포한다.
+
 ## 9. 단계 5: shadow ranking pipeline
 
 ### 변경 파일

@@ -25,7 +25,7 @@ export type TasteProfileResult = {
   uniqueTrackCount: number;
 };
 
-type WeightedInput = TasteProfileInput & {
+export type WeightedTasteProfileInput<T extends TasteProfileInput = TasteProfileInput> = T & {
   weight: number;
 };
 
@@ -47,7 +47,7 @@ function normalize(vector: number[]): number[] {
   return vector.map((value) => value / norm);
 }
 
-function weightedMean(inputs: WeightedInput[]): number[] {
+function weightedMean(inputs: WeightedTasteProfileInput[]): number[] {
   const sum = Array.from({ length: inputs[0].embedding.length }, () => 0);
   for (const input of inputs) {
     input.embedding.forEach((value, index) => {
@@ -69,7 +69,7 @@ function seededRandom(seed: number): () => number {
 }
 
 function initialCentroids(
-  inputs: WeightedInput[],
+  inputs: WeightedTasteProfileInput[],
   clusterCount: number,
   seed: number,
 ): number[][] {
@@ -106,7 +106,7 @@ function initialCentroids(
   return [...selected].map((index) => inputs[index].embedding);
 }
 
-function assign(inputs: WeightedInput[], centroids: number[][]): number[] {
+function assign(inputs: WeightedTasteProfileInput[], centroids: number[][]): number[] {
   return inputs.map((input) => {
     let bestIndex = 0;
     let bestSimilarity = Number.NEGATIVE_INFINITY;
@@ -122,7 +122,7 @@ function assign(inputs: WeightedInput[], centroids: number[][]): number[] {
 }
 
 function cosineSilhouette(
-  inputs: WeightedInput[],
+  inputs: WeightedTasteProfileInput[],
   assignments: number[],
   clusterCount: number,
 ): number {
@@ -150,7 +150,7 @@ function cosineSilhouette(
 }
 
 function sphericalKMeans(
-  inputs: WeightedInput[],
+  inputs: WeightedTasteProfileInput[],
   clusterCount: number,
   seed: number,
 ): ClusterResult | null {
@@ -163,7 +163,7 @@ function sphericalKMeans(
       break;
     }
     assignments = nextAssignments;
-    const clusters = Array.from({ length: clusterCount }, () => [] as WeightedInput[]);
+    const clusters = Array.from({ length: clusterCount }, () => [] as WeightedTasteProfileInput[]);
     assignments.forEach((cluster, index) => clusters[cluster].push(inputs[index]));
     if (clusters.some((cluster) => cluster.length === 0)) return null;
     centroids = clusters.map(weightedMean);
@@ -177,8 +177,8 @@ function sphericalKMeans(
   return { assignments, centroids, silhouette };
 }
 
-function uniqueInputs(inputs: TasteProfileInput[]): TasteProfileInput[] {
-  const unique = new Map<string, TasteProfileInput>();
+function uniqueInputs<T extends TasteProfileInput>(inputs: T[]): T[] {
+  const unique = new Map<string, T>();
   for (const input of inputs) {
     const current = unique.get(input.trackId);
     if (!current || input.playlistCount > current.playlistCount) {
@@ -188,7 +188,7 @@ function uniqueInputs(inputs: TasteProfileInput[]): TasteProfileInput[] {
   return [...unique.values()];
 }
 
-function weightedInputs(inputs: TasteProfileInput[]): WeightedInput[] {
+function weightedInputs<T extends TasteProfileInput>(inputs: T[]): WeightedTasteProfileInput<T>[] {
   const dimensions = inputs[0].embedding.length;
   const artistCounts = new Map<string, number>();
   inputs.forEach((input) => {
@@ -216,12 +216,19 @@ function weightedInputs(inputs: TasteProfileInput[]): WeightedInput[] {
   });
 }
 
+export function prepareTasteProfileInputs<T extends TasteProfileInput>(
+  rawInputs: T[],
+): WeightedTasteProfileInput<T>[] {
+  return weightedInputs(uniqueInputs(rawInputs));
+}
+
 export function buildTasteProfile(
   rawInputs: TasteProfileInput[],
   seed = 20260922,
+  minimumTrackCount = MIN_PROFILE_TRACKS,
 ): TasteProfileResult {
   const unique = uniqueInputs(rawInputs);
-  if (unique.length < MIN_PROFILE_TRACKS) {
+  if (unique.length < minimumTrackCount) {
     throw new Error("taste_profile_minimum_not_met");
   }
   const inputs = weightedInputs(unique);
