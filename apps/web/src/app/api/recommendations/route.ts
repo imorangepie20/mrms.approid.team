@@ -1,5 +1,10 @@
+import { after } from "next/server";
+
 import { requireAuth0Subject } from "@/lib/auth/auth0";
-import { listPersonalizedEmsRecommendations } from "@/lib/db/gms-recommendations";
+import {
+  preparePersonalizedEmsRecommendations,
+  recordRecommendationShadow,
+} from "@/lib/db/gms-recommendations";
 
 const MAX_LIMIT = 24;
 
@@ -18,7 +23,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    return Response.json(await listPersonalizedEmsRecommendations(auth0Subject, limit));
+    const prepared = await preparePersonalizedEmsRecommendations(auth0Subject, limit);
+    const shadow = prepared.shadow;
+    if (shadow) {
+      after(async () => {
+        await recordRecommendationShadow(auth0Subject, shadow).catch(() => undefined);
+      });
+    }
+    return Response.json(prepared.recommendations);
   } catch {
     return Response.json({ code: "recommendations_unavailable" }, { status: 503 });
   }

@@ -353,6 +353,26 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 
 숫자 gate는 사전에 발명하지 않는다. 실제 cohort baseline을 기록한 뒤 activation 문서에서 threshold와 rollback 기준을 확정한다.
 
+### 2026-09-29 단계 5 실행 설계
+
+- `025_recommendation_shadow_runs.sql`에 사용자별 shadow request와 candidate component를 분리해 저장한다. 원본 embedding·preview URL·token·DSP 원문은 저장하지 않고 track ID, text/audio profile version, model version, 순위, 정규화된 numeric component, reason code와 aggregate metric만 기록한다.
+- Source는 현재 text profile query가 반환하는 동일한 최대 `limit × 5` 후보다. 기존 SQL의 active·KR STREAM·소유 playlist·accept/reject 제외 조건을 유지하고, pure Filter 모듈은 반환된 active·playable 상태와 중복 ID를 다시 검증하며 다른 source가 합류할 때 사용할 사용자 reject set 계약을 제공한다.
+- Hydrator는 latest completed audio profile이 있으면 그 profile에 고정된 feature·MAEST·MusicNN version으로 후보의 audio centroid similarity, BPM과 high-level prediction을 붙인다. profile 또는 candidate audio가 없으면 값을 만들지 않고 component별 fallback으로 남긴다.
+- `hybrid-v0` similarity는 문서의 text 0.45, audio 0.40, mood 0.10, rhythm 0.05를 사용 가능한 component 사이에서만 재정규화한다. mood는 채택한 10개 mood label probability의 평균 절대 차이를 0~1 similarity로 바꾸고, rhythm은 사용자·후보 BPM의 상대 차이를 0~1 similarity로 바꾼다.
+- base score는 hybrid similarity 0.65, `match_confidence` catalog 0.15, freshness 0.10, `catalog_priority` editorial 0.10을 사용한다. activation gate가 아니라 비교용 고정 `hybrid-v0` 계약이다.
+- Selector는 base score와 stable track ID로 정렬한 뒤 이미 선택된 같은 artist 후보에 기존 baseline diversity 감소량과 같은 `0.075`를 적용한다. candidate별 base rank, selected rank, repeated artist와 selector score를 기록한다.
+- baseline은 기존 `rankEmsCandidates` 결과를 그대로 응답한다. shadow는 baseline top K와 hybrid top K의 overlap@K, 동일 후보 전체의 평균 rank displacement, 같은 artist 비중, selector가 top K를 바꾼 수, audio/mood/rhythm coverage와 fallback 여부를 계산한다.
+- route는 Next.js `after()`에서 shadow insert를 실행한다. insert·transaction 실패는 내부에서 처리해 이미 반환한 추천 응답을 바꾸지 않는다. text profile이 없거나 후보가 0이면 불필요한 shadow row를 만들지 않는다.
+- 이번 단계는 `GMS_RANKING_VERSION`을 추가하거나 hybrid를 serving하지 않는다. 운영에 audio profile이 없으면 text-only fallback 관측만 생기며, activation threshold·보관 기간·자동 정리 정책은 실제 cohort를 확인한 별도 결정으로 남긴다.
+
+### 단계 5 변경 파일과 검증
+
+1. `025_recommendation_shadow_runs.sql`·down SQL·migration test로 사용자 격리, cascade와 text/audio profile provenance를 고정한다.
+2. `candidates.ts`·`filters.ts`·`hybrid-score.ts`·`selector.ts`와 unit test로 동일 후보, component fallback, deterministic selector와 aggregate metric을 고정한다.
+3. `gms-recommendations.ts`가 baseline 응답과 별도 shadow payload를 만들고, repository test에서 exact audio version hydration과 transaction rollback을 검증한다.
+4. recommendation route test에서 `after()` scheduling, 응답 불변과 side-effect 실패 격리를 검증한다.
+5. 격리 PostgreSQL migration 25개·integration·down restore, 전체 Web Vitest·type·lint·build를 통과한 뒤 additive migration과 Web-only release를 배포한다.
+
 ## 10. 단계 6: 제한된 serving과 활성화
 
 - `GMS_RANKING_VERSION=baseline|hybrid-v0` server setting으로 전환한다.

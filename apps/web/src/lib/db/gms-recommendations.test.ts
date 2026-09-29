@@ -3,12 +3,19 @@ import { describe, expect, it, vi } from "vitest";
 import type { TransactionExecutor } from "./music-library";
 import {
   listPersonalizedEmsRecommendations,
+  preparePersonalizedEmsRecommendations,
   rankEmsCandidates,
+  recordRecommendationShadow,
   saveRecommendationDecision,
 } from "./gms-recommendations";
 
 const profileRow = {
   algorithm_version: "ems-v1",
+  audio_model_revision: null,
+  audio_prediction_features: null,
+  audio_profile_id: null,
+  audio_profile_version: null,
+  audio_summary_features: null,
   id: "profile-a",
   user_id: "user-a",
 };
@@ -18,6 +25,10 @@ const candidateRows = [
     album: "Album A",
     artist: "Artist A",
     artwork_url: "https://img.test/a.jpg",
+    audio_similarity_cluster: 0.8,
+    audio_similarity_global: 0.7,
+    candidate_bpm: 120,
+    candidate_predictions: { happy: 0.8, non_happy: 0.2 },
     catalog_priority: 0.9,
     duration_ms: 180000,
     freshness: 0.8,
@@ -32,6 +43,10 @@ const candidateRows = [
     album: "Album A 2",
     artist: "Artist A",
     artwork_url: "https://img.test/a2.jpg",
+    audio_similarity_cluster: null,
+    audio_similarity_global: null,
+    candidate_bpm: null,
+    candidate_predictions: null,
     catalog_priority: 0.9,
     duration_ms: 181000,
     freshness: 0.8,
@@ -46,6 +61,10 @@ const candidateRows = [
     album: "Album B",
     artist: "Artist B",
     artwork_url: "https://img.test/b.jpg",
+    audio_similarity_cluster: 0.75,
+    audio_similarity_global: 0.72,
+    candidate_bpm: 100,
+    candidate_predictions: { happy: 0.6, non_happy: 0.4 },
     catalog_priority: 0.75,
     duration_ms: 182000,
     freshness: 0.7,
@@ -113,6 +132,100 @@ describe("GMS personalized recommendation repository", () => {
       0.3 * 0.7 + 0.7 * 0.92,
       6,
     );
+  });
+
+  it("builds a separate hybrid shadow payload without changing baseline response", async () => {
+    const audioProfile = {
+      ...profileRow,
+      audio_model_revision: "2",
+      audio_prediction_features: { happy: 0.8, non_happy: 0.2 },
+      audio_profile_id: "audio-profile-a",
+      audio_profile_version: "44444444-4444-4444-8444-444444444444",
+      audio_summary_features: { rhythm: { bpm: 120 } },
+    };
+    const query = vi.fn(async (sql: string) => ({
+      rows: sql.includes("/* recommendation_profiles */")
+        ? [audioProfile]
+        : candidateRows,
+    }));
+
+    const result = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      { query: query as unknown as TransactionExecutor["query"] },
+    );
+
+    expect(result.recommendations.tracks.map((track) => track.id)).toEqual(["track-a", "track-b"]);
+    expect(result.shadow).toMatchObject({
+      audioModelRevision: "2",
+      audioProfileId: "audio-profile-a",
+      audioProfileVersion: "44444444-4444-4444-8444-444444444444",
+      candidateCount: 3,
+      rankingVersion: "hybrid-v0",
+      requestedLimit: 2,
+      textProfileId: "profile-a",
+      textProfileVersion: "ems-v1",
+      userId: "user-a",
+    });
+    expect(result.shadow?.candidates).toHaveLength(3);
+    expect(result.shadow?.candidates.find((candidate) => candidate.trackId === "track-a"))
+      .toMatchObject({
+      audioAvailable: true,
+      components: expect.objectContaining({ text: expect.any(Number) }),
+      trackId: "track-a",
+    });
+    expect(query.mock.calls[1]?.[0]).toMatch(/audio_profile\.embedding_model_revision/i);
+    expect(query.mock.calls[1]?.[0]).toMatch(/prediction\.model_revision = audio_profile\.prediction_model_revision/i);
+  });
+
+  it("records a shadow run and candidates atomically", async () => {
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      executorWithRows(),
+    );
+    expect(prepared.shadow).not.toBeNull();
+    const query = vi.fn(async (sql: string) => ({
+      rows: sql.includes("INSERT INTO user_recommendation_shadow_runs")
+        ? [{ id: "shadow-run-a" }]
+        : [],
+    }));
+
+    await recordRecommendationShadow(
+      "auth0|listener",
+      prepared.shadow!,
+      { query: query as unknown as TransactionExecutor["query"] },
+    );
+
+    const sql = query.mock.calls.map(([text]) => text);
+    expect(sql[0]).toBe("BEGIN");
+    expect(sql.at(-1)).toBe("COMMIT");
+    expect(sql.filter((text) => text.includes("INSERT INTO user_recommendation_shadow_candidates")))
+      .toHaveLength(candidateRows.length);
+  });
+
+  it("rolls back shadow recording without affecting the recommendation result", async () => {
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      executorWithRows(),
+    );
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("INSERT INTO user_recommendation_shadow_runs")) {
+        return { rows: [{ id: "shadow-run-a" }] };
+      }
+      if (sql.includes("INSERT INTO user_recommendation_shadow_candidates")) {
+        throw new Error("shadow write failed");
+      }
+      return { rows: [] };
+    });
+
+    await expect(recordRecommendationShadow(
+      "auth0|listener",
+      prepared.shadow!,
+      { query: query as unknown as TransactionExecutor["query"] },
+    )).rejects.toThrow("shadow write failed");
+    expect(query.mock.calls.map(([sql]) => sql)).toContain("ROLLBACK");
   });
 
   it("records a decision through the authenticated user's database row", async () => {
