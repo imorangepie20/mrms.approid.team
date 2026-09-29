@@ -50,7 +50,7 @@ it("renders the five global navigation destinations and anonymous Auth0 actions"
   expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/api/auth/login");
   expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute(
     "href",
-    "/api/auth/login?screen_hint=signup",
+    "/api/auth/login?screen_hint=signup&returnTo=%2Fonboarding%3Ftidal%3Dconnected",
   );
 });
 

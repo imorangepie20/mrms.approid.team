@@ -50,5 +50,9 @@ it("continues without another approval when playback scope is already stored", a
 
   expect(screen.getByRole("status")).toHaveTextContent("TIDAL 연결됨");
   expect(screen.getByRole("link", { name: "음악 화면으로 계속" })).toHaveAttribute("href", "/mms");
+  expect(screen.getByRole("link", { name: "플레이리스트 가져오기" })).toHaveAttribute(
+    "href",
+    "/onboarding?tidal=connected",
+  );
   expect(screen.queryByRole("button", { name: "TIDAL 연결하기" })).not.toBeInTheDocument();
 });

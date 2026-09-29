@@ -51,7 +51,7 @@ export default async function TidalConnectionPage({
             <TidalConnectionAuthorization returnTo={returnTo} />
           )}
           {playbackConnected ? (
-            <Link className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-5" href="/onboarding">플레이리스트 가져오기</Link>
+            <Link className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-5" href="/onboarding?tidal=connected">플레이리스트 가져오기</Link>
           ) : (
             <Link className="inline-flex min-h-11 items-center rounded-xl border border-white/20 px-5" href={returnTo}>나중에 연결하고 계속</Link>
           )}
