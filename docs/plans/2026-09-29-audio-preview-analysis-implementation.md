@@ -439,6 +439,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - 완료 뒤 profile refresh 없이 인증된 GMS 자연 방문 1회로 새 shadow를 만든다. 0%·20%·40% run의 coverage, overlap@K, 평균 rank displacement, top K selector 변경 수, baseline rank 13..24의 hybrid top K 진입 수와 score 분포를 비교한다.
 - hybrid 환경 변수 세 개는 계속 미설정으로 둔다. 이 결과만으로 activation threshold·allowlist·보관 기간을 확정하거나 ranks 25..60을 자동 분석하지 않는다.
 
+실행 결과는 `docs/changes/2026-09-29-gms-candidate-audio-cohort-2.md`에 기록했다. baseline rank 13..24의 12곡은 provider 요청 25/25로 모두 분석됐고 전체 audio job은 completed 39건, 다른 상태 0건이다. 40% coverage shadow는 overlap@K 0.5, 평균 절대 rank displacement 3.3666666666666667, top K selector 변경 12건이며 두 번째 cohort 6곡이 top 12에 진입했다. 다만 분석된 24곡과 미분석 36곡의 hybrid score 구간이 계속 완전히 분리돼 있어 추가 분석 전에 missing-component 재정규화와 calibration을 검토한다. profile refresh와 hybrid 환경 변경은 하지 않았고 serving은 `ranking_disabled` baseline을 유지한다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
