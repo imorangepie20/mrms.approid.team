@@ -22,5 +22,15 @@
 
 ## 미검증·다음 작업
 
-- 운영 DB backup·migration, Web 배포와 로그인 화면의 비파괴 확인은 아직 남아 있다.
-- 운영 사용자 데이터가 실제로 바뀌는 삭제 확인은 실행하지 않는다. 확인 대화상자 취소와 테스트로 UI 경계를 검증한다.
+- 로그인된 운영 `/gms/history`의 desktop과 `390x844`에서 현재·지난 batch 24곡 모두의 삭제 버튼과 접근 가능한 이름을 확인했고 browser error·warning은 0건이다.
+- 운영 사용자 데이터가 실제로 바뀌는 삭제 요청은 실행하지 않았다. 확인·성공·실패 흐름은 UI/API 자동화 테스트로 검증했다.
+
+## 운영 배포
+
+- 기능 커밋 `e92f7e5`를 local `main`에 fast-forward하고 `origin/main`만 push했다. 원격 `codex/anonymous-playback-error`는 `e1bbe73` 그대로 유지했다.
+- release archive는 6,338,560바이트, SHA-256 `ee4b592f4c931bbdc6f1c0a77c9359541da340b55026d364817570de57f320d6`이며 Zorin release는 `/home/approid/apps/music-pie/releases/e92f7e5`다.
+- migration 직전 custom-format backup `/home/approid/apps/music-pie/backups/pre-030-history-removal-e92f7e5.dump`는 209,244,354바이트, SHA-256 `be6ef8a36fd9979784d01c26f1d8387157a4cc9be65e0a4037d4d4500f08e4a0`이며 `pg_restore --list`를 통과했다.
+- 030 migration 1건을 적용해 tombstone table과 migration 기록을 확인했다. 초기 tombstone은 0건이며 기존 recommendation batch 2건·exposure 24건은 유지됐다.
+- Web image는 `sha256:246e16b96e30ba09bb328fd5db632134164d01c5c8f61c28d4cc08cd58b67dcf`, container는 `5c1ed913f675`이고 healthy·restart 0이다. rollback image `music-pie-web:pre-history-track-removal-e92f7e5`는 `sha256:1acdcd39bc089bf9b2a73c1b8498610580605b95de83870fcca97f3fcf094c8f`다.
+- PostgreSQL `9cc7a8abe9d6`, embedding `ec92b779e416`, audio-analysis `55e9d9e9dc3f`, EMS `70208048b7c2`, source-routines `d5e6f27110e6`, tunnel `7d7bf370d6b7`는 재생성하지 않았다.
+- local/public ready와 `/gms/history`는 HTTP 200이고 비인증 DELETE는 401이다. 최근 10분 Web 오류 로그는 0건이며 잔여 `infra-web-1` 또는 migration run container는 없다.

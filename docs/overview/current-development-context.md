@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `dbc4a39`
+최신 기능 기준 커밋: `e92f7e5`
 
-최신 Zorin Web 배포 기준 커밋: `dbc4a39` (GMS 사용자 추천 트랙 이력 페이지)
+최신 Zorin Web 배포 기준 커밋: `e92f7e5` (GMS 추천 이력 개별 트랙 삭제)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `e92f7e5`에서 `/gms/history`의 개별 트랙 삭제를 구현하고 Zorin에 배포했다. 삭제는 사용자·batch 소유권을 확인한 tombstone으로 화면에서만 숨기며 원본 snapshot·영구 exposure·결정 기록은 보존해 다시 추천되지 않는다. DELETE API는 UUID·인증·소유권·멱등 경계를 적용하고 UI는 확인, 처리 중 중복 차단, 즉시 숨김, 실패 안내를 제공한다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build와 격리 PostgreSQL 030 apply/down/reapply를 통과했다. 운영 backup·030·Web만 배포하고 batch 2건·exposure 24건을 보존했으며 로그인 desktop·`390x844`에서 24개 삭제 버튼과 browser 오류 0건을 확인했다. 실제 사용자 데이터 삭제는 실행하지 않았다. 상세는 `docs/changes/2026-09-29-gms-recommendation-history-track-removal.md`에 기록한다.
 - 2026-09-29 `dbc4a39`에서 `/gms/history` 사용자 추천 트랙 이력 페이지를 구현하고 Zorin Web에 배포했다. current·replaced·exhausted batch 전체를 최신순 10개 단위로 조회하고 최신 트랙 결정을 결합해 표시하며, 각 batch를 별도 대기열로 재생할 수 있다. GMS 접이식 최근 이력은 독립 페이지 링크로 교체했다. Web 전체 142개 파일·539개 테스트 중 536개 통과·3개 skip, lint 오류 0, 51개 route build와 로컬 `390x844`를 통과했다. 운영 로그인 화면에서 총 2회·각 12곡, current/replaced 상태와 accept/reject/미결정 label을 확인했고 Web 외 컨테이너는 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-gms-recommendation-history-page.md`에 기록한다.
 - 2026-09-29 `d1f9954`에서 사용자별 GMS current batch와 영구 exposure를 구현하고 Zorin에 배포했다. 반복 page/GET은 같은 12곡을 유지하고 `다시 추천 받기`만 expected batch ID·사용자 row lock transaction으로 unseen batch를 생성한다. `(user_id, track_id)` unique로 무액션 트랙도 재추천하지 않으며 accept·reject는 current 대기 목록에서만 숨기고 제공 batch는 이력 snapshot으로 보존한다. 후보가 없으면 영구 `exhausted` 상태로 닫는다. Web 전체 137개 파일·528개 테스트, lint 오류 0, 50개 route build, 격리 PostgreSQL 029 apply/down/reapply와 unique·cascade 동작을 통과했다. 운영 reserve는 7개 bounded cohort·provider 요청 151회로 다음 후보 120/120 exact component coverage를 확보했고, migration 029와 Web만 배포했다. 로그인 GMS 새로고침 전후 동일 12곡, current batch 1·exposure 12·shadow 1, full coverage와 browser error 0건을 확인했다. 상세는 `docs/changes/2026-09-29-gms-permanent-recommendation-history.md`에 기록한다.
 - 2026-09-29 `8401f94`에서 eligible 후보의 audio 분석을 완료하고 full-coverage hybrid를 현재 사용자 한 명에 제한 활성화했다. source routine의 후보 교체를 반영한 최종 자연 shadow는 candidate 60, terminal 제외 2, backfill 2, audio·mood·rhythm coverage 60/60, fallback·null component 0이다. fail-closed gate는 세 coverage가 모두 정확히 1일 때만 hybrid를 허용하고 아니면 `component_coverage_incomplete`로 baseline fallback한다. shadow는 최대 30일·사용자별 최신 100회로 제한하며 저장 transaction에서 같은 사용자만 정리한다. Web 전체 134개 파일·515개 테스트, lint 오류 0, production build, 임시 PostgreSQL의 migration 28개·cleanup·down/up을 통과했다. 운영 backup 뒤 028과 Web만 배포하고 현재 subject 한 명·minimum 1을 설정했다. 로그인 shadow `a96ec455-e570-4fc8-8c3e-ea958cf79642`는 requested/served `hybrid-v0`, fallback null이고 화면 12곡과 DB hybrid top 12가 일치한다. 상세는 `docs/decisions/2026-09-29-hybrid-full-coverage-activation.md`와 `docs/changes/2026-09-29-hybrid-full-coverage-activation.md`에 기록한다.
@@ -123,6 +124,7 @@
 
 | 날짜 | 작업 디렉터리·명령 또는 수동 절차 | 성공 조건 | 결과 |
 |---|---|---|---|
+| 2026-09-29 | `apps/web` focused/full Vitest·lint·build, 격리 PostgreSQL 030 apply/down/reapply, Zorin backup·migration·Web-only release, local/public HTTP와 로그인 desktop·`390x844` browser QA | 사용자 소유권, 이력만 숨김, exposure·snapshot 보존, 재추천 방지, 인증·반응형, 기존 서비스 보존 | 통과: focused 22개·전체 144개 파일 548개 성공/3개 skip, lint 오류 0(기존 경고 6), 52 routes, backup 209,244,354바이트·`pg_restore --list`, release `e92f7e5`, batch 2·exposure 24 보존, Web healthy·restart 0, local/public 200·비인증 DELETE 401·오류 로그 0, 비-Web container ID 불변 |
 | 2026-09-29 | EMS 전체 pytest, Web 전체 Vitest·lint·build, 임시 PostgreSQL 27개 migration·통합, 운영 backup·027·Web/EMS release·로그인 GMS shadow·HTTP smoke | 403 terminal 분류, baseline 보존, hybrid 제외·backfill, provenance, 기존 서비스 보존 | 통과: EMS 79개, Web 133개 파일·509개 테스트, lint 오류 0, build 49 routes, backup 187,775,595바이트·`pg_restore --list`, release `f2aeac4`, 자연 shadow 제외/backfill `1/1`·coverage `35/60`·baseline 12곡 동일, Web·EMS healthy, local/public 200·비인증 401·오류 로그 0, hybrid 설정 미설정 |
 | 2026-09-29 | Zorin 8곡 bounded worker, 실패곡 메모리 pipe 진단, audio-analysis pytest·container build/smoke, 단일 서비스 release와 한 곡 재처리 | 요청·sample 상한, 긴 provider preview 30초 truncate, 모델 계약, 실패·대기 0, 다른 서비스 보존 | 통과: 첫 실행 `7 completed/1 failed`, 원인 60.005초 정상 PREVIEW; 수정 뒤 표본 8/8·전체 9/9 completed, 요청 `17+3`, 30초·16kHz·segment 3·coverage 1.0·2,304차원 L2·prediction 28, audio-analysis 13개·EMS 74개 테스트, release `db8c230`, restart 0·오류 로그 0·public ready 200 |
 | 2026-09-29 | `apps/web`·`apps/admin` Vitest, ESLint, production build, 임시 PostgreSQL 통합 테스트, Zorin Web-only release, local/public HTTP와 로그인 관리자 desktop·`390x844`·키보드 QA | 집계·상세·단일 재처리 경계, 민감 데이터 비노출, 인증·반응형·키보드 동작, 기존 서비스 보존 | 통과: Web 120개 파일·463개 테스트와 PostgreSQL 통합 1개(Admin 관련 integration 기본 1개 skip), Admin 5개 파일·12개 테스트, lint 오류 0(기존 경고 Web 5·Admin 38), 두 build, release `e1bbe73`, health 200·비인증 화면 307·API 401·최근 Web 오류 0, 비-Web container ID·시작 시각 불변 |
