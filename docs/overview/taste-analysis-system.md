@@ -267,4 +267,4 @@ EMS 원본 트랙 분석은 공유할 수 있지만 개인 가중치, cluster, �
 
 ## 13. 현재와 제안의 경계
 
-현재 구현된 것은 TIDAL 플레이리스트 메타데이터 임베딩, 사용자 액션 가중치, 전역·군집 중심, EMS 텍스트 유사도와 GMS 점수화다. 오디오 영역은 4MiB request cap, SHA-256 검증, FFmpeg 앞 30초 bounded decode, Essentia DSP, MAEST 2,304차원 embedding, MusiCNN prediction, EMS preview worker와 저장 schema, 관리자 coverage·오류·상세 관측까지 구현·배포했다. 8곡 sample cohort와 기존 canary를 합친 운영 9곡은 모두 completed다. 사용자 오디오 프로필과 여섯 단계 hybrid ranking pipeline은 확정 설계이며 아직 적용하지 않았다.
+현재 구현된 것은 TIDAL 플레이리스트 메타데이터 임베딩, 사용자 액션 가중치, 전역·군집 중심, EMS 텍스트 유사도와 GMS 점수화다. 오디오 영역은 4MiB request cap, SHA-256 검증, FFmpeg 앞 30초 bounded decode, Essentia DSP, MAEST 2,304차원 embedding, MusiCNN prediction, EMS preview worker와 저장 schema, 관리자 coverage·오류·상세 관측까지 구현·배포했다. 8곡 sample cohort와 기존 canary를 합친 운영 9곡은 모두 completed다. 사용자 오디오 프로필은 독립 schema·계산·명시적 refresh repository까지 shadow 기반을 배포했지만 GMS·사용자 요청·scheduler에는 연결하지 않았다. 운영 eligible 6곡과 exact-version analyzed 트랙의 교집합이 0이라 실제 profile 행은 없다. 여섯 단계 hybrid ranking pipeline과 activation은 아직 적용하지 않았다.

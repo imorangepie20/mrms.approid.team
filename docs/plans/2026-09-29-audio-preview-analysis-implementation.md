@@ -318,6 +318,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 4. opt-in PostgreSQL integration에서 24개 migration, user isolation, reject 제외, exact vector와 atomic replacement를 검증한다.
 5. 관련·전체 Vitest, lint, production build, 격리 PostgreSQL migration/down restore를 통과한 뒤 additive migration과 Web release를 배포한다.
 
+실행 결과는 `3f4fba3`과 `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`에 기록했다. 운영 024 schema와 명시적 refresh 기반은 배포했으며, eligible 6곡과 exact-version analyzed 트랙의 교집합이 0이라 profile 행은 만들지 않았다. GMS·사용자 요청·scheduler 연결은 단계 5 전까지 보류한다.
+
 ## 9. 단계 5: shadow ranking pipeline
 
 ### 변경 파일

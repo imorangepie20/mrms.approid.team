@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-09-29
 
-최신 기능 기준 커밋: `db8c230`
+최신 기능 기준 커밋: `3f4fba3`
 
-최신 Zorin Web 배포 기준 커밋: `e1bbe73` (오디오 분석 관리자 관측)
+최신 Zorin Web 배포 기준 커밋: `3f4fba3` (사용자 오디오 취향 프로필 shadow 기반)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-09-29 `3f4fba3`에서 text 768차원 프로필과 분리된 사용자 오디오 취향 프로필 schema·계산·repository를 구현하고 Zorin에 배포했다. 입력은 사용자별 선택 playlist·TIDAL track 좋아요·GMS accept 중 active EMS에 연결되고 reject되지 않은 곡이며, exact `essentia-dsp-v1`·MAEST 2,304차원 L2·MusicNN 18개 high-level label만 analyzed로 사용한다. 가중치·군집 기준은 text 프로필과 공유하고, DSP·prediction 요약·coverage·SHA-256 fingerprint와 독립 UUID version을 transaction으로 저장한다. GMS·사용자 요청·scheduler에는 연결하지 않았다. Web 전체 123개 파일·474개 테스트, PostgreSQL 통합, 24개 migration과 024 rollback·재적용, 타입·lint·build를 통과했다. 운영 backup 뒤 024와 Web만 배포했으며 읽기 전용 교집합은 eligible 6·analyzed 0이라 profile을 생성하지 않았다. public smoke와 인증 경계, 오류 로그 0건을 확인했고 Web 외 container는 유지했다. 상세는 `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`에 기록한다.
 - 2026-09-29 `db8c230`에서 8곡 bounded audio sample cohort를 실행하고 긴 TIDAL preview 처리 오류를 수정했다. 첫 실행은 provider 요청 17/17에서 7곡 completed, 1곡 `analysis_preview_too_long`이었으며 실패 입력은 저장 없이 메모리 pipe로 측정한 결과 약 60.005초의 정상 `PREVIEW`였다. audio-analysis는 4MiB request cap과 20초 timeout을 유지한 채 FFmpeg에서 앞 30초만 decode·분석하도록 변경했다. 수정 뒤 실패곡을 요청 3회로 재처리해 최종 sample 8/8, 전체 job 9/9 completed를 확인했다. 모든 결과는 30초·16kHz mono·segment 3·coverage 1.0·2,304차원 L2 embedding·prediction 28개이며 오류·대기 job은 0이다. audio-analysis만 교체했고 Web·PostgreSQL·embedding·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-sample-cohort.md`에 기록한다.
 - 2026-09-29 `e1bbe73`에서 `/admin/audio-analysis`와 관리자 API를 추가하고 Zorin Web release로 배포했다. 활성 EMS 39,102곡의 분석 coverage와 상태·feature/model version·오류·7일 처리량을 집계하며, 트랙 상세는 preview hash·DSP·prediction과 embedding metadata만 제공하고 URL·token·embedding vector는 노출하지 않는다. 재처리는 활성 numeric-TIDAL 트랙 한 건과 정확한 `essentia-dsp-v1` version으로 제한하고 `running` job은 거부하며 기존 결과는 보존한다. Web 전체 120개 파일·463개 테스트와 PostgreSQL 통합 1개, Admin 12개 테스트, lint 오류 0, 두 production build를 통과했다. 운영 Web만 교체했고 local/public health 200, 비인증 관리자 화면 307·API 401, 최근 Web 오류 0건과 desktop·`390x844`·키보드 탐색을 확인했다. PostgreSQL·embedding·audio-analysis·EMS·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-audio-analysis-admin-observability.md`에 기록한다.
 - 2026-09-29 `2ccd756`에서 `023_ems_audio_analysis.sql`과 `ems-pipeline analyze-audio`를 추가하고, 실제 TIDAL preview의 codec padding 보정 `f4a3402`까지 Zorin release로 배포했다. migration은 기존 39,102개 active EMS를 자동 enqueue하지 않으며 기본 worker 실행은 stage 16·batch 1·최대 1 batch·provider 요청 3회로 제한된다. preview 원본·signed URL·token은 저장·로그하지 않고, lease·retry·중단 반환·동일 hash 재사용·분석 응답 검증 뒤 transaction 저장을 적용했다. 실제 canary 1건은 30초·16kHz mono·구간 3개·2,304차원 L2 norm 1.0·prediction 28개로 완료됐고 실패·대기 작업은 0이다. 최종 audio-analysis·EMS는 healthy, restart 0, 오류 로그 0건이며 Web·DB·embedding·source-routines·tunnel은 재시작하지 않았다. 상세는 `docs/changes/2026-09-29-ems-audio-preview-worker.md`에 기록한다.
@@ -201,7 +202,7 @@
 
 ## 다음 작업
 
-1. `024_user_audio_taste_profiles.sql`과 사용자별 audio centroid·가중 통계 계산을 구현한다. 운영 적용은 현재 분석된 트랙만 사용하는 shadow profile로 제한하고 text profile과 GMS 순서는 변경하지 않는다.
+1. eligible 사용자 트랙에 exact-version audio analysis coverage를 만든 뒤 baseline과 audio hybrid의 순위·점수 분포를 기록하는 shadow ranking pipeline을 구현한다. text profile과 실제 GMS 순서는 activation 승인 전까지 변경하지 않는다.
 2. 검증용 데이터 생성·삭제가 허용된 로그인 계정에서 내부 플레이리스트 CRUD와 트랙 추가·제거·순서 이동을 desktop/mobile에서 확인한다.
 3. 로그인 브라우저에서 completed taste profile 기반 GMS 추천 카드와 수락·거절 저장을 검증한다.
 4. 로그인 TIDAL 계정으로 Home·EMS 실제 codec 재생, player 시간 증가와 `/visualizer` PCM 반응을 확인한다.
@@ -214,6 +215,7 @@
 - `docs/overview/taste-analysis-system.md`
 - `docs/plans/2026-09-29-audio-preview-analysis-implementation.md`
 - `docs/changes/2026-09-29-audio-preview-analysis-design-revision.md`
+- `docs/changes/2026-09-29-user-audio-taste-profile-shadow.md`
 - `docs/plans/2026-09-29-taste-analysis-admin-document.md`
 - `docs/changes/2026-09-29-taste-analysis-admin-document.md`
 - `docs/harness/portable-project-harness.md`
