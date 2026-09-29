@@ -37,6 +37,8 @@ type Step =
   | "analysisFailed"
   | "complete";
 
+type AnalysisStage = "enrichment" | "embedding";
+
 const IMPORT_POLL_INTERVAL_MS = 750;
 const ENRICHMENT_INTERVAL_MS = 1_100;
 const ANALYSIS_INTERVAL_MS = 250;
@@ -67,6 +69,107 @@ function OnboardingProgress({ activeStep }: { activeStep: ProgressStep }) {
         ))}
       </ol>
     </nav>
+  );
+}
+
+type TasteAnalysisProgressProps =
+  | { kind: "import" }
+  | { kind: "enrichment"; remaining: number; total: number }
+  | { kind: "embedding"; progress: AnalysisProgress | null }
+  | { kind: "complete" };
+
+function TasteAnalysisProgress(props: TasteAnalysisProgressProps) {
+  if (props.kind === "import") {
+    return (
+      <div className="taste-analysis-progress">
+        <div className="taste-analysis-progress-heading" aria-hidden="true">
+          <span>플레이리스트 저장</span>
+          <strong>준비 중</strong>
+        </div>
+        <progress
+          aria-label="플레이리스트 저장 진행"
+          aria-valuetext="선택한 음악을 저장하는 중"
+        />
+      </div>
+    );
+  }
+
+  if (props.kind === "enrichment") {
+    const processed = Math.max(props.total - props.remaining, 0);
+    const valueText = `${processed}곡 처리 · ${props.remaining}곡 남음`;
+    return (
+      <div className="taste-analysis-progress">
+        <div className="taste-analysis-progress-heading" aria-hidden="true">
+          <span>앨범 정보 보강</span>
+          <strong>{valueText}</strong>
+        </div>
+        <progress
+          aria-label="앨범 정보 보강 진행"
+          aria-valuetext={valueText}
+          max={props.total}
+          value={processed}
+        />
+      </div>
+    );
+  }
+
+  if (props.kind === "complete") {
+    return (
+      <div className="taste-analysis-progress taste-analysis-progress--complete">
+        <div className="taste-analysis-progress-heading" aria-hidden="true">
+          <span>취향 분석</span>
+          <strong>완료</strong>
+        </div>
+        <progress
+          aria-label="취향 분석 진행"
+          aria-valuetext="취향 분석 완료"
+          max={100}
+          value={100}
+        />
+      </div>
+    );
+  }
+
+  if (!props.progress) {
+    return (
+      <div className="taste-analysis-progress">
+        <div className="taste-analysis-progress-heading" aria-hidden="true">
+          <span>취향 벡터 분석</span>
+          <strong>대상 확인 중</strong>
+        </div>
+        <progress
+          aria-label="취향 벡터 분석 진행"
+          aria-valuetext="취향 분석 대상을 확인하는 중"
+        />
+      </div>
+    );
+  }
+
+  const total = props.progress.embeddedTrackCount
+    + props.progress.remaining
+    + props.progress.failedTrackCount;
+  const failedText = props.progress.failedTrackCount > 0
+    ? ` · ${props.progress.failedTrackCount}곡 실패`
+    : "";
+  const valueText = `${props.progress.embeddedTrackCount}곡 분석 완료 · ${props.progress.remaining}곡 남음${failedText}`;
+  return (
+    <div className="taste-analysis-progress">
+      <div className="taste-analysis-progress-heading" aria-hidden="true">
+        <span>취향 벡터 분석</span>
+        <strong>
+          {props.progress.embeddedTrackCount} / {total}곡
+          {props.progress.failedTrackCount > 0
+            ? ` · 실패 ${props.progress.failedTrackCount}곡`
+            : ""}
+        </strong>
+      </div>
+      <progress
+        aria-label="취향 벡터 분석 진행"
+        aria-valuetext={valueText}
+        max={total}
+        value={props.progress.embeddedTrackCount}
+      />
+    </div>
   );
 }
 
@@ -126,6 +229,10 @@ export function TidalOnboarding({
     useState<PlaylistImportStatus | null>(null);
   const [analysisProgress, setAnalysisProgress] =
     useState<AnalysisProgress | null>(null);
+  const [analysisStage, setAnalysisStage] =
+    useState<AnalysisStage>("enrichment");
+  const [enrichmentTotal, setEnrichmentTotal] = useState(0);
+  const [enrichmentRemainingCount, setEnrichmentRemainingCount] = useState(0);
   const callbackConnected = useSuccessfulTidalCallback();
   const visibleStep = step === "connect" && callbackConnected ? "select" : step;
   const workflowAbort = useRef<AbortController | null>(null);
@@ -196,7 +303,13 @@ export function TidalOnboarding({
     enrichmentAbort.current?.abort();
     enrichmentAbort.current = controller;
     enrichmentRemaining.current = pendingCount;
-    setAnalysisProgress(null);
+    if (pendingCount > 0) {
+      setAnalysisStage("enrichment");
+      setEnrichmentTotal((current) => Math.max(current, pendingCount));
+      setEnrichmentRemainingCount(pendingCount);
+    } else {
+      setAnalysisStage("embedding");
+    }
     setError(null);
     setStep("analyzing");
 
@@ -205,11 +318,13 @@ export function TidalOnboarding({
         while (enrichmentRemaining.current > 0) {
           const result = await enrichNextTrack(controller.signal);
           enrichmentRemaining.current = result.remaining;
+          setEnrichmentRemainingCount(result.remaining);
           if (result.remaining > 0) {
             await delay(ENRICHMENT_INTERVAL_MS, controller.signal);
           }
         }
 
+        setAnalysisStage("embedding");
         while (!controller.signal.aborted) {
           const result = await processTasteAnalysis(controller.signal);
           setAnalysisProgress(result);
@@ -295,10 +410,21 @@ export function TidalOnboarding({
             BUILDING YOUR TASTE
           </p>
           <h1 className="onboarding-title mt-3">취향을 분석하고 있어요</h1>
+          {analysisStage === "enrichment" ? (
+            <TasteAnalysisProgress
+              kind="enrichment"
+              remaining={enrichmentRemainingCount}
+              total={enrichmentTotal}
+            />
+          ) : (
+            <TasteAnalysisProgress kind="embedding" progress={analysisProgress} />
+          )}
           <p className="mt-3 max-w-xl leading-7 text-fuchsia-50/85" role="status">
-            {analysisProgress
+            {analysisStage === "enrichment"
+              ? `${Math.max(enrichmentTotal - enrichmentRemainingCount, 0)}곡 처리 · ${enrichmentRemainingCount}곡 남음`
+              : analysisProgress
               ? `${analysisProgress.embeddedTrackCount}곡 분석 완료 · ${analysisProgress.remaining}곡 남음`
-              : "앨범 정보를 보강한 뒤 취향 벡터를 만들고 있습니다."}
+              : "취향 분석 대상을 확인하고 있습니다."}
           </p>
         </section>
       );
@@ -311,6 +437,15 @@ export function TidalOnboarding({
             MMS SAVED
           </p>
           <h1 className="onboarding-title mt-3">취향 분석을 이어갈 수 있어요</h1>
+          {analysisStage === "enrichment" ? (
+            <TasteAnalysisProgress
+              kind="enrichment"
+              remaining={enrichmentRemainingCount}
+              total={enrichmentTotal}
+            />
+          ) : (
+            <TasteAnalysisProgress kind="embedding" progress={analysisProgress} />
+          )}
           <p className="mt-3 max-w-xl leading-7 text-amber-50/85" role="alert">
             {error}
           </p>
@@ -339,6 +474,7 @@ export function TidalOnboarding({
           READY TO DISCOVER
         </p>
         <h1 className="onboarding-title mt-3">MMS와 첫 추천이 준비됐어요</h1>
+        <TasteAnalysisProgress kind="complete" />
         <p className="mt-3 max-w-xl leading-7 text-emerald-50/85">
           {completedImport.savedTrackCount}곡을 저장했습니다. 중복 제거 후 고유 트랙은{" "}
           {completedImport.uniqueTrackCount}곡입니다. 취향 분석과 첫 추천 준비를 마쳤습니다.
@@ -444,9 +580,12 @@ export function TidalOnboarding({
             </div>
           ) : null}
           {visibleStep === "importing" ? (
-            <p className="mt-5 text-slate-300" role="status">
-              선택한 음악을 저장하는 중입니다.
-            </p>
+            <>
+              <TasteAnalysisProgress kind="import" />
+              <p className="mt-3 text-slate-300" role="status">
+                선택한 음악을 저장하는 중입니다.
+              </p>
+            </>
           ) : null}
           {error ? <p role="alert" className="mt-5 text-rose-300">{error}</p> : null}
           <div className="onboarding-actions">

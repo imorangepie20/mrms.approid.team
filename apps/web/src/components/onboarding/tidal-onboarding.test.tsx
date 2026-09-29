@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,14 @@ import { TidalOnboarding } from "./tidal-onboarding";
 
 function json(body: unknown, status = 200) {
   return Promise.resolve(Response.json(body, { status }));
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
 
 afterEach(() => {
@@ -167,6 +175,96 @@ describe("TidalOnboarding", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
+  it("shows an accessible indeterminate progress bar while importing playlists", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const importResponse = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") {
+        return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Focus", saved: false, trackCount: 38 }] });
+      }
+      if (url === "/api/playlists/import") return importResponse.promise;
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Focus/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    const progress = screen.getByRole("progressbar", { name: "플레이리스트 저장 진행" });
+    expect(progress).not.toHaveAttribute("value");
+    expect(progress).toHaveAttribute("aria-valuetext", "선택한 음악을 저장하는 중");
+    expect(screen.getByRole("status")).toHaveTextContent("선택한 음악을 저장하는 중입니다");
+  });
+
+  it("uses the initial pending count and remaining count for enrichment progress", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const enrichmentResponse = deferred<Response>();
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") {
+        return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Focus", saved: false, trackCount: 38 }] });
+      }
+      if (url === "/api/playlists/import") return json({ importId: "import-enrichment" }, 202);
+      if (url === "/api/playlists/import/import-enrichment") {
+        return json({ enrichmentPendingCount: 4, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      }
+      if (url === "/api/musicbrainz/enrich") return enrichmentResponse.promise;
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Focus/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    const progress = await screen.findByRole("progressbar", { name: "앨범 정보 보강 진행" });
+    expect(progress).toHaveAttribute("max", "4");
+    expect(progress).toHaveAttribute("value", "0");
+    expect(progress).toHaveAttribute("aria-valuetext", "0곡 처리 · 4곡 남음");
+
+    enrichmentResponse.resolve(Response.json({ processed: true, remaining: 3 }));
+    await waitFor(() => {
+      expect(progress).toHaveAttribute("value", "1");
+      expect(progress).toHaveAttribute("aria-valuetext", "1곡 처리 · 3곡 남음");
+    });
+  });
+
+  it("uses successful, remaining, and failed counts for embedding progress", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") {
+        return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Focus", saved: false, trackCount: 38 }] });
+      }
+      if (url === "/api/playlists/import") return json({ importId: "import-embedding" }, 202);
+      if (url === "/api/playlists/import/import-embedding") {
+        return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      }
+      if (url === "/api/recommendations/analyze") {
+        return json({ embeddedTrackCount: 16, failedTrackCount: 2, profileReady: false, remaining: 20 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Focus/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+
+    const progress = await screen.findByRole("progressbar", { name: "취향 벡터 분석 진행" });
+    expect(progress).toHaveAttribute("max", "38");
+    expect(progress).toHaveAttribute("value", "16");
+    expect(progress).toHaveAttribute(
+      "aria-valuetext",
+      "16곡 분석 완료 · 20곡 남음 · 2곡 실패",
+    );
+    expect(screen.queryByText("MMS와 첫 추천이 준비됐어요")).not.toBeInTheDocument();
+  });
+
   it("runs embedding batches only after MusicBrainz enrichment reaches zero", async () => {
     window.history.replaceState({}, "", "/onboarding?tidal=connected");
     const fetcher = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -223,6 +321,12 @@ describe("TidalOnboarding", () => {
       await screen.findByText("MMS와 첫 추천이 준비됐어요"),
     ).toBeInTheDocument();
     expect(screen.getByText(/38곡을 저장/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "취향 분석 진행" })).toHaveAttribute(
+      "aria-valuetext",
+      "취향 분석 완료",
+    );
+    expect(screen.getByRole("progressbar", { name: "취향 분석 진행" })).toHaveAttribute("value", "100");
+    expect(screen.getByRole("link", { name: "추천 보러 가기" })).toHaveAttribute("href", "/gms");
     const urls = fetcher.mock.calls.map(([input]) => String(input));
     expect(urls.indexOf("/api/musicbrainz/enrich")).toBeLessThan(
       urls.indexOf("/api/recommendations/analyze"),
@@ -256,6 +360,7 @@ describe("TidalOnboarding", () => {
 
   it("shows recommendation ready only after profileReady is true", async () => {
     window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const completionResponse = deferred<Response>();
     let analysisCalls = 0;
     const fetcher = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
@@ -263,7 +368,9 @@ describe("TidalOnboarding", () => {
       if (url === "/api/playlists/import") return json({ importId: "import-ready" }, 202);
       if (url === "/api/playlists/import/import-ready") return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
       analysisCalls += 1;
-      return json({ embeddedTrackCount: analysisCalls * 16, failedTrackCount: 0, profileReady: analysisCalls > 1, remaining: analysisCalls > 1 ? 0 : 22 });
+      return analysisCalls === 1
+        ? json({ embeddedTrackCount: 16, failedTrackCount: 0, profileReady: false, remaining: 22 })
+        : completionResponse.promise;
     });
     vi.stubGlobal("fetch", fetcher);
     const user = userEvent.setup();
@@ -271,8 +378,12 @@ describe("TidalOnboarding", () => {
     await user.click(await screen.findByRole("checkbox", { name: /Ready/i }));
     await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
 
-    expect(await screen.findByText(/16곡 분석 완료/)).toBeInTheDocument();
+    const progress = await screen.findByRole("progressbar", { name: "취향 벡터 분석 진행" });
+    expect(progress).toHaveAttribute("value", "16");
+    expect(progress).toHaveAttribute("max", "38");
     expect(screen.queryByText("MMS와 첫 추천이 준비됐어요")).not.toBeInTheDocument();
+
+    completionResponse.resolve(Response.json({ embeddedTrackCount: 38, failedTrackCount: 0, profileReady: true, remaining: 0 }));
     expect(await screen.findByText("MMS와 첫 추천이 준비됐어요")).toBeInTheDocument();
   });
 
@@ -294,6 +405,42 @@ describe("TidalOnboarding", () => {
     expect(await screen.findByText("MMS는 저장됐어요. 취향 분석을 다시 시도해 주세요.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "분석 다시 시도" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "MMS 보러 가기" })).toHaveAttribute("href", "/mms");
+  });
+
+  it("keeps the last embedding value and denominator through failure and retry", async () => {
+    window.history.replaceState({}, "", "/onboarding?tidal=connected");
+    const retryResponse = deferred<Response>();
+    let analysisCalls = 0;
+    const fetcher = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/tidal/playlists") return json({ playlists: [{ artworkUrl: null, description: null, id: "p-1", name: "Keep Progress", saved: false, trackCount: 38 }] });
+      if (url === "/api/playlists/import") return json({ importId: "import-keep-progress" }, 202);
+      if (url === "/api/playlists/import/import-keep-progress") return json({ enrichmentPendingCount: 0, savedPlaylistCount: 1, savedTrackCount: 38, status: "completed", uniqueTrackCount: 38 });
+      analysisCalls += 1;
+      if (analysisCalls === 1) return json({ embeddedTrackCount: 16, failedTrackCount: 0, profileReady: false, remaining: 22 });
+      if (analysisCalls === 2) return json({ code: "embedding_service_unavailable" }, 503);
+      return retryResponse.promise;
+    });
+    vi.stubGlobal("fetch", fetcher);
+    const user = userEvent.setup();
+    render(<TidalOnboarding connectHref="/api/tidal/connect" />);
+
+    await user.click(await screen.findByRole("checkbox", { name: /Keep Progress/i }));
+    await user.click(screen.getByRole("button", { name: "MMS 만들기" }));
+    await screen.findByRole("button", { name: "분석 다시 시도" });
+
+    const failedProgress = screen.getByRole("progressbar", { name: "취향 벡터 분석 진행" });
+    expect(failedProgress).toHaveAttribute("max", "38");
+    expect(failedProgress).toHaveAttribute("value", "16");
+    expect(failedProgress).toHaveAttribute("aria-valuetext", "16곡 분석 완료 · 22곡 남음");
+
+    await user.click(screen.getByRole("button", { name: "분석 다시 시도" }));
+    const retryProgress = screen.getByRole("progressbar", { name: "취향 벡터 분석 진행" });
+    expect(retryProgress).toHaveAttribute("max", "38");
+    expect(retryProgress).toHaveAttribute("value", "16");
+
+    retryResponse.resolve(Response.json({ embeddedTrackCount: 38, failedTrackCount: 0, profileReady: true, remaining: 0 }));
+    expect(await screen.findByText("MMS와 첫 추천이 준비됐어요")).toBeInTheDocument();
   });
 
   it("resumes remaining jobs after retry without starting another playlist import", async () => {
