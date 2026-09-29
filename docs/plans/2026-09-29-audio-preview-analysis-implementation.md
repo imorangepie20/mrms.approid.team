@@ -402,6 +402,8 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 4. recommendation route와 GMS page test에서 동일 선택, `after()` scheduling, 기본 baseline과 side-effect 실패 격리를 검증한다.
 5. migration 26개·PostgreSQL integration·down restore, 전체 Web Vitest·type·lint·build를 통과한 뒤 production 설정은 baseline인 상태로 additive migration과 Web-only release를 배포한다.
 
+실행 결과는 `696a215`와 `docs/changes/2026-09-29-hybrid-recommendation-serving-gate.md`에 기록했다. 전체 Web 131개 파일·501개 테스트, 타입·lint·48개 경로 build와 격리 PostgreSQL 26 migration·integration을 통과했고 026 down이 기존 shadow 테이블과 run을 보존하는지 확인한 뒤 재적용했다. 운영 backup 뒤 026과 Web release만 배포했으며 세 hybrid 환경 변수는 모두 미설정이라 `baseline`을 유지한다. 실제 `/gms` 페이지도 자연 방문 뒤 serving provenance를 기록할 수 있지만 운영 audio profile과 shadow 행은 아직 0이다. 실제 cohort 없이 allowlist·threshold를 설정하지 않았고 보관 기간·자동 정리 정책도 미확정으로 남겼다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health
