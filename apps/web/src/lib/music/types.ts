@@ -21,14 +21,22 @@ export type Track = {
   tags?: string[];
   tidalTrackId?: string;
   recommendation?: {
+    rankingVersion: "baseline" | "hybrid-v0";
     reasonCodes: string[];
     score: number;
     scoreComponents: {
+      audio?: number;
+      baseScore?: number;
       catalogPriority: number;
       diversity: number;
       freshness: number;
+      hybridSimilarity?: number;
       matchConfidence: number;
+      mood?: number;
+      rhythm?: number;
+      selectorScore?: number;
       similarity: number;
+      text?: number;
     };
   };
 };

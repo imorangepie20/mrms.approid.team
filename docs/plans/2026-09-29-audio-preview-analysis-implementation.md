@@ -384,6 +384,24 @@ worker 기본값은 `--stage-limit 16 --batch-size 1 --max-batches 1 --max-attem
 - rollback은 migration down이 아니라 setting을 `baseline`으로 되돌리는 방식이 우선이다.
 - serving 안정화 뒤에만 CLAP shadow 실험을 별도 model/version으로 추가한다.
 
+### 2026-09-29 단계 6 안전 기반 실행 설계
+
+- 이번 변경은 제한 serving을 위한 코드·schema·운영 설정 계약까지만 배포한다. 실제 shadow cohort와 activation threshold가 없으므로 production `GMS_RANKING_VERSION`은 설정하지 않아 `baseline`을 유지하고 사용자를 hybrid cohort에 넣지 않는다.
+- 서버 전용 `GMS_RANKING_VERSION`, `GMS_HYBRID_AUTH0_SUBJECTS`, `GMS_HYBRID_MIN_AUDIO_COVERAGE`를 읽는다. ranking version이 정확히 `hybrid-v0`이고, 현재 subject가 명시적 allowlist에 있으며, 0보다 크고 1 이하인 coverage threshold가 설정된 경우에만 hybrid eligibility를 평가한다. 누락·오타·wildcard는 모두 baseline으로 fail closed한다.
+- hybrid 선택에는 completed audio profile과 threshold 이상의 candidate audio coverage가 모두 필요하다. 하나라도 없으면 요청 단위로 baseline을 반환하고 `ranking_disabled`, `subject_not_allowlisted`, `coverage_threshold_unconfigured`, `audio_profile_unavailable`, `audio_coverage_below_threshold` 중 실제 fallback reason을 기록한다.
+- `026_recommendation_serving_provenance.sql`은 shadow run에 requested/served ranking version, configured minimum audio coverage와 fallback reason을 추가하고, recommendation decision에 실제 served ranking version을 추가한다. 기존 row는 `baseline`으로 backfill하며 vector·token·URL·개인 설정 원문은 저장하지 않는다.
+- baseline과 hybrid 응답은 같은 candidate hydrate 결과에서 만든다. baseline map은 기존 점수·순서 계약을 유지하고, hybrid map은 selected rank 순서, selector score, hybrid reason과 null을 제거한 numeric component를 사용한다. 응답과 결정에는 실제 `rankingVersion`을 명시한다.
+- `/api/recommendations`와 실제 `/gms` 서버 페이지가 같은 prepare·selection 경로를 사용한다. 두 경로 모두 Next.js `after()`에서 serving provenance를 포함한 shadow 저장을 실행하고, side effect 실패는 응답을 바꾸지 않는다.
+- 운영 배포에서는 새 환경 변수를 추가하지 않는다. 따라서 새 코드가 배포돼도 baseline 응답만 제공하며, rollback은 `GMS_RANKING_VERSION=baseline` 또는 변수 제거 후 Web만 재생성하는 방식이 우선이다.
+
+### 단계 6 안전 기반 변경 파일과 검증
+
+1. `026_recommendation_serving_provenance.sql`·down SQL·migration test로 기존 row backfill, version check와 additive rollback을 고정한다.
+2. `recommendations/serving.ts`와 unit test로 설정 parser, allowlist, threshold, audio profile/coverage fallback과 결정적 선택을 검증한다.
+3. `gms-recommendations.ts`와 repository test에서 baseline 불변, hybrid 응답 mapping, shadow serving provenance와 decision ranking version 저장을 검증한다.
+4. recommendation route와 GMS page test에서 동일 선택, `after()` scheduling, 기본 baseline과 side-effect 실패 격리를 검증한다.
+5. migration 26개·PostgreSQL integration·down restore, 전체 Web Vitest·type·lint·build를 통과한 뒤 production 설정은 baseline인 상태로 additive migration과 Web-only release를 배포한다.
+
 ## 11. 검증 순서
 
 1. `services/audio-analysis`: unit test, fixture integration, image build, health

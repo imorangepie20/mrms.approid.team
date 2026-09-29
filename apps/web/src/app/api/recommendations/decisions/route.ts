@@ -11,13 +11,15 @@ const decisions = new Set<RecommendationDecision["decision"]>([
   "skip",
 ]);
 
-function isDecision(value: unknown): value is RecommendationDecision {
-  if (!value || typeof value !== "object") return false;
+function parseDecision(value: unknown): RecommendationDecision | null {
+  if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
-  return typeof body.sourceTrackId === "string"
+  const rankingVersion = body.rankingVersion ?? "baseline";
+  const valid = typeof body.sourceTrackId === "string"
     && body.sourceTrackId.trim().length > 0
     && typeof body.profileVersion === "string"
     && body.profileVersion.trim().length > 0
+    && (rankingVersion === "baseline" || rankingVersion === "hybrid-v0")
     && typeof body.decision === "string"
     && decisions.has(body.decision as RecommendationDecision["decision"])
     && Array.isArray(body.reasonCodes)
@@ -26,6 +28,15 @@ function isDecision(value: unknown): value is RecommendationDecision {
     && typeof body.scoreComponents === "object"
     && Object.values(body.scoreComponents as Record<string, unknown>)
       .every((score) => typeof score === "number" && Number.isFinite(score));
+  if (!valid) return null;
+  return {
+    decision: body.decision as RecommendationDecision["decision"],
+    profileVersion: body.profileVersion as string,
+    rankingVersion: rankingVersion as RecommendationDecision["rankingVersion"],
+    reasonCodes: body.reasonCodes as string[],
+    scoreComponents: body.scoreComponents as Record<string, number>,
+    sourceTrackId: body.sourceTrackId as string,
+  };
 }
 
 export async function POST(request: Request) {
@@ -42,12 +53,13 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ code: "invalid_decision" }, { status: 400 });
   }
-  if (!isDecision(body)) {
+  const decision = parseDecision(body);
+  if (!decision) {
     return Response.json({ code: "invalid_decision" }, { status: 400 });
   }
 
   try {
-    await saveRecommendationDecision(auth0Subject, body);
+    await saveRecommendationDecision(auth0Subject, decision);
   } catch (error) {
     if (error instanceof Error && error.message === "recommendation_user_not_found") {
       return Response.json({ code: "user_not_found" }, { status: 404 });
@@ -55,7 +67,7 @@ export async function POST(request: Request) {
     return Response.json({ code: "decision_unavailable" }, { status: 503 });
   }
 
-  if (body.decision !== "skip") {
+  if (decision.decision !== "skip") {
     try {
       await refreshTasteProfileFromActions(auth0Subject);
     } catch {

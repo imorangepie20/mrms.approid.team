@@ -7,6 +7,7 @@ import {
   rankEmsCandidates,
   recordRecommendationShadow,
   saveRecommendationDecision,
+  selectPreparedPersonalizedRecommendations,
 } from "./gms-recommendations";
 
 const profileRow = {
@@ -96,7 +97,12 @@ describe("GMS personalized recommendation repository", () => {
       { query: query as unknown as TransactionExecutor["query"] },
     );
 
-    expect(result).toEqual({ profileReady: false, profileVersion: null, tracks: [] });
+    expect(result).toEqual({
+      profileReady: false,
+      profileVersion: null,
+      rankingVersion: "baseline",
+      tracks: [],
+    });
     expect(query).toHaveBeenCalledTimes(1);
   });
 
@@ -107,6 +113,7 @@ describe("GMS personalized recommendation repository", () => {
 
     expect(result.profileReady).toBe(true);
     expect(result.profileVersion).toBe("ems-v1");
+    expect(result.rankingVersion).toBe("baseline");
     expect(result.tracks.map((track) => track.id)).toEqual(["track-a", "track-b"]);
     expect(result.tracks[0]).toMatchObject({
       album: "Album A",
@@ -168,6 +175,23 @@ describe("GMS personalized recommendation repository", () => {
       userId: "user-a",
     });
     expect(result.shadow?.candidates).toHaveLength(3);
+    expect(result.hybridRecommendations).toMatchObject({
+      profileReady: true,
+      profileVersion: "ems-v1",
+      rankingVersion: "hybrid-v0",
+    });
+    expect(result.hybridRecommendations?.tracks[0]?.recommendation).toMatchObject({
+      rankingVersion: "hybrid-v0",
+      scoreComponents: expect.objectContaining({
+        hybridSimilarity: expect.any(Number),
+        selectorScore: expect.any(Number),
+      }),
+    });
+    for (const track of result.hybridRecommendations?.tracks ?? []) {
+      expect(Object.values(track.recommendation.scoreComponents)
+        .every((component) => typeof component === "number" && Number.isFinite(component)))
+        .toBe(true);
+    }
     expect(result.shadow?.candidates.find((candidate) => candidate.trackId === "track-a"))
       .toMatchObject({
       audioAvailable: true,
@@ -176,6 +200,41 @@ describe("GMS personalized recommendation repository", () => {
     });
     expect(query.mock.calls[1]?.[0]).toMatch(/audio_profile\.embedding_model_revision/i);
     expect(query.mock.calls[1]?.[0]).toMatch(/prediction\.model_revision = audio_profile\.prediction_model_revision/i);
+  });
+
+  it("serves hybrid only for an allowlisted subject meeting the explicit coverage gate", async () => {
+    const audioProfile = {
+      ...profileRow,
+      audio_model_revision: "2",
+      audio_prediction_features: { happy: 0.8, non_happy: 0.2 },
+      audio_profile_id: "audio-profile-a",
+      audio_profile_version: "44444444-4444-4444-8444-444444444444",
+      audio_summary_features: { rhythm: { bpm: 120 } },
+    };
+    const query = vi.fn(async (sql: string) => ({
+      rows: sql.includes("/* recommendation_profiles */")
+        ? [audioProfile]
+        : candidateRows,
+    }));
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      { query: query as unknown as TransactionExecutor["query"] },
+    );
+    const baseline = selectPreparedPersonalizedRecommendations("auth0|listener", prepared, {});
+    const hybrid = selectPreparedPersonalizedRecommendations("auth0|listener", prepared, {
+      GMS_HYBRID_AUTH0_SUBJECTS: "auth0|listener",
+      GMS_HYBRID_MIN_AUDIO_COVERAGE: "0.3",
+      GMS_RANKING_VERSION: "hybrid-v0",
+    });
+
+    expect(baseline.recommendations.rankingVersion).toBe("baseline");
+    expect(baseline.serving.fallbackReason).toBe("ranking_disabled");
+    expect(hybrid.recommendations.rankingVersion).toBe("hybrid-v0");
+    expect(hybrid.serving).toMatchObject({
+      fallbackReason: null,
+      servedRankingVersion: "hybrid-v0",
+    });
   });
 
   it("records a shadow run and candidates atomically", async () => {
@@ -194,6 +253,12 @@ describe("GMS personalized recommendation repository", () => {
     await recordRecommendationShadow(
       "auth0|listener",
       prepared.shadow!,
+      {
+        fallbackReason: "ranking_disabled",
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline",
+        servedRankingVersion: "baseline",
+      },
       { query: query as unknown as TransactionExecutor["query"] },
     );
 
@@ -223,6 +288,12 @@ describe("GMS personalized recommendation repository", () => {
     await expect(recordRecommendationShadow(
       "auth0|listener",
       prepared.shadow!,
+      {
+        fallbackReason: "ranking_disabled",
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline",
+        servedRankingVersion: "baseline",
+      },
       { query: query as unknown as TransactionExecutor["query"] },
     )).rejects.toThrow("shadow write failed");
     expect(query.mock.calls.map(([sql]) => sql)).toContain("ROLLBACK");
@@ -236,6 +307,7 @@ describe("GMS personalized recommendation repository", () => {
       {
         decision: "reject",
         profileVersion: "ems-v1",
+        rankingVersion: "baseline",
         reasonCodes: ["low_similarity"],
         scoreComponents: { similarity: 0.2 },
         sourceTrackId: "track-a",
@@ -245,7 +317,7 @@ describe("GMS personalized recommendation repository", () => {
 
     expect(query).toHaveBeenCalledWith(
       expect.stringMatching(/INSERT INTO user_recommendation_decisions[\s\S]*SELECT u\.id/i),
-      expect.arrayContaining(["auth0|listener", "track-a", "ems-v1", "reject"]),
+      expect.arrayContaining(["auth0|listener", "track-a", "ems-v1", "baseline", "reject"]),
     );
   });
 });

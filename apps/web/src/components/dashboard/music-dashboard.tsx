@@ -50,6 +50,7 @@ export function MusicDashboard({ access, importedPlaylists = [], mmsPlaylists = 
       body: JSON.stringify({
         decision,
         profileVersion,
+        rankingVersion: track.recommendation?.rankingVersion ?? "baseline",
         reasonCodes: track.recommendation?.reasonCodes ?? ["user_action"],
         scoreComponents: track.recommendation?.scoreComponents ?? {},
         sourceTrackId: track.id,

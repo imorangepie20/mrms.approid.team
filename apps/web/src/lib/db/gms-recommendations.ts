@@ -8,6 +8,12 @@ import {
   type HybridScoreComponents,
 } from "@/lib/recommendations/hybrid-score";
 import { rankHybridCandidates } from "@/lib/recommendations/selector";
+import {
+  decideRecommendationServing,
+  type RecommendationRankingVersion,
+  type RecommendationServingDecision,
+  type ServingEnvironment,
+} from "@/lib/recommendations/serving";
 
 import type { TransactionExecutor } from "./music-library";
 import { getDatabasePool } from "./pool";
@@ -45,15 +51,23 @@ export type EmsCandidateRow = {
 };
 
 export type RecommendationScoreComponents = {
+  audio?: number;
+  baseScore?: number;
   catalogPriority: number;
   diversity: number;
   freshness: number;
+  hybridSimilarity?: number;
   matchConfidence: number;
+  mood?: number;
+  rhythm?: number;
+  selectorScore?: number;
   similarity: number;
+  text?: number;
 };
 
 export type EmsRecommendationTrack = Track & {
   recommendation: {
+    rankingVersion: RecommendationRankingVersion;
     reasonCodes: string[];
     score: number;
     scoreComponents: RecommendationScoreComponents;
@@ -63,6 +77,7 @@ export type EmsRecommendationTrack = Track & {
 export type PersonalizedRecommendations = {
   profileReady: boolean;
   profileVersion: string | null;
+  rankingVersion: RecommendationRankingVersion;
   tracks: EmsRecommendationTrack[];
 };
 
@@ -107,13 +122,20 @@ export type RecommendationShadowPayload = {
 };
 
 export type PreparedPersonalizedRecommendations = {
+  hybridRecommendations: PersonalizedRecommendations | null;
   recommendations: PersonalizedRecommendations;
   shadow: RecommendationShadowPayload | null;
+};
+
+export type SelectedPersonalizedRecommendations = {
+  recommendations: PersonalizedRecommendations;
+  serving: RecommendationServingDecision;
 };
 
 export type RecommendationDecision = {
   decision: "accept" | "reject" | "skip";
   profileVersion: string;
+  rankingVersion: RecommendationRankingVersion;
   reasonCodes: string[];
   scoreComponents: Record<string, number>;
   sourceTrackId: string;
@@ -320,9 +342,47 @@ function mapRecommendation(
     id: row.id,
     playbackAvailable: true,
     recommendation: {
+      rankingVersion: "baseline",
       reasonCodes: reasons,
       score: row.recommendation.score,
       scoreComponents: row.recommendation.scoreComponents,
+    },
+    tidalTrackId: row.tidal_id,
+    title: row.title,
+  };
+}
+
+function mapHybridRecommendation(
+  row: EmsCandidateRow,
+  candidate: RecommendationShadowCandidate,
+): EmsRecommendationTrack {
+  const components: RecommendationScoreComponents = {
+    baseScore: candidate.hybridScore,
+    catalogPriority: candidate.components.editorial,
+    diversity: candidate.selectorScore < candidate.hybridScore ? 0.25 : 1,
+    freshness: candidate.components.freshness,
+    hybridSimilarity: candidate.components.hybridSimilarity,
+    matchConfidence: candidate.components.catalog,
+    selectorScore: candidate.selectorScore,
+    similarity: candidate.components.hybridSimilarity,
+    text: candidate.components.text,
+    ...(candidate.components.audio === null ? {} : { audio: candidate.components.audio }),
+    ...(candidate.components.mood === null ? {} : { mood: candidate.components.mood }),
+    ...(candidate.components.rhythm === null ? {} : { rhythm: candidate.components.rhythm }),
+  };
+  return {
+    album: row.album ?? "Unknown Album",
+    artist: row.artist,
+    artworkClass: "from-violet-700 via-fuchsia-600 to-slate-900",
+    artworkUrl: row.artwork_url ?? "",
+    durationSeconds: Math.round(row.duration_ms / 1000),
+    id: row.id,
+    playbackAvailable: true,
+    recommendation: {
+      rankingVersion: "hybrid-v0",
+      reasonCodes: candidate.reasonCodes,
+      score: candidate.selectorScore,
+      scoreComponents: components,
     },
     tidalTrackId: row.tidal_id,
     title: row.title,
@@ -363,7 +423,13 @@ export async function preparePersonalizedEmsRecommendations(
   const profile = profileResult.rows[0];
   if (!profile) {
     return {
-      recommendations: { profileReady: false, profileVersion: null, tracks: [] },
+      hybridRecommendations: null,
+      recommendations: {
+        profileReady: false,
+        profileVersion: null,
+        rankingVersion: "baseline",
+        tracks: [],
+      },
       shadow: null,
     };
   }
@@ -504,13 +570,59 @@ export async function preparePersonalizedEmsRecommendations(
   const recommendations = {
     profileReady: true,
     profileVersion: profile.algorithm_version,
+    rankingVersion: "baseline" as const,
     tracks: baseline.slice(0, safeLimit).map(mapRecommendation),
   };
+  const shadow = filteredRows.length === 0
+    ? null
+    : buildShadowPayload(profile, filteredRows, baseline, safeLimit);
+  const rowsById = new Map(filteredRows.map((row) => [row.id, row]));
+  const shadowCandidatesById = new Map(
+    shadow?.candidates.map((candidate) => [candidate.trackId, candidate]) ?? [],
+  );
+  const hybridTracks = shadow?.hybridTrackIds.flatMap((trackId) => {
+    const row = rowsById.get(trackId);
+    const candidate = shadowCandidatesById.get(trackId);
+    return row && candidate ? [mapHybridRecommendation(row, candidate)] : [];
+  }) ?? [];
   return {
+    hybridRecommendations: shadow
+      ? {
+          profileReady: true,
+          profileVersion: profile.algorithm_version,
+          rankingVersion: "hybrid-v0",
+          tracks: hybridTracks,
+        }
+      : null,
     recommendations,
-    shadow: filteredRows.length === 0
-      ? null
-      : buildShadowPayload(profile, filteredRows, baseline, safeLimit),
+    shadow,
+  };
+}
+
+export function selectPreparedPersonalizedRecommendations(
+  auth0Subject: string,
+  prepared: PreparedPersonalizedRecommendations,
+  environment: ServingEnvironment = process.env,
+): SelectedPersonalizedRecommendations {
+  const serving = decideRecommendationServing({
+    audioCoverageRatio: prepared.shadow?.audioCoverageRatio ?? 0,
+    audioProfileAvailable: Boolean(prepared.shadow?.audioProfileId),
+    auth0Subject,
+    environment,
+  });
+  return {
+    recommendations: serving.servedRankingVersion === "hybrid-v0"
+      && prepared.hybridRecommendations
+      ? prepared.hybridRecommendations
+      : prepared.recommendations,
+    serving: serving.servedRankingVersion === "hybrid-v0"
+      && !prepared.hybridRecommendations
+      ? {
+          ...serving,
+          fallbackReason: "audio_profile_unavailable",
+          servedRankingVersion: "baseline",
+        }
+      : serving,
   };
 }
 
@@ -524,12 +636,13 @@ export async function listPersonalizedEmsRecommendations(
     limit,
     executor,
   );
-  return prepared.recommendations;
+  return selectPreparedPersonalizedRecommendations(auth0Subject, prepared).recommendations;
 }
 
 export async function recordRecommendationShadow(
   auth0Subject: string,
   shadow: RecommendationShadowPayload,
+  serving: RecommendationServingDecision,
   executor?: TransactionExecutor,
 ): Promise<void> {
   const transaction = (executor
@@ -544,14 +657,17 @@ export async function recordRecommendationShadow(
          baseline_track_ids, hybrid_track_ids, overlap_at_k,
          mean_abs_rank_displacement, same_artist_ratio,
          selector_changed_count, audio_coverage_ratio,
-         mood_coverage_ratio, rhythm_coverage_ratio, fallback_used
+         mood_coverage_ratio, rhythm_coverage_ratio, fallback_used,
+         requested_ranking_version, served_ranking_version,
+         minimum_audio_coverage, serving_fallback_reason
        )
        SELECT
          user_row.id, $3::uuid, $4,
          $5::uuid, $6::uuid, $7,
          $8, $9, $10,
          $11::uuid[], $12::uuid[], $13,
-         $14, $15, $16, $17, $18, $19, $20
+         $14, $15, $16, $17, $18, $19, $20,
+         $21, $22, $23, $24
        FROM app_users AS user_row
        WHERE user_row.auth0_subject = $1 AND user_row.id = $2::uuid
        RETURNING id`,
@@ -576,6 +692,10 @@ export async function recordRecommendationShadow(
         shadow.moodCoverageRatio,
         shadow.rhythmCoverageRatio,
         shadow.fallbackUsed,
+        serving.requestedRankingVersion,
+        serving.servedRankingVersion,
+        serving.minimumAudioCoverage,
+        serving.fallbackReason,
       ],
     );
     const runId = runResult.rows[0]?.id;
@@ -628,8 +748,9 @@ export async function saveRecommendationDecision(
 ): Promise<void> {
   const result = await database(executor).query<{ id: string }>(
     `INSERT INTO user_recommendation_decisions
-      (user_id, source_track_id, profile_version, decision, reason_codes, score_components)
-     SELECT u.id, $2, $3, $4, $5::jsonb, $6::jsonb
+      (user_id, source_track_id, profile_version, ranking_version,
+       decision, reason_codes, score_components)
+     SELECT u.id, $2, $3, $4, $5, $6::jsonb, $7::jsonb
      FROM app_users AS u
      WHERE u.auth0_subject = $1
      RETURNING id`,
@@ -637,6 +758,7 @@ export async function saveRecommendationDecision(
       auth0Subject,
       input.sourceTrackId,
       input.profileVersion,
+      input.rankingVersion,
       input.decision,
       JSON.stringify(input.reasonCodes),
       JSON.stringify(input.scoreComponents),

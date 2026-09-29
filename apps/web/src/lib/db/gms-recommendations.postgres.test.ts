@@ -179,9 +179,21 @@ suite("recommendation shadow PostgreSQL integration", () => {
     expect(prepared.shadow?.candidates.filter((candidate) => candidate.audioAvailable))
       .toHaveLength(1);
 
-    await recordRecommendationShadow("auth0|shadow", prepared.shadow!, executor);
+    await recordRecommendationShadow(
+      "auth0|shadow",
+      prepared.shadow!,
+      {
+        fallbackReason: "ranking_disabled",
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline",
+        servedRankingVersion: "baseline",
+      },
+      executor,
+    );
     const saved = await client.query(`
-      SELECT run.ranking_version, run.candidate_count, run.fallback_used,
+      SELECT run.ranking_version, run.requested_ranking_version,
+             run.served_ranking_version, run.serving_fallback_reason,
+             run.candidate_count, run.fallback_used,
              count(candidate.track_id)::integer AS saved_candidates
       FROM user_recommendation_shadow_runs AS run
       INNER JOIN user_recommendation_shadow_candidates AS candidate ON candidate.run_id = run.id
@@ -192,7 +204,10 @@ suite("recommendation shadow PostgreSQL integration", () => {
       candidate_count: 3,
       fallback_used: true,
       ranking_version: "hybrid-v0",
+      requested_ranking_version: "baseline",
       saved_candidates: 3,
+      served_ranking_version: "baseline",
+      serving_fallback_reason: "ranking_disabled",
     }]);
   });
 });

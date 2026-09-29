@@ -208,6 +208,7 @@ it("persists GMS decisions separately from the MMS like action", async () => {
         ...catalog[0],
         id: "ems-track-a",
         recommendation: {
+          rankingVersion: "baseline",
           reasonCodes: ["taste_match"],
           score: 0.91,
           scoreComponents: {
@@ -246,6 +247,7 @@ it("renders GMS track recommendations as a list instead of cards", () => {
           ...catalog[0],
           id: "ems-track-reason",
           recommendation: {
+            rankingVersion: "baseline",
             reasonCodes: ["taste_match", "fresh_release"],
             score: 0.92,
             scoreComponents: {

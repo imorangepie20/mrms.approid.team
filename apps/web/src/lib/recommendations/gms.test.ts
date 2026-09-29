@@ -19,7 +19,8 @@ describe("EMS GMS scoring", () => {
   it("stores an auditable recommendation decision without embedding input text", async () => {
     const query = vi.fn(async (_sql: string, _values?: unknown[]) => ({ rows: [] }));
     await recordRecommendationDecision({ query: query as unknown as TransactionExecutor["query"] }, {
-      userId: "user-a", sourceTrackId: "track-a", profileVersion: "ems-v1", decision: "reject",
+      userId: "user-a", sourceTrackId: "track-a", profileVersion: "ems-v1",
+      rankingVersion: "baseline", decision: "reject",
       reasonCodes: ["low_similarity"], scoreComponents: { similarity: 0.2 },
     });
     expect(query).toHaveBeenCalledWith(expect.stringMatching(/INSERT INTO user_recommendation_decisions/i), expect.arrayContaining(["user-a", "track-a", "reject"]));

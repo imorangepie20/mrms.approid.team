@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
   recordShadow: vi.fn(),
   requireSubject: vi.fn(),
+  select: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/auth/auth0", () => ({
 vi.mock("@/lib/db/gms-recommendations", () => ({
   preparePersonalizedEmsRecommendations: mocks.prepare,
   recordRecommendationShadow: mocks.recordShadow,
+  selectPreparedPersonalizedRecommendations: mocks.select,
 }));
 
 import { GET } from "./route";
@@ -30,8 +32,28 @@ describe("GET /api/recommendations", () => {
     });
     mocks.requireSubject.mockResolvedValue("auth0|listener");
     mocks.prepare.mockResolvedValue({
-      recommendations: { profileReady: true, profileVersion: "ems-v1", tracks: [] },
+      hybridRecommendations: null,
+      recommendations: {
+        profileReady: true,
+        profileVersion: "ems-v1",
+        rankingVersion: "baseline",
+        tracks: [],
+      },
       shadow: { rankingVersion: "hybrid-v0" },
+    });
+    mocks.select.mockReturnValue({
+      recommendations: {
+        profileReady: true,
+        profileVersion: "ems-v1",
+        rankingVersion: "baseline",
+        tracks: [],
+      },
+      serving: {
+        fallbackReason: "ranking_disabled",
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline",
+        servedRankingVersion: "baseline",
+      },
     });
     mocks.recordShadow.mockResolvedValue(undefined);
   });
@@ -43,6 +65,7 @@ describe("GET /api/recommendations", () => {
     await expect(response.json()).resolves.toEqual({
       profileReady: true,
       profileVersion: "ems-v1",
+      rankingVersion: "baseline",
       tracks: [],
     });
     expect(mocks.prepare).toHaveBeenCalledWith("auth0|listener", 8);
@@ -51,6 +74,12 @@ describe("GET /api/recommendations", () => {
     expect(mocks.recordShadow).toHaveBeenCalledWith(
       "auth0|listener",
       { rankingVersion: "hybrid-v0" },
+      {
+        fallbackReason: "ranking_disabled",
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline",
+        servedRankingVersion: "baseline",
+      },
     );
   });
 
@@ -62,6 +91,7 @@ describe("GET /api/recommendations", () => {
     await expect(response.json()).resolves.toEqual({
       profileReady: true,
       profileVersion: "ems-v1",
+      rankingVersion: "baseline",
       tracks: [],
     });
     await expect(mocks.afterCallbacks[0]?.()).resolves.toBeUndefined();
@@ -69,7 +99,13 @@ describe("GET /api/recommendations", () => {
 
   it("does not schedule a shadow write without candidates", async () => {
     mocks.prepare.mockResolvedValue({
-      recommendations: { profileReady: true, profileVersion: "ems-v1", tracks: [] },
+      hybridRecommendations: null,
+      recommendations: {
+        profileReady: true,
+        profileVersion: "ems-v1",
+        rankingVersion: "baseline",
+        tracks: [],
+      },
       shadow: null,
     });
 

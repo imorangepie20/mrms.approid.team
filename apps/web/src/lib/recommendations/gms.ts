@@ -12,6 +12,7 @@ export type RecommendationDecisionInput = {
   userId: string;
   sourceTrackId: string;
   profileVersion: string;
+  rankingVersion: "baseline" | "hybrid-v0";
   decision: "accept" | "reject" | "skip";
   reasonCodes: string[];
   scoreComponents: Record<string, number>;
@@ -30,8 +31,17 @@ export function filterPermanentlyRejected<T extends { id: string }>(tracks: T[],
 export async function recordRecommendationDecision(executor: TransactionExecutor, input: RecommendationDecisionInput): Promise<void> {
   await executor.query(
     `INSERT INTO user_recommendation_decisions
-      (user_id, source_track_id, profile_version, decision, reason_codes, score_components)
-     VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)`,
-    [input.userId, input.sourceTrackId, input.profileVersion, input.decision, JSON.stringify(input.reasonCodes), JSON.stringify(input.scoreComponents)],
+      (user_id, source_track_id, profile_version, ranking_version,
+       decision, reason_codes, score_components)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)`,
+    [
+      input.userId,
+      input.sourceTrackId,
+      input.profileVersion,
+      input.rankingVersion,
+      input.decision,
+      JSON.stringify(input.reasonCodes),
+      JSON.stringify(input.scoreComponents),
+    ],
   );
 }
