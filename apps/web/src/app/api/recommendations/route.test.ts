@@ -3,10 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   afterCallbacks: [] as Array<() => unknown>,
-  prepare: vi.fn(),
+  getBatch: vi.fn(),
   recordShadow: vi.fn(),
   requireSubject: vi.fn(),
-  select: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({
@@ -16,9 +15,10 @@ vi.mock("@/lib/auth/auth0", () => ({
   requireAuth0Subject: mocks.requireSubject,
 }));
 vi.mock("@/lib/db/gms-recommendations", () => ({
-  preparePersonalizedEmsRecommendations: mocks.prepare,
   recordRecommendationShadow: mocks.recordShadow,
-  selectPreparedPersonalizedRecommendations: mocks.select,
+}));
+vi.mock("@/lib/db/gms-recommendation-batches", () => ({
+  getOrCreatePersonalizedRecommendationBatch: mocks.getBatch,
 }));
 
 import { GET } from "./route";
@@ -31,8 +31,10 @@ describe("GET /api/recommendations", () => {
       mocks.afterCallbacks.push(callback);
     });
     mocks.requireSubject.mockResolvedValue("auth0|listener");
-    mocks.prepare.mockResolvedValue({
-      hybridRecommendations: null,
+    mocks.getBatch.mockResolvedValue({
+      batchId: "f17870e2-b297-4451-adf5-9856f257b720",
+      exhausted: false,
+      newlyCreated: true,
       recommendations: {
         profileReady: true,
         profileVersion: "ems-v1",
@@ -40,14 +42,6 @@ describe("GET /api/recommendations", () => {
         tracks: [],
       },
       shadow: { rankingVersion: "hybrid-v0" },
-    });
-    mocks.select.mockReturnValue({
-      recommendations: {
-        profileReady: true,
-        profileVersion: "ems-v1",
-        rankingVersion: "baseline",
-        tracks: [],
-      },
       serving: {
         fallbackReason: "ranking_disabled",
         minimumAudioCoverage: null,
@@ -68,7 +62,7 @@ describe("GET /api/recommendations", () => {
       rankingVersion: "baseline",
       tracks: [],
     });
-    expect(mocks.prepare).toHaveBeenCalledWith("auth0|listener", 8);
+    expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 8);
     expect(mocks.after).toHaveBeenCalledTimes(1);
     await mocks.afterCallbacks[0]?.();
     expect(mocks.recordShadow).toHaveBeenCalledWith(
@@ -98,8 +92,10 @@ describe("GET /api/recommendations", () => {
   });
 
   it("does not schedule a shadow write without candidates", async () => {
-    mocks.prepare.mockResolvedValue({
-      hybridRecommendations: null,
+    mocks.getBatch.mockResolvedValue({
+      batchId: "f17870e2-b297-4451-adf5-9856f257b720",
+      exhausted: false,
+      newlyCreated: false,
       recommendations: {
         profileReady: true,
         profileVersion: "ems-v1",
@@ -122,7 +118,7 @@ describe("GET /api/recommendations", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ code: "unauthorized" });
-    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.getBatch).not.toHaveBeenCalled();
   });
 
   it("rejects an out-of-range limit", async () => {
@@ -130,6 +126,6 @@ describe("GET /api/recommendations", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ code: "invalid_limit" });
-    expect(mocks.prepare).not.toHaveBeenCalled();
+    expect(mocks.getBatch).not.toHaveBeenCalled();
   });
 });

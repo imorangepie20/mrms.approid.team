@@ -4,11 +4,14 @@ import { auth0 } from "@/lib/auth/auth0";
 import type { ConnectionStatus } from "@/lib/auth/connection-status";
 import { getUserConnection } from "@/lib/db/user-connections";
 import {
-  preparePersonalizedEmsRecommendations,
   recordRecommendationShadow,
-  selectPreparedPersonalizedRecommendations,
   type PersonalizedRecommendations,
 } from "@/lib/db/gms-recommendations";
+import {
+  getOrCreatePersonalizedRecommendationBatch,
+  listPersonalizedRecommendationHistory,
+  type RecommendationHistoryEntry,
+} from "@/lib/db/gms-recommendation-batches";
 
 export default async function GmsPage() {
   const session = await auth0.getSession();
@@ -25,19 +28,26 @@ export default async function GmsPage() {
     rankingVersion: "baseline",
     tracks: [],
   } as PersonalizedRecommendations;
+  let batchId: string | null = null;
+  let exhausted = false;
+  let history: RecommendationHistoryEntry[] = [];
   let recommendationError = false;
   if (session && connectionStatus === "connected" && process.env.DATABASE_URL) {
     try {
-      const prepared = await preparePersonalizedEmsRecommendations(session.user.sub, 12);
-      const selected = selectPreparedPersonalizedRecommendations(session.user.sub, prepared);
-      recommendations = selected.recommendations;
-      const shadow = prepared.shadow;
-      if (shadow) {
+      const [batch, recommendationHistory] = await Promise.all([
+        getOrCreatePersonalizedRecommendationBatch(session.user.sub, 12),
+        listPersonalizedRecommendationHistory(session.user.sub, 10).catch(() => []),
+      ]);
+      recommendations = batch.recommendations;
+      batchId = batch.batchId;
+      exhausted = batch.exhausted;
+      history = recommendationHistory;
+      if (batch.shadow && batch.serving) {
         after(async () => {
           await recordRecommendationShadow(
             session.user.sub,
-            shadow,
-            selected.serving,
+            batch.shadow!,
+            batch.serving!,
           ).catch(() => undefined);
         });
       }
@@ -52,6 +62,9 @@ export default async function GmsPage() {
       space="gms"
       recommendationError={recommendationError}
       recommendationReady={recommendations.profileReady}
+      recommendationBatchId={batchId}
+      recommendationExhausted={exhausted}
+      recommendationHistory={history}
       profileVersion={recommendations.profileVersion ?? "ems-v1"}
       tracks={recommendations.tracks}
     />

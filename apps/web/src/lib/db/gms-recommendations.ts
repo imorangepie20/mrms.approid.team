@@ -589,6 +589,12 @@ export async function preparePersonalizedEmsRecommendations(
              AND decision.source_track_id = e.id
              AND decision.decision IN ('accept', 'reject')
          )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM user_recommendation_exposures AS exposure
+           WHERE exposure.user_id = $2
+             AND exposure.track_id = e.id
+         )
      ),
      classified_candidate AS (
        SELECT

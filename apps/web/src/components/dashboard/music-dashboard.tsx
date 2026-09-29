@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ThumbsDown } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { HomeShaderHero } from "@/components/dashboard/home-shader-hero";
@@ -32,7 +33,38 @@ const copy = {
   mms: { name: "My Music Space", code: "MMS", lead: "당신이 쌓아 온 음악과 개인화된 취향 공간입니다.", tone: "violet" },
 } as const;
 
-export function MusicDashboard({ access, importedPlaylists = [], mmsPlaylists = [], space, tracks: providedTracks, recommendationError = false, recommendationReady = false, profileVersion = "ems-v1" }: { access?: PersonalizationAccess; importedPlaylists?: MmsImportedPlaylist[]; mmsPlaylists?: MmsPlaylistSummary[]; space: Space; tracks?: Track[]; recommendationError?: boolean; recommendationReady?: boolean; profileVersion?: string }) {
+export type RecommendationHistoryItem = {
+  batchId: string;
+  createdAt: string;
+  rankingVersion: "baseline" | "hybrid-v0";
+  tracks: Track[];
+};
+
+export function MusicDashboard({
+  access,
+  importedPlaylists = [],
+  mmsPlaylists = [],
+  profileVersion = "ems-v1",
+  recommendationBatchId = null,
+  recommendationError = false,
+  recommendationExhausted = false,
+  recommendationHistory = [],
+  recommendationReady = false,
+  space,
+  tracks: providedTracks,
+}: {
+  access?: PersonalizationAccess;
+  importedPlaylists?: MmsImportedPlaylist[];
+  mmsPlaylists?: MmsPlaylistSummary[];
+  profileVersion?: string;
+  recommendationBatchId?: string | null;
+  recommendationError?: boolean;
+  recommendationExhausted?: boolean;
+  recommendationHistory?: RecommendationHistoryItem[];
+  recommendationReady?: boolean;
+  space: Space;
+  tracks?: Track[];
+}) {
   const { acceptTrack, playTrack, rejectTrack, setQueue } = useMusicSession();
   const tracks = space === "gms" ? providedTracks ?? [] : providedTracks ?? [];
 
@@ -66,7 +98,7 @@ export function MusicDashboard({ access, importedPlaylists = [], mmsPlaylists = 
     setQueue(tracks, source);
     void playTrack(track, source);
   };
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />싫어요로 결정한 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><AudioProfileRefreshControl /></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway error={recommendationError} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />한 번 추천된 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><AudioProfileRefreshControl /></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway batchId={recommendationBatchId} error={recommendationError} exhausted={recommendationExhausted} history={recommendationHistory} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
 }
 
 type AudioProfileRefreshResponse = {
@@ -215,29 +247,79 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
-function Gateway({ tracks, error, ready, onPlay, onAccept, onReject }: { tracks: Track[]; error: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
+function Gateway({ batchId, tracks, error, exhausted, history, ready, onPlay, onAccept, onReject }: { batchId: string | null; tracks: Track[]; error: boolean; exhausted: boolean; history: RecommendationHistoryItem[]; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
+  const router = useRouter();
+  const [refreshState, setRefreshState] = useState<"idle" | "loading" | "error">("idle");
+
+  const refreshRecommendations = async () => {
+    if (!batchId || exhausted || refreshState === "loading") return;
+    setRefreshState("loading");
+    try {
+      const response = await fetch("/api/recommendations/refresh", {
+        body: JSON.stringify({ currentBatchId: batchId }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("recommendation_refresh_failed");
+      router.refresh();
+      setRefreshState("idle");
+    } catch {
+      setRefreshState("error");
+    }
+  };
+
   if (error) return <GatewayEmptyState variant="error" />;
   if (!ready) return <GatewayEmptyState variant="not-ready" />;
-  if (!tracks.length) return <GatewayEmptyState variant="empty" />;
   return (
     <section aria-labelledby="gms-track-list-title" className="gms-track-list-section">
-      <h2 className="dash-heading" id="gms-track-list-title">결정 대기 중 <small>{tracks.length}곡</small></h2>
-      <div aria-hidden="true" className="gms-track-list-header">
-        <span>#</span><span>곡</span><span>아티스트</span><span>앨범</span><span>결정</span>
+      <div className="gms-recommendation-heading">
+        <h2 className="dash-heading" id="gms-track-list-title">결정 대기 중 <small>{tracks.length}곡</small></h2>
+        <div className="gms-refresh-control">
+          <button disabled={!batchId || exhausted || refreshState === "loading"} type="button" onClick={refreshRecommendations}>
+            {refreshState === "loading" ? "추천 중…" : exhausted ? "추천 완료" : "다시 추천 받기"}
+          </button>
+          {!exhausted ? <small>새 추천을 받으면 현재 곡들은 다시 추천되지 않습니다.</small> : null}
+          {refreshState === "error" ? <span role="alert">새 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</span> : null}
+        </div>
       </div>
-      <ol aria-label="GMS 트랙 추천" className="gms-track-list">
-        {tracks.map((track, index) => (
-          <GatewayTrackRow
-            index={index}
-            key={track.id}
-            onAccept={onAccept}
-            onPlay={onPlay}
-            onReject={onReject}
-            track={track}
-          />
-        ))}
-      </ol>
+      {exhausted ? <GatewayEmptyState variant="exhausted" /> : !tracks.length ? <GatewayEmptyState variant="empty" /> : <>
+        <div aria-hidden="true" className="gms-track-list-header">
+          <span>#</span><span>곡</span><span>아티스트</span><span>앨범</span><span>결정</span>
+        </div>
+        <ol aria-label="GMS 트랙 추천" className="gms-track-list">
+          {tracks.map((track, index) => (
+            <GatewayTrackRow
+              index={index}
+              key={track.id}
+              onAccept={onAccept}
+              onPlay={onPlay}
+              onReject={onReject}
+              track={track}
+            />
+          ))}
+        </ol>
+      </>}
+      <RecommendationHistory history={history} />
     </section>
+  );
+}
+
+function RecommendationHistory({ history }: { history: RecommendationHistoryItem[] }) {
+  if (history.length === 0) return null;
+  return (
+    <details className="gms-recommendation-history">
+      <summary>이전 추천 기록 <small>{history.length}회</small></summary>
+      <div>
+        {history.map((entry) => (
+          <section aria-labelledby={`history-${entry.batchId}`} key={entry.batchId}>
+            <h3 id={`history-${entry.batchId}`}>{new Date(entry.createdAt).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" })}</h3>
+            <ol>
+              {entry.tracks.map((track) => <li key={track.id}><b>{track.title}</b><span>{track.artist}</span></li>)}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -273,7 +355,7 @@ function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: 
   );
 }
 
-function GatewayEmptyState({ variant }: { variant: "error" | "not-ready" | "empty" }) {
+function GatewayEmptyState({ variant }: { variant: "error" | "not-ready" | "empty" | "exhausted" }) {
   const copy = {
     error: {
       eyebrow: "GMS / RECOVERY",
@@ -291,6 +373,13 @@ function GatewayEmptyState({ variant }: { variant: "error" | "not-ready" | "empt
       eyebrow: "GMS / FRESH PICKS",
       heading: "새로 발견할 곡을 찾고 있어요",
       body: "지금은 새로 추천할 곡이 없습니다.",
+      action: "EMS 카탈로그 둘러보기",
+      href: "/ems",
+    },
+    exhausted: {
+      eyebrow: "GMS / COMPLETE",
+      heading: "모든 추천 후보를 확인했습니다",
+      body: "한 번 보여드린 곡은 다시 추천하지 않습니다. 추천 후보가 모두 소진되어 더 이상 새로운 추천을 만들 수 없습니다.",
       action: "EMS 카탈로그 둘러보기",
       href: "/ems",
     },

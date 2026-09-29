@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   afterCallbacks: [] as Array<() => unknown>,
+  getBatch: vi.fn(),
   getConnection: vi.fn(),
+  listHistory: vi.fn(),
   getSession: vi.fn(),
-  prepare: vi.fn(),
   recordShadow: vi.fn(),
-  select: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({
@@ -21,18 +21,23 @@ vi.mock("@/lib/db/user-connections", () => ({
   getUserConnection: mocks.getConnection,
 }));
 vi.mock("@/lib/db/gms-recommendations", () => ({
-  preparePersonalizedEmsRecommendations: mocks.prepare,
   recordRecommendationShadow: mocks.recordShadow,
-  selectPreparedPersonalizedRecommendations: mocks.select,
+}));
+vi.mock("@/lib/db/gms-recommendation-batches", () => ({
+  getOrCreatePersonalizedRecommendationBatch: mocks.getBatch,
+  listPersonalizedRecommendationHistory: mocks.listHistory,
 }));
 vi.mock("@/components/dashboard/music-dashboard", () => ({
   MusicDashboard: (props: {
+    recommendationBatchId: string | null;
+    recommendationExhausted: boolean;
+    recommendationHistory: Array<{ batchId: string }>;
     profileVersion: string;
     recommendationReady: boolean;
     tracks: Array<{ id: string }>;
   }) => (
     <div data-testid="gms-dashboard">
-      {props.profileVersion}:{String(props.recommendationReady)}:{props.tracks.map((track) => track.id).join(",")}
+      {props.profileVersion}:{String(props.recommendationReady)}:{props.recommendationBatchId}:{String(props.recommendationExhausted)}:{props.recommendationHistory.length}:{props.tracks.map((track) => track.id).join(",")}
     </div>
   ),
 }));
@@ -51,8 +56,11 @@ describe("GMS page recommendation serving", () => {
     });
     mocks.getSession.mockResolvedValue({ user: { sub: "auth0|listener" } });
     mocks.getConnection.mockResolvedValue({ status: "connected" });
-    mocks.prepare.mockResolvedValue({
-      hybridRecommendations: null,
+    mocks.getBatch.mockResolvedValue({
+      batchId: "f17870e2-b297-4451-adf5-9856f257b720",
+      createdAt: "2026-09-29T00:00:00.000Z",
+      exhausted: false,
+      newlyCreated: true,
       recommendations: {
         profileReady: true,
         profileVersion: "ems-v1",
@@ -60,14 +68,6 @@ describe("GMS page recommendation serving", () => {
         tracks: [{ id: "track-a" }],
       },
       shadow: { rankingVersion: "hybrid-v0" },
-    });
-    mocks.select.mockReturnValue({
-      recommendations: {
-        profileReady: true,
-        profileVersion: "ems-v1",
-        rankingVersion: "baseline",
-        tracks: [{ id: "track-a" }],
-      },
       serving: {
         fallbackReason: "ranking_disabled",
         minimumAudioCoverage: null,
@@ -75,6 +75,7 @@ describe("GMS page recommendation serving", () => {
         servedRankingVersion: "baseline",
       },
     });
+    mocks.listHistory.mockResolvedValue([{ batchId: "history-a", tracks: [] }]);
     mocks.recordShadow.mockResolvedValue(undefined);
   });
 
@@ -86,12 +87,11 @@ describe("GMS page recommendation serving", () => {
   it("renders the selected ranking and records its provenance after the response", async () => {
     render(await GmsPage());
 
-    expect(screen.getByTestId("gms-dashboard")).toHaveTextContent("ems-v1:true:track-a");
-    expect(mocks.prepare).toHaveBeenCalledWith("auth0|listener", 12);
-    expect(mocks.select).toHaveBeenCalledWith(
-      "auth0|listener",
-      expect.objectContaining({ shadow: { rankingVersion: "hybrid-v0" } }),
+    expect(screen.getByTestId("gms-dashboard")).toHaveTextContent(
+      "ems-v1:true:f17870e2-b297-4451-adf5-9856f257b720:false:1:track-a",
     );
+    expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 12);
+    expect(mocks.listHistory).toHaveBeenCalledWith("auth0|listener", 10);
     expect(mocks.after).toHaveBeenCalledTimes(1);
     await mocks.afterCallbacks[0]?.();
     expect(mocks.recordShadow).toHaveBeenCalledWith(

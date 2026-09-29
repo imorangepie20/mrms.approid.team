@@ -14,10 +14,14 @@ const session = vi.hoisted(() => ({
   rejectTrack: vi.fn(),
   setQueue: vi.fn(),
 }));
+const navigation = vi.hoisted(() => ({
+  push: vi.fn(),
+  refresh: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/gms",
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => navigation,
 }));
 
 vi.mock("@/providers/music-session-provider", () => ({
@@ -221,6 +225,80 @@ it("explains when a ready profile has no remaining recommendation candidates", (
 
   expect(screen.getByText("지금은 새로 추천할 곡이 없습니다.")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "EMS 카탈로그 둘러보기" })).toHaveAttribute("href", "/ems");
+});
+
+it("replaces the current GMS batch only when the user requests another recommendation", async () => {
+  const fetcher = vi.fn().mockResolvedValue(Response.json({
+    batchId: "8acb99e4-78ba-410c-aefd-e1638be9fbb8",
+    exhausted: false,
+    recommendations: { tracks: [] },
+  }));
+  vi.stubGlobal("fetch", fetcher);
+  navigation.refresh.mockClear();
+  const user = userEvent.setup();
+
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationBatchId="f17870e2-b297-4451-adf5-9856f257b720"
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  expect(screen.getByText("새 추천을 받으면 현재 곡들은 다시 추천되지 않습니다.")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "다시 추천 받기" }));
+
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/recommendations/refresh",
+    expect.objectContaining({
+      body: JSON.stringify({ currentBatchId: "f17870e2-b297-4451-adf5-9856f257b720" }),
+      method: "POST",
+    }),
+  );
+  expect(navigation.refresh).toHaveBeenCalledTimes(1);
+  vi.unstubAllGlobals();
+});
+
+it("shows an irreversible exhaustion state without offering another batch", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationBatchId="f17870e2-b297-4451-adf5-9856f257b720"
+      recommendationExhausted
+      recommendationReady
+      space="gms"
+      tracks={[]}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "모든 추천 후보를 확인했습니다" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "추천 완료" })).toBeDisabled();
+  expect(screen.getByText("한 번 보여드린 곡은 다시 추천하지 않습니다. 추천 후보가 모두 소진되어 더 이상 새로운 추천을 만들 수 없습니다.")).toBeInTheDocument();
+});
+
+it("renders prior recommendation batches as user-visible history", async () => {
+  const user = userEvent.setup();
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationBatchId="f17870e2-b297-4451-adf5-9856f257b720"
+      recommendationHistory={[{
+        batchId: "8acb99e4-78ba-410c-aefd-e1638be9fbb8",
+        createdAt: "2026-09-28T10:00:00.000Z",
+        rankingVersion: "baseline",
+        tracks: [{ ...catalog[1], id: "history-track" }],
+      }]}
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  await user.click(screen.getByText("이전 추천 기록"));
+  expect(screen.getByText(catalog[1].title)).toBeInTheDocument();
+  expect(screen.getByText(catalog[1].artist)).toBeInTheDocument();
 });
 
 it("persists GMS decisions separately from the MMS like action", async () => {

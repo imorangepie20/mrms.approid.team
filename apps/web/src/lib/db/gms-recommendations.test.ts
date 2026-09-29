@@ -209,6 +209,9 @@ describe("GMS personalized recommendation repository", () => {
     });
     expect(query.mock.calls[1]?.[0]).toMatch(/audio_profile\.embedding_model_revision/i);
     expect(query.mock.calls[1]?.[0]).toMatch(/prediction\.model_revision = audio_profile\.prediction_model_revision/i);
+    expect(query.mock.calls[1]?.[0]).toMatch(
+      /FROM user_recommendation_exposures AS exposure[\s\S]*exposure\.user_id = \$2[\s\S]*exposure\.track_id = e\.id/i,
+    );
   });
 
   it("keeps the served baseline but discards and backfills terminal audio candidates", async () => {

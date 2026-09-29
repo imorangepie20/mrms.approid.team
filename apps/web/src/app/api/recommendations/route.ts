@@ -2,10 +2,9 @@ import { after } from "next/server";
 
 import { requireAuth0Subject } from "@/lib/auth/auth0";
 import {
-  preparePersonalizedEmsRecommendations,
   recordRecommendationShadow,
-  selectPreparedPersonalizedRecommendations,
 } from "@/lib/db/gms-recommendations";
+import { getOrCreatePersonalizedRecommendationBatch } from "@/lib/db/gms-recommendation-batches";
 
 const MAX_LIMIT = 24;
 
@@ -24,16 +23,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const prepared = await preparePersonalizedEmsRecommendations(auth0Subject, limit);
-    const selected = selectPreparedPersonalizedRecommendations(auth0Subject, prepared);
-    const shadow = prepared.shadow;
-    if (shadow) {
+    const batch = await getOrCreatePersonalizedRecommendationBatch(auth0Subject, limit);
+    if (batch.shadow && batch.serving) {
       after(async () => {
-        await recordRecommendationShadow(auth0Subject, shadow, selected.serving)
+        await recordRecommendationShadow(auth0Subject, batch.shadow!, batch.serving!)
           .catch(() => undefined);
       });
     }
-    return Response.json(selected.recommendations);
+    return Response.json(batch.recommendations);
   } catch {
     return Response.json({ code: "recommendations_unavailable" }, { status: 503 });
   }
