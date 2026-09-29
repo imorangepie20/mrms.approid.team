@@ -15,6 +15,7 @@ vi.mock("./gms-recommendations", () => ({
 import {
   getPersonalizedRecommendationHistoryPage,
   getOrCreatePersonalizedRecommendationBatch,
+  hidePersonalizedRecommendationHistoryTrack,
   rotatePersonalizedRecommendationBatch,
 } from "./gms-recommendation-batches";
 
@@ -232,6 +233,7 @@ describe("persistent recommendation batches", () => {
         recommendations: recommendations(),
         status: "current",
       }] };
+      if (sql.includes("FROM user_recommendation_history_hidden_tracks")) return { rows: [] };
       if (sql.includes("DISTINCT ON")) return { rows: [{
         created_at: "2026-09-29T01:00:00.000Z",
         decision: "accept",
@@ -259,8 +261,65 @@ describe("persistent recommendation batches", () => {
     });
     expect(queries.find(({ sql }) => sql.includes("SELECT batch.id"))?.values)
       .toEqual(["auth0|listener", 10, 10]);
+    expect(queries.find(({ sql }) => sql.includes("FROM user_recommendation_history_hidden_tracks"))?.values)
+      .toEqual(["auth0|listener", [batchId]]);
     expect(queries.find(({ sql }) => sql.includes("DISTINCT ON"))?.values)
       .toEqual(["auth0|listener", [trackId]]);
+  });
+
+  it("filters a hidden track from history without querying or changing its decision evidence", async () => {
+    const queries: string[] = [];
+    const database = executor((sql) => {
+      queries.push(sql);
+      if (sql.includes("count(*)")) return { rows: [{ total_count: 1 }] };
+      if (sql.includes("SELECT batch.id")) return { rows: [{
+        created_at: "2026-09-29T00:00:00.000Z",
+        id: batchId,
+        recommendations: recommendations(),
+        status: "current",
+      }] };
+      if (sql.includes("FROM user_recommendation_history_hidden_tracks")) {
+        return { rows: [{ batch_id: batchId, track_id: trackId }] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getPersonalizedRecommendationHistoryPage(
+      "auth0|listener",
+      1,
+      10,
+      database,
+    );
+
+    expect(result.items[0]?.tracks).toEqual([]);
+    expect(queries.some((sql) => sql.includes("user_recommendation_decisions"))).toBe(false);
+  });
+
+  it("creates a user-scoped history tombstone idempotently", async () => {
+    const database = executor((sql, values) => {
+      expect(sql).toContain("WITH owned_track AS");
+      expect(sql).toContain("ON CONFLICT (batch_id, track_id) DO NOTHING");
+      expect(values).toEqual(["auth0|listener", batchId, trackId]);
+      return { rows: [{ found: true }] };
+    });
+
+    await expect(hidePersonalizedRecommendationHistoryTrack(
+      "auth0|listener",
+      batchId,
+      trackId,
+      database,
+    )).resolves.toBe(true);
+  });
+
+  it("refuses to hide a track outside the authenticated user's owned batch", async () => {
+    const database = executor(() => ({ rows: [{ found: false }] }));
+
+    await expect(hidePersonalizedRecommendationHistoryTrack(
+      "auth0|listener",
+      batchId,
+      trackId,
+      database,
+    )).resolves.toBe(false);
   });
 
   it("normalizes invalid history pagination and skips decision lookup for an exhausted batch", async () => {

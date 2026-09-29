@@ -54,7 +54,7 @@ export function TrackList({
                 <th className="w-[25%] px-2" scope="col">ARTIST</th>
                 <th className="hidden w-[22%] px-2 md:table-cell" scope="col">ALBUM</th>
                 <th className="hidden w-16 px-2 text-right sm:table-cell" scope="col">TIME</th>
-                <th className={`${renderActions ? "w-52" : "w-24"} px-0`} scope="col"><span className="sr-only">트랙 저장</span></th>
+                <th className={`${renderActions ? "w-52" : "w-24"} px-0`} scope="col"><span className="sr-only">트랙 작업</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">

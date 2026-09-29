@@ -308,6 +308,34 @@ export async function rotatePersonalizedRecommendationBatch(
   });
 }
 
+export async function hidePersonalizedRecommendationHistoryTrack(
+  auth0Subject: string,
+  batchId: string,
+  trackId: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<{ found: boolean }>(
+    `WITH owned_track AS (
+       SELECT batch.id AS batch_id
+       FROM user_recommendation_batches AS batch
+       INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
+       WHERE user_row.auth0_subject = $1
+         AND batch.id = $2
+         AND $3::uuid = ANY(batch.track_ids)
+     ), hidden AS (
+       INSERT INTO user_recommendation_history_hidden_tracks (batch_id, track_id)
+       SELECT batch_id, $3::uuid
+       FROM owned_track
+       ON CONFLICT (batch_id, track_id) DO NOTHING
+       RETURNING batch_id
+     )
+     SELECT EXISTS(SELECT 1 FROM owned_track) AS found`,
+    [auth0Subject, batchId, trackId],
+  );
+  return result.rows[0]?.found === true;
+}
+
 export async function getPersonalizedRecommendationHistoryPage(
   auth0Subject: string,
   page = 1,
@@ -341,7 +369,30 @@ export async function getPersonalizedRecommendationHistoryPage(
     row,
     recommendations: parseRecommendations(row.recommendations),
   }));
-  const trackIds = [...new Set(parsedRows.flatMap(({ recommendations }) =>
+  const batchIds = parsedRows
+    .filter(({ recommendations }) => recommendations.tracks.length > 0)
+    .map(({ row }) => row.id);
+  const hiddenTracks = batchIds.length === 0 ? { rows: [] } : await database.query<{
+    batch_id: string;
+    track_id: string;
+  }>(
+    `SELECT hidden.batch_id, hidden.track_id
+     FROM user_recommendation_history_hidden_tracks AS hidden
+     INNER JOIN user_recommendation_batches AS batch ON batch.id = hidden.batch_id
+     INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
+     WHERE user_row.auth0_subject = $1
+       AND hidden.batch_id = ANY($2::uuid[])`,
+    [auth0Subject, batchIds],
+  );
+  const hiddenTrackKeys = new Set(hiddenTracks.rows.map(({ batch_id, track_id }) => `${batch_id}:${track_id}`));
+  const visibleRows = parsedRows.map(({ row, recommendations }) => ({
+    row,
+    recommendations: {
+      ...recommendations,
+      tracks: recommendations.tracks.filter((track) => !hiddenTrackKeys.has(`${row.id}:${track.id}`)),
+    },
+  }));
+  const trackIds = [...new Set(visibleRows.flatMap(({ recommendations }) =>
     recommendations.tracks.map((track) => track.id)))];
   const decisions = trackIds.length === 0 ? { rows: [] } : await database.query<{
     created_at: Date | string;
@@ -361,7 +412,7 @@ export async function getPersonalizedRecommendationHistoryPage(
     decision.source_track_id,
     { decidedAt: isoDate(decision.created_at), decision: decision.decision },
   ]));
-  const items: RecommendationHistoryEntry[] = parsedRows.map(({ row, recommendations }) => {
+  const items: RecommendationHistoryEntry[] = visibleRows.map(({ row, recommendations }) => {
     return {
       batchId: row.id,
       createdAt: isoDate(row.created_at),
