@@ -278,27 +278,21 @@ it("shows an irreversible exhaustion state without offering another batch", () =
   expect(screen.getByText("한 번 보여드린 곡은 다시 추천하지 않습니다. 추천 후보가 모두 소진되어 더 이상 새로운 추천을 만들 수 없습니다.")).toBeInTheDocument();
 });
 
-it("renders prior recommendation batches as user-visible history", async () => {
-  const user = userEvent.setup();
+it("links GMS users to the dedicated recommendation history page", () => {
   renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
       recommendationBatchId="f17870e2-b297-4451-adf5-9856f257b720"
-      recommendationHistory={[{
-        batchId: "8acb99e4-78ba-410c-aefd-e1638be9fbb8",
-        createdAt: "2026-09-28T10:00:00.000Z",
-        rankingVersion: "baseline",
-        tracks: [{ ...catalog[1], id: "history-track" }],
-      }]}
       recommendationReady
       space="gms"
       tracks={[catalog[0]]}
     />,
   );
 
-  await user.click(screen.getByText("이전 추천 기록"));
-  expect(screen.getByText(catalog[1].title)).toBeInTheDocument();
-  expect(screen.getByText(catalog[1].artist)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "추천 이력 보기" })).toHaveAttribute(
+    "href",
+    "/gms/history",
+  );
 });
 
 it("persists GMS decisions separately from the MMS like action", async () => {

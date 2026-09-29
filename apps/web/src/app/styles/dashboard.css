@@ -351,6 +351,35 @@
   background: var(--surface);
 }
 
+.gms-profile-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.gms-profile-tools > a {
+  display: inline-flex;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 680;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gms-profile-tools > a:hover {
+  border-color: rgba(155, 92, 255, 0.45);
+  color: var(--brand-soft);
+}
+
 .gms-audio-profile-control div {
   display: grid;
   gap: 3px;
@@ -384,6 +413,14 @@
 }
 
 @media (max-width: 640px) {
+  .gms-profile-tools {
+    grid-template-columns: 1fr;
+  }
+
+  .gms-profile-tools > a {
+    min-height: 48px;
+  }
+
   .gms-audio-profile-control {
     align-items: stretch;
     flex-direction: column;
@@ -919,7 +956,7 @@
 }
 
 .gms-refresh-control button:focus-visible,
-.gms-recommendation-history summary:focus-visible {
+.gms-profile-tools > a:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
@@ -1132,72 +1169,6 @@
   stroke-width: 1.8;
 }
 
-.gms-recommendation-history {
-  margin-top: 30px;
-  border-top: 1px solid var(--border);
-}
-
-.gms-recommendation-history summary {
-  padding: 18px 2px;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.gms-recommendation-history summary small {
-  margin-left: 6px;
-  color: var(--subtle);
-}
-
-.gms-recommendation-history > div {
-  display: grid;
-  gap: 22px;
-  padding-bottom: 10px;
-}
-
-.gms-recommendation-history h3 {
-  margin: 0 0 8px;
-  color: var(--subtle);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.gms-recommendation-history ol {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px 18px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.gms-recommendation-history li {
-  display: flex;
-  min-width: 0;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.gms-recommendation-history li b,
-.gms-recommendation-history li span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.gms-recommendation-history li b {
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.gms-recommendation-history li span {
-  color: var(--subtle);
-}
-
 @media (max-width: 800px) {
   .gms-recommendation-heading {
     align-items: stretch;
@@ -1253,9 +1224,6 @@
     padding-inline: 10px;
   }
 
-  .gms-recommendation-history ol {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (hover: none) {

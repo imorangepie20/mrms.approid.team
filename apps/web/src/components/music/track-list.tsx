@@ -15,6 +15,7 @@ type TrackListProps = {
   emptyMessage?: string;
   heading?: string;
   renderActions?: (track: Track, index: number) => ReactNode;
+  renderMeta?: (track: Track, index: number) => ReactNode;
   source: { id: string; type: PlaybackSource };
   tracks: Track[];
 };
@@ -23,6 +24,7 @@ export function TrackList({
   emptyMessage = "표시할 트랙이 없습니다.",
   heading,
   renderActions,
+  renderMeta,
   source,
   tracks,
 }: TrackListProps) {
@@ -64,6 +66,7 @@ export function TrackList({
                   onPlay={selectTrack}
                   playbackStatus={playbackStatus}
                   renderActions={renderActions}
+                  renderMeta={renderMeta}
                   track={track}
                 />
               ))}
@@ -81,6 +84,7 @@ function TrackRow({
   onPlay,
   playbackStatus,
   renderActions,
+  renderMeta,
   track,
 }: {
   index: number;
@@ -88,6 +92,7 @@ function TrackRow({
   onPlay: (track: Track) => void;
   playbackStatus: PlaybackStatus;
   renderActions?: (track: Track, index: number) => ReactNode;
+  renderMeta?: (track: Track, index: number) => ReactNode;
   track: Track;
 }) {
   const [artworkFailed, setArtworkFailed] = useState(false);
@@ -135,7 +140,10 @@ function TrackRow({
               </span>
             )}
           </span>
-          <span className={`truncate text-sm font-[560] ${isCurrent ? "text-fuchsia-200" : "text-[var(--foreground)]"}`}>{track.title}</span>
+          <span className="grid min-w-0 gap-1">
+            <span className={`truncate text-sm font-[560] ${isCurrent ? "text-fuchsia-200" : "text-[var(--foreground)]"}`}>{track.title}</span>
+            {renderMeta?.(track, index)}
+          </span>
         </button>
       </td>
       <td className="truncate px-2 text-sm text-[var(--muted)]">{track.artist}</td>

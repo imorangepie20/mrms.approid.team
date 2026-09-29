@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   afterCallbacks: [] as Array<() => unknown>,
   getBatch: vi.fn(),
   getConnection: vi.fn(),
-  listHistory: vi.fn(),
   getSession: vi.fn(),
   recordShadow: vi.fn(),
 }));
@@ -25,19 +24,17 @@ vi.mock("@/lib/db/gms-recommendations", () => ({
 }));
 vi.mock("@/lib/db/gms-recommendation-batches", () => ({
   getOrCreatePersonalizedRecommendationBatch: mocks.getBatch,
-  listPersonalizedRecommendationHistory: mocks.listHistory,
 }));
 vi.mock("@/components/dashboard/music-dashboard", () => ({
   MusicDashboard: (props: {
     recommendationBatchId: string | null;
     recommendationExhausted: boolean;
-    recommendationHistory: Array<{ batchId: string }>;
     profileVersion: string;
     recommendationReady: boolean;
     tracks: Array<{ id: string }>;
   }) => (
     <div data-testid="gms-dashboard">
-      {props.profileVersion}:{String(props.recommendationReady)}:{props.recommendationBatchId}:{String(props.recommendationExhausted)}:{props.recommendationHistory.length}:{props.tracks.map((track) => track.id).join(",")}
+      {props.profileVersion}:{String(props.recommendationReady)}:{props.recommendationBatchId}:{String(props.recommendationExhausted)}:{props.tracks.map((track) => track.id).join(",")}
     </div>
   ),
 }));
@@ -75,7 +72,6 @@ describe("GMS page recommendation serving", () => {
         servedRankingVersion: "baseline",
       },
     });
-    mocks.listHistory.mockResolvedValue([{ batchId: "history-a", tracks: [] }]);
     mocks.recordShadow.mockResolvedValue(undefined);
   });
 
@@ -88,10 +84,9 @@ describe("GMS page recommendation serving", () => {
     render(await GmsPage());
 
     expect(screen.getByTestId("gms-dashboard")).toHaveTextContent(
-      "ems-v1:true:f17870e2-b297-4451-adf5-9856f257b720:false:1:track-a",
+      "ems-v1:true:f17870e2-b297-4451-adf5-9856f257b720:false:track-a",
     );
     expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 12);
-    expect(mocks.listHistory).toHaveBeenCalledWith("auth0|listener", 10);
     expect(mocks.after).toHaveBeenCalledTimes(1);
     await mocks.afterCallbacks[0]?.();
     expect(mocks.recordShadow).toHaveBeenCalledWith(

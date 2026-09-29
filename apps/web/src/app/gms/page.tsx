@@ -9,8 +9,6 @@ import {
 } from "@/lib/db/gms-recommendations";
 import {
   getOrCreatePersonalizedRecommendationBatch,
-  listPersonalizedRecommendationHistory,
-  type RecommendationHistoryEntry,
 } from "@/lib/db/gms-recommendation-batches";
 
 export default async function GmsPage() {
@@ -30,18 +28,13 @@ export default async function GmsPage() {
   } as PersonalizedRecommendations;
   let batchId: string | null = null;
   let exhausted = false;
-  let history: RecommendationHistoryEntry[] = [];
   let recommendationError = false;
   if (session && connectionStatus === "connected" && process.env.DATABASE_URL) {
     try {
-      const [batch, recommendationHistory] = await Promise.all([
-        getOrCreatePersonalizedRecommendationBatch(session.user.sub, 12),
-        listPersonalizedRecommendationHistory(session.user.sub, 10).catch(() => []),
-      ]);
+      const batch = await getOrCreatePersonalizedRecommendationBatch(session.user.sub, 12);
       recommendations = batch.recommendations;
       batchId = batch.batchId;
       exhausted = batch.exhausted;
-      history = recommendationHistory;
       if (batch.shadow && batch.serving) {
         after(async () => {
           await recordRecommendationShadow(
@@ -64,7 +57,6 @@ export default async function GmsPage() {
       recommendationReady={recommendations.profileReady}
       recommendationBatchId={batchId}
       recommendationExhausted={exhausted}
-      recommendationHistory={history}
       profileVersion={recommendations.profileVersion ?? "ems-v1"}
       tracks={recommendations.tracks}
     />

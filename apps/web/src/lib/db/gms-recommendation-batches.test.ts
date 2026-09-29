@@ -13,6 +13,7 @@ vi.mock("./gms-recommendations", () => ({
 }));
 
 import {
+  getPersonalizedRecommendationHistoryPage,
   getOrCreatePersonalizedRecommendationBatch,
   rotatePersonalizedRecommendationBatch,
 } from "./gms-recommendation-batches";
@@ -218,5 +219,93 @@ describe("persistent recommendation batches", () => {
 
     expect(result.exhausted).toBe(true);
     expect(queries.some((sql) => sql.includes("INSERT INTO user_recommendation_exposures"))).toBe(false);
+  });
+
+  it("paginates every recommendation batch and joins the user's latest track decisions", async () => {
+    const queries: Array<{ sql: string; values?: unknown[] }> = [];
+    const database = executor((sql, values) => {
+      queries.push({ sql, values });
+      if (sql.includes("count(*)")) return { rows: [{ total_count: "12" }] };
+      if (sql.includes("SELECT batch.id")) return { rows: [{
+        created_at: "2026-09-29T00:00:00.000Z",
+        id: batchId,
+        recommendations: recommendations(),
+        status: "current",
+      }] };
+      if (sql.includes("DISTINCT ON")) return { rows: [{
+        created_at: "2026-09-29T01:00:00.000Z",
+        decision: "accept",
+        source_track_id: trackId,
+      }] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getPersonalizedRecommendationHistoryPage(
+      "auth0|listener",
+      2,
+      10,
+      database,
+    );
+
+    expect(result).toMatchObject({ page: 2, pageSize: 10, totalCount: 12, totalPages: 2 });
+    expect(result.items[0]).toMatchObject({
+      batchId,
+      status: "current",
+      tracks: [{
+        decidedAt: "2026-09-29T01:00:00.000Z",
+        decision: "accept",
+        track: { id: trackId },
+      }],
+    });
+    expect(queries.find(({ sql }) => sql.includes("SELECT batch.id"))?.values)
+      .toEqual(["auth0|listener", 10, 10]);
+    expect(queries.find(({ sql }) => sql.includes("DISTINCT ON"))?.values)
+      .toEqual(["auth0|listener", [trackId]]);
+  });
+
+  it("normalizes invalid history pagination and skips decision lookup for an exhausted batch", async () => {
+    const queries: Array<{ sql: string; values?: unknown[] }> = [];
+    const database = executor((sql, values) => {
+      queries.push({ sql, values });
+      if (sql.includes("count(*)")) return { rows: [{ total_count: 1 }] };
+      if (sql.includes("SELECT batch.id")) return { rows: [{
+        created_at: "2026-09-29T00:00:00.000Z",
+        id: batchId,
+        recommendations: { ...recommendations(), tracks: [] },
+        status: "exhausted",
+      }] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getPersonalizedRecommendationHistoryPage(
+      "auth0|listener",
+      Number.NaN,
+      999,
+      database,
+    );
+
+    expect(result).toMatchObject({ page: 1, pageSize: 24, totalPages: 1 });
+    expect(result.items[0]).toMatchObject({ status: "exhausted", tracks: [] });
+    expect(queries).toHaveLength(2);
+  });
+
+  it("clamps a history page beyond the last page", async () => {
+    const database = executor((sql, values) => {
+      if (sql.includes("count(*)")) return { rows: [{ total_count: 12 }] };
+      if (sql.includes("SELECT batch.id")) {
+        expect(values).toEqual(["auth0|listener", 10, 10]);
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getPersonalizedRecommendationHistoryPage(
+      "auth0|listener",
+      999,
+      10,
+      database,
+    );
+
+    expect(result).toMatchObject({ page: 2, totalPages: 2 });
   });
 });

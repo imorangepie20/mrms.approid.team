@@ -12,8 +12,8 @@ import { getDatabasePool } from "./pool";
 
 const DEFAULT_BATCH_SIZE = 12;
 const MAX_BATCH_SIZE = 24;
-const DEFAULT_HISTORY_LIMIT = 10;
-const MAX_HISTORY_LIMIT = 50;
+const DEFAULT_HISTORY_PAGE_SIZE = 10;
+const MAX_HISTORY_PAGE_SIZE = 24;
 
 type RecommendationBatchRow = {
   created_at: Date | string;
@@ -26,7 +26,20 @@ export type RecommendationHistoryEntry = {
   batchId: string;
   createdAt: string;
   rankingVersion: "baseline" | "hybrid-v0";
-  tracks: EmsRecommendationTrack[];
+  status: "current" | "replaced" | "exhausted";
+  tracks: Array<{
+    decidedAt: string | null;
+    decision: "accept" | "reject" | "skip" | null;
+    track: EmsRecommendationTrack;
+  }>;
+};
+
+export type RecommendationHistoryPage = {
+  items: RecommendationHistoryEntry[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 };
 
 export type PersonalizedRecommendationBatch = {
@@ -295,29 +308,76 @@ export async function rotatePersonalizedRecommendationBatch(
   });
 }
 
-export async function listPersonalizedRecommendationHistory(
+export async function getPersonalizedRecommendationHistoryPage(
   auth0Subject: string,
-  limit = DEFAULT_HISTORY_LIMIT,
+  page = 1,
+  pageSize = DEFAULT_HISTORY_PAGE_SIZE,
   executor?: TransactionExecutor,
-): Promise<RecommendationHistoryEntry[]> {
+): Promise<RecommendationHistoryPage> {
   const database = executor ?? getDatabasePool();
-  const safeHistoryLimit = Math.max(1, Math.min(MAX_HISTORY_LIMIT, Math.trunc(limit)));
+  const safePage = Math.max(1, Math.trunc(page) || 1);
+  const safePageSize = Math.max(1, Math.min(MAX_HISTORY_PAGE_SIZE, Math.trunc(pageSize) || DEFAULT_HISTORY_PAGE_SIZE));
+  const countResult = await database.query<{ total_count: number | string }>(
+    `SELECT count(*) AS total_count
+     FROM user_recommendation_batches AS batch
+     INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
+     WHERE user_row.auth0_subject = $1`,
+    [auth0Subject],
+  );
+  const totalCount = Number(countResult.rows[0]?.total_count ?? 0);
+  const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / safePageSize);
+  const effectivePage = totalPages === 0 ? 1 : Math.min(safePage, totalPages);
   const result = await database.query<RecommendationBatchRow>(
     `SELECT batch.id, batch.status, batch.recommendations, batch.created_at
      FROM user_recommendation_batches AS batch
      INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
-     WHERE user_row.auth0_subject = $1 AND batch.status = 'replaced'
+     WHERE user_row.auth0_subject = $1
      ORDER BY batch.created_at DESC, batch.id DESC
-     LIMIT $2`,
-    [auth0Subject, safeHistoryLimit],
+     LIMIT $2 OFFSET $3`,
+    [auth0Subject, safePageSize, (effectivePage - 1) * safePageSize],
   );
-  return result.rows.map((row) => {
-    const recommendations = parseRecommendations(row.recommendations);
+
+  const parsedRows = result.rows.map((row) => ({
+    row,
+    recommendations: parseRecommendations(row.recommendations),
+  }));
+  const trackIds = [...new Set(parsedRows.flatMap(({ recommendations }) =>
+    recommendations.tracks.map((track) => track.id)))];
+  const decisions = trackIds.length === 0 ? { rows: [] } : await database.query<{
+    created_at: Date | string;
+    decision: "accept" | "reject" | "skip";
+    source_track_id: string;
+  }>(
+    `SELECT DISTINCT ON (decision.source_track_id)
+       decision.source_track_id, decision.decision, decision.created_at
+     FROM user_recommendation_decisions AS decision
+     INNER JOIN app_users AS user_row ON user_row.id = decision.user_id
+     WHERE user_row.auth0_subject = $1
+       AND decision.source_track_id = ANY($2::uuid[])
+     ORDER BY decision.source_track_id, decision.created_at DESC, decision.id DESC`,
+    [auth0Subject, trackIds],
+  );
+  const decisionsByTrack = new Map(decisions.rows.map((decision) => [
+    decision.source_track_id,
+    { decidedAt: isoDate(decision.created_at), decision: decision.decision },
+  ]));
+  const items: RecommendationHistoryEntry[] = parsedRows.map(({ row, recommendations }) => {
     return {
       batchId: row.id,
       createdAt: isoDate(row.created_at),
       rankingVersion: recommendations.rankingVersion,
-      tracks: recommendations.tracks,
+      status: row.status,
+      tracks: recommendations.tracks.map((track) => ({
+        ...(decisionsByTrack.get(track.id) ?? { decidedAt: null, decision: null }),
+        track,
+      })),
     };
   });
+  return {
+    items,
+    page: effectivePage,
+    pageSize: safePageSize,
+    totalCount,
+    totalPages,
+  };
 }
