@@ -32,5 +32,17 @@
 
 ## 미검증·다음 작업
 
-- 기능 release의 운영 migration·Web 배포와 로그인 GMS 브라우저 회귀는 아직 수행하지 않았다.
 - reserve 120곡은 현재 catalog·profile snapshot 기준이다. 이후 원천 갱신으로 상위 후보가 교체되면 full-component gate가 baseline으로 닫힐 수 있으므로 serving provenance를 계속 확인한다.
+- 로그인 운영에서 실제 `다시 추천 받기` 클릭은 12곡을 영구 노출 처리하는 비가역 동작이므로 회귀 검증에서 실행하지 않았다. route·repository·UI 자동 테스트로 교체·멱등성·이력 표시를 검증했다.
+
+## 운영 배포
+
+- 기능 커밋 `d1f9954`를 local `main`에 fast-forward하고 `origin/main`만 push했다. 원격 `codex/anonymous-playback-error`는 `e1bbe73` 그대로 유지했다.
+- release archive는 6,277,120바이트, SHA-256 `f91d4c3687e968604c52d693ccc30031f5b7bbef4d3dd454219d634ca3784467`이며 Zorin release는 `/home/approid/apps/music-pie/releases/d1f9954`다.
+- migration 직전 custom-format backup `/home/approid/apps/music-pie/backups/pre-029-gms-history-20260929073228.dump`를 만들고 `pg_restore --list`로 판독했다. 크기는 203,244,459바이트, SHA-256은 `3486aa5391b50e31ce4122bd800bd5db114d0482a09c3564784dd0fefaebb29d`다.
+- 운영 migration은 29개로 증가했고 최신 ID는 `029_recommendation_batches.sql`이다. 두 table 생성과 배포 직후 0건을 확인했다.
+- 새 Web image는 `sha256:6653a7eabbb9ebb39768084a5e05db36f863333aec6dc8fa86e3275e48ae9d3a`, container는 `bd90a89b1626`이고 healthy·restart 0이다. rollback image `music-pie-web:pre-d1f9954`는 `sha256:2b4f8c4afc0ef7db452b8718817493c538cebad52565daeb9a46e1ff4afbfebf`다.
+- PostgreSQL `9cc7a8abe9d6`, embedding `ec92b779e416`, audio-analysis `55e9d9e9dc3f`, EMS `70208048b7c2`, source-routines `d5e6f27110e6`, tunnel `7d7bf370d6b7`는 재생성하지 않았다.
+- local/public ready·Home·EMS·GMS·Search는 HTTP 200이고 비인증 refresh POST는 401이다. 최근 10분 Web 오류 로그와 로그인 Chrome console error는 0건이다.
+- 로그인 GMS 첫 방문은 current batch 1개·exposure 12개와 full-coverage shadow 1개를 만들었다. batch와 shadow는 모두 `hybrid-v0`, shadow candidate 60, audio·mood·rhythm coverage 1/1/1, fallback null이다.
+- 같은 로그인 탭을 새로고침한 뒤에도 동일한 12곡 순서가 유지됐고 DB는 current batch 1개·exposure 12개·최근 shadow 1개로 변하지 않았다. `다시 추천 받기` 버튼과 비가역 안내를 확인했으며 브라우저 error는 0건이다.

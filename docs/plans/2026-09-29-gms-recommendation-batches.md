@@ -62,4 +62,4 @@
 - migration·repository·API·page·GMS control·history·exhausted 상태 구현을 완료했다.
 - Web 전체 테스트 528개, lint 오류 0, production build와 격리 PostgreSQL 029 apply/down/reapply를 통과했다.
 - 현재 batch 이후 운영 reserve를 49/120에서 120/120 exact component coverage로 보강했다. 73건 stage, 71건 완료, `preview_forbidden` 2건, provider 요청 151회다.
-- 남은 단계는 local feature commit, local `main` fast-forward, `origin/main` 단독 push, 운영 backup·029·Web 배포와 로그인 브라우저 회귀다.
+- 기능 커밋 `d1f9954`를 local `main`에 fast-forward하고 `origin/main`만 push했다. 운영 backup·029·Web 배포와 로그인 브라우저 새로고침 회귀까지 완료했다.
