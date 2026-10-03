@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -102,7 +102,7 @@ it("renders batch and decision states", () => {
   render(<LikesProvider initialLikes={[]} isAuthenticated><RecommendationHistoryList batches={batches} /></LikesProvider>);
 
   expect(screen.getByText("현재 추천")).toBeInTheDocument();
-  expect(screen.getByText("HYBRID RANKING")).toBeInTheDocument();
+  expect(screen.getByText("추천 그룹")).toBeInTheDocument();
   expect(screen.getByText("MMS로 보냄")).toBeInTheDocument();
   expect(screen.getByText("결정 없음")).toBeInTheDocument();
   expect(screen.getByText("One More Time")).toBeInTheDocument();
@@ -307,4 +307,49 @@ it("focuses cancel, traps Tab in the template dialog, and restores focus and scr
   expect(document.body.style.overflow).not.toBe("hidden");
   expect(screen.getByText("선택 2곡")).toBeInTheDocument();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("cancels a whole group deletion without sending a request", async () => {
+  const fetcher = vi.fn(); vi.stubGlobal("fetch",fetcher);
+  renderHistory(); const user=userEvent.setup();
+  await user.click(screen.getByRole("button",{name:/추천 그룹 삭제/}));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("MMS에 저장한 곡과 좋아요는 유지됩니다");
+  await user.keyboard("{Escape}");
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(screen.getByRole("article")).toBeInTheDocument();
+});
+it("removes only the confirmed group in a single request", async () => {
+  const fetcher=vi.fn().mockResolvedValue(new Response(null,{status:204})); vi.stubGlobal("fetch",fetcher);
+  renderHistory([...batches,{...batches[0],batchId:"batch-b",status:"replaced"}]);
+  const user=userEvent.setup(); const articles=screen.getAllByRole("article");
+  await user.click(within(articles[0]).getByRole("button",{name:/추천 그룹 삭제/}));
+  await user.click(screen.getByRole("button",{name:"삭제"}));
+  await waitFor(()=>expect(screen.getAllByRole("article")).toHaveLength(1));
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({batchId:"batch-a"});
+  expect(screen.getByText("지난 추천")).toBeInTheDocument();
+  expect(router.refresh).toHaveBeenCalledTimes(1);
+});
+it("keeps a failed group for retry and blocks all removal while pending", async () => {
+  let complete!: (response:Response)=>void;
+  const fetcher=vi.fn().mockReturnValueOnce(new Promise<Response>(resolve=>{complete=resolve;})).mockResolvedValue(new Response(null,{status:204}));
+  vi.stubGlobal("fetch",fetcher); renderHistory(); const user=userEvent.setup();
+  await user.click(screen.getByRole("button",{name:/추천 그룹 삭제/}));
+  await user.click(screen.getByRole("button",{name:"삭제"}));
+  expect(screen.getByRole("button",{name:/추천 그룹 삭제/})).toBeDisabled();
+  expect(screen.getByRole("button",{name:"추천 이력에서 삭제 Get Lucky"})).toBeDisabled();
+  complete(new Response(null,{status:503}));
+  expect(await screen.findByRole("alert")).toHaveTextContent("그룹을 삭제하지 못했습니다");
+  expect(screen.getByRole("article")).toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:/추천 그룹 삭제/}));
+  await user.click(screen.getByRole("button",{name:"삭제"}));
+  await waitFor(()=>expect(screen.queryByRole("article")).not.toBeInTheDocument());
+});
+it("allows removing an empty group", async () => {
+  const fetcher=vi.fn().mockResolvedValue(new Response(null,{status:204})); vi.stubGlobal("fetch",fetcher);
+  renderHistory([{...batches[0],tracks:[]}]); const user=userEvent.setup();
+  await user.click(screen.getByRole("button",{name:/추천 그룹 삭제/}));
+  expect(screen.getByRole("alertdialog")).toHaveTextContent("0곡");
+  await user.click(screen.getByRole("button",{name:"삭제"}));
+  await waitFor(()=>expect(screen.queryByRole("article")).not.toBeInTheDocument());
 });

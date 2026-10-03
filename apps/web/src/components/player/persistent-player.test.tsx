@@ -43,6 +43,8 @@ import {
   useMusicSession,
 } from "@/providers/music-session-provider";
 
+import { RecommendationHistoryList } from "@/components/recommendations/recommendation-history-list";
+
 import { PersistentPlayer } from "./persistent-player";
 
 const track: PlayableTrack = {
@@ -365,4 +367,33 @@ describe("PersistentPlayer", () => {
     await user.click(screen.getByRole("button", { name: /now playing local track/i }));
     expect(screen.queryByTestId("full-player-eq-overlay")).not.toBeInTheDocument();
   });
+});
+
+it("synchronizes GMS groups and both players by TIDAL ID, including pending and rollback", async () => {
+  const engine=fakeEngine(); const user=userEvent.setup();
+  let complete!: (response:Response)=>void;
+  const fetcher=vi.fn().mockReturnValueOnce(new Promise<Response>(resolve=>{complete=resolve;})).mockResolvedValue(Response.json({}));
+  vi.stubGlobal("fetch",fetcher);
+  renderPlayer(<MusicSessionProvider engine={engine}>
+    <PlaybackStarter />
+    <RecommendationHistoryList batches={["current","replaced"].map((status,i)=>({batchId:`batch-${i}`,createdAt:"2026-10-04T00:00:00Z",rankingVersion:"baseline",status:status as "current"|"replaced",tracks:[{track:{...track,id:`ems-${i}`},decision:null,decidedAt:null}]}))} />
+    <PersistentPlayer />
+  </MusicSessionProvider>);
+  await user.click(screen.getByRole("button",{name:"Start playback"}));
+  await user.click(screen.getByRole("button",{name:/now playing track a/i}));
+  let hearts=screen.getAllByRole("button",{name:"좋아요 Track A"});
+  expect(hearts).toHaveLength(4);
+  await user.click(hearts[0]);
+  hearts=screen.getAllByRole("button",{name:"좋아요 취소 Track A"});
+  hearts.forEach(heart=>{expect(heart).toHaveAttribute("aria-pressed","true"); expect(heart).toBeDisabled();});
+  await user.click(hearts[1]); expect(fetcher).toHaveBeenCalledTimes(1);
+  complete(new Response(null,{status:503}));
+  await waitFor(()=>expect(screen.getAllByRole("button",{name:"좋아요 Track A"})).toHaveLength(4));
+  screen.getAllByRole("button",{name:"좋아요 Track A"}).forEach(heart=>expect(heart).toHaveAttribute("aria-pressed","false"));
+  await user.click(within(screen.getByRole("dialog",{name:"전체 화면 플레이어"})).getByRole("button",{name:"좋아요 Track A"}));
+  await waitFor(()=>expect(screen.getAllByRole("button",{name:"좋아요 취소 Track A"})).toHaveLength(4));
+  await user.click(screen.getAllByRole("button",{name:"좋아요 취소 Track A"})[2]);
+  await waitFor(()=>expect(screen.getAllByRole("button",{name:"좋아요 Track A"})).toHaveLength(4));
+  expect(fetcher.mock.calls.map(([url])=>url)).toEqual(Array(3).fill("/api/likes/track/tidal/tidal-a"));
+  vi.unstubAllGlobals();
 });

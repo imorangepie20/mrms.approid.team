@@ -30,14 +30,14 @@ it("retains the decision and announces HTTP save failure without mutating prefer
   expect(screen.queryByRole("status", {name:"추가되었습니다"})).not.toBeInTheDocument();
 });
 
-it("removes a successfully decided track from the pending list", async () => {
+it("keeps a successfully decided track in its group with the saved state", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null,{status:204})));
   renderGms();
   await userEvent.setup().click(screen.getByRole("button", {name:"싫어요"}));
-  await waitFor(() => expect(screen.queryByRole("button", {name:"재생 Midnight City"})).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole("button", {name:"재생 Midnight City"})).toBeInTheDocument());
   expect(session.rejectTrack).toHaveBeenCalledTimes(1);
   expect(navigation.refresh).toHaveBeenCalledTimes(1);
-  expect(screen.getByRole("heading", {name:/결정 대기 중 0곡/})).toBeInTheDocument();
+  expect(screen.getByRole("heading", {name:/결정 대기 0곡/})).toBeInTheDocument();
   expect(screen.queryByRole("status", {name:"추가되었습니다"})).not.toBeInTheDocument();
 });
 
@@ -75,7 +75,7 @@ it("commits a saved decision while announcing a profile-refresh failure", async 
   await userEvent.setup().click(screen.getByRole("button", {name:"+ MMS"}));
   expect(await screen.findByRole("alert")).toHaveTextContent("결정은 저장했습니다");
   expect(session.acceptTrack).toHaveBeenCalledTimes(1);
-  expect(screen.queryByRole("button", {name:"재생 Midnight City"})).not.toBeInTheDocument();
+  expect(screen.getByRole("button", {name:"재생 Midnight City"})).toBeInTheDocument();
   expect(navigation.refresh).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("status", {name:"추가되었습니다"})).toBeInTheDocument();
 });
@@ -115,4 +115,13 @@ it("closes the template success notification without removing the saved-library 
   await userEvent.setup().click(screen.getByRole("button",{name:"알림 닫기"}));
   expect(screen.queryByRole("status",{name:"추가되었습니다"})).not.toBeInTheDocument();
   expect(screen.getByRole("link",{name:"MMS 보기"})).toBeInTheDocument();
+});
+
+it("keeps past undecided tracks actionable with their original profile version", async () => {
+  const fetcher=vi.fn().mockResolvedValue(new Response(null,{status:204})); vi.stubGlobal("fetch",fetcher);
+  render(<LikesProvider initialLikes={[]} isAuthenticated><MusicDashboard space="gms" access={{isAuthenticated:true,connectionStatus:"connected"}} recommendationReady profileVersion="new-profile" recommendationBatchId="current-batch" recommendationHistory={[{batchId:"past-batch",createdAt:"2026-10-03T00:00:00Z",profileVersion:"original-profile",rankingVersion:"baseline",status:"replaced",tracks:[{track:catalog[0],decision:null,decidedAt:null}]}]}/></LikesProvider>);
+  await userEvent.setup().click(screen.getByRole("button",{name:"+ MMS"}));
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toMatchObject({profileVersion:"original-profile",sourceTrackId:catalog[0].id});
+  expect(screen.getByText("MMS로 보냄")).toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"추천 이력에서 삭제 Midnight City"})).toBeInTheDocument();
 });

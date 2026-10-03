@@ -12,6 +12,7 @@ import type { PlaybackSource } from "@/lib/tidal/player";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 type TrackListProps = {
+  wideActions?: boolean;
   mobileStacked?: boolean;
   emptyMessage?: string;
   heading?: string;
@@ -23,6 +24,7 @@ type TrackListProps = {
 };
 
 export function TrackList({
+  wideActions = false,
   mobileStacked = false,
   emptyMessage = "표시할 트랙이 없습니다.",
   heading,
@@ -58,7 +60,7 @@ export function TrackList({
                 <th className="w-[25%] px-2" scope="col">ARTIST</th>
                 <th className="hidden w-[22%] px-2 md:table-cell" scope="col">ALBUM</th>
                 <th className="hidden w-16 px-2 text-right sm:table-cell" scope="col">TIME</th>
-                <th className={`${renderActions ? "w-52" : "w-24"} px-0`} scope="col"><span className="sr-only">트랙 작업</span></th>
+                <th className={`${wideActions ? "w-72" : renderActions ? "w-52" : "w-24"} px-0`} scope="col"><span className="sr-only">트랙 작업</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border)]">

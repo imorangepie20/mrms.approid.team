@@ -1,8 +1,9 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ThumbsDown, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Track } from "@/lib/music/types";
 
 import { TrackList } from "@/components/music/track-list";
 import { TemplateConfirmDialog } from "@/components/ui/template-confirm-dialog";
@@ -20,25 +21,36 @@ const decisionCopy = {
   skip: "건너뜀",
 } as const;
 
-export function RecommendationHistoryList({ batches }: { batches: RecommendationHistoryEntry[] }) {
+export function RecommendationHistoryList({ batches, disabled = false, onBusyChange, onAccept, onReject }: {
+  batches: RecommendationHistoryEntry[];
+  disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
+  onAccept?: (track: Track, profileVersion?: string | null) => void;
+  onReject?: (track: Track, profileVersion?: string | null) => void;
+}) {
   const router = useRouter();
   const [hiddenTrackKeys, setHiddenTrackKeys] = useState(() => new Set<string>());
   const [selectedTrackKeys, setSelectedTrackKeys] = useState(() => new Set<string>());
   const [pendingTrackKeys, setPendingTrackKeys] = useState(() => new Set<string>());
+  const [hiddenBatchIds, setHiddenBatchIds] = useState(() => new Set<string>());
+  const [pendingBatchId, setPendingBatchId] = useState<string | null>(null);
   const deletionInFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
-  const displayedTracks = batches.flatMap((batch) => batch.tracks
+  const visibleBatches = batches.filter((batch) => !hiddenBatchIds.has(batch.batchId));
+  const displayedTracks = visibleBatches.flatMap((batch) => batch.tracks
     .filter(({ track }) => !hiddenTrackKeys.has(`${batch.batchId}:${track.id}`))
     .map(({ track }) => ({ batchId: batch.batchId, trackId: track.id, title: track.title, key: `${batch.batchId}:${track.id}` })));
   const selectedTracks = displayedTracks.filter(({ key }) => selectedTrackKeys.has(key));
-  const [confirmation, setConfirmation] = useState<{items: typeof displayedTracks; bulk: boolean} | null>(null);
-  const deleting = pendingTrackKeys.size > 0;
+  const [confirmation, setConfirmation] = useState<{items: typeof displayedTracks; bulk: boolean; batchId?: string} | null>(null);
+  const deleting = pendingTrackKeys.size > 0 || pendingBatchId !== null;
+  const busy = deleting || disabled;
+  useEffect(() => { onBusyChange?.(deleting || confirmation !== null); }, [deleting, confirmation, onBusyChange]);
   const allSelected = displayedTracks.length > 0 && selectedTracks.length === displayedTracks.length;
 
   const removeTracks = async (items: typeof displayedTracks, bulk: boolean) => {
-    if (deletionInFlight.current || items.length === 0) return;
+    if (disabled || deletionInFlight.current || items.length === 0) return;
     deletionInFlight.current = true;
     setPendingTrackKeys(new Set(items.map(({ key }) => key)));
     setError(null);
@@ -79,19 +91,44 @@ export function RecommendationHistoryList({ batches }: { batches: Recommendation
   };
 
   const requestRemoval = (items: typeof displayedTracks, bulk: boolean) => {
-    if (!deletionInFlight.current && !confirmation && items.length > 0) setConfirmation({items, bulk});
+    if (!busy && !deletionInFlight.current && !confirmation && items.length > 0) setConfirmation({items, bulk});
+  };
+
+  const removeBatch = async (batchId: string) => {
+    if (disabled || deletionInFlight.current) return;
+    deletionInFlight.current = true;
+    setPendingBatchId(batchId);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch("/api/recommendations/history", {
+        body: JSON.stringify({ batchId }),
+        headers: { "content-type": "application/json" },
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("history_batch_removal_failed");
+      setHiddenBatchIds((current) => new Set(current).add(batchId));
+      setSelectedTrackKeys((current) => new Set([...current].filter((key) => !key.startsWith(`${batchId}:`))));
+      setNotice("추천 그룹을 삭제했습니다.");
+      router.refresh();
+    } catch {
+      setError("추천 그룹을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      deletionInFlight.current = false;
+      setPendingBatchId(null);
+    }
   };
 
   return (
     <div className="mt-7 grid gap-8">
-      {confirmation ? <TemplateConfirmDialog title={confirmation.bulk ? `선택한 ${confirmation.items.length}곡을 삭제할까요?` : "이 곡을 삭제할까요?"} description={`${confirmation.bulk ? "선택한 곡" : `“${confirmation.items[0].title}” 곡`}을 추천 이력에서 삭제합니다. 삭제해도 다시 추천되지는 않습니다.`} onCancel={() => setConfirmation(null)} onConfirm={() => { const requested = confirmation; setConfirmation(null); void removeTracks(requested.items, requested.bulk); }} /> : null}
+      {confirmation ? <TemplateConfirmDialog title={confirmation.batchId ? "추천 그룹을 삭제할까요?" : confirmation.bulk ? `선택한 ${confirmation.items.length}곡을 삭제할까요?` : "이 곡을 삭제할까요?"} description={confirmation.batchId ? `이 추천 그룹과 표시된 ${confirmation.items.length}곡을 GMS에서 제거합니다. 삭제해도 다시 추천되지는 않습니다. MMS에 저장한 곡과 좋아요는 유지됩니다.` : `${confirmation.bulk ? "선택한 곡" : `“${confirmation.items[0].title}” 곡`}을 추천 이력에서 삭제합니다. 삭제해도 다시 추천되지는 않습니다. MMS에 저장한 곡과 좋아요는 유지됩니다.`} onCancel={() => setConfirmation(null)} onConfirm={() => { const requested = confirmation; setConfirmation(null); if (requested.batchId) void removeBatch(requested.batchId); else void removeTracks(requested.items, requested.bulk); }} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3" id="history-selection-toolbar" tabIndex={-1}>
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-[var(--foreground)]">
           <input
             aria-label="표시된 곡 전체 선택"
             checked={allSelected}
             className="size-4 accent-violet-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]"
-            disabled={deleting || displayedTracks.length === 0}
+            disabled={busy || displayedTracks.length === 0}
             ref={(node) => { if (node) node.indeterminate = selectedTracks.length > 0 && !allSelected; }}
             type="checkbox"
             onChange={() => setSelectedTrackKeys(allSelected ? new Set() : new Set(displayedTracks.map(({ key }) => key)))}
@@ -100,14 +137,15 @@ export function RecommendationHistoryList({ batches }: { batches: Recommendation
         </label>
         <div className="flex items-center gap-3">
           <span aria-live="polite" className="text-sm text-[var(--muted)]">선택 {selectedTracks.length}곡</span>
-          <button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-rose-400/30 px-4 text-sm font-semibold text-rose-200 hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40" disabled={deleting || selectedTracks.length === 0} type="button" onClick={() => requestRemoval(selectedTracks, true)}>
+          <button className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-rose-400/30 px-4 text-sm font-semibold text-rose-200 hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-40" disabled={busy || selectedTracks.length === 0} type="button" onClick={() => requestRemoval(selectedTracks, true)}>
             <Trash2 aria-hidden="true" className="size-4" />{deleting ? "삭제 중…" : "선택 삭제"}
           </button>
         </div>
       </div>
-      {deleting ? <p role="status">삭제 중 {progress.done}/{progress.total}곡</p> : notice ? <p role="status">{notice}</p> : null}
+      {deleting ? <p role="status">{pendingBatchId ? "추천 그룹 삭제 중…" : `삭제 중 ${progress.done}/${progress.total}곡`}</p> : notice ? <p role="status">{notice}</p> : null}
       {error ? <p className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] px-4 py-3 text-sm text-rose-200" role="alert">{error}</p> : null}
-      {batches.map((batch) => {
+      {!visibleBatches.length ? <p className="empty-state">표시할 추천 그룹이 없습니다. 새 추천을 받아보세요.</p> : null}
+      {visibleBatches.map((batch) => {
         const visibleTracks = batch.tracks.filter(({ track }) => !hiddenTrackKeys.has(`${batch.batchId}:${track.id}`));
         const decisions = new Map(visibleTracks.map(({ decision, track }) => [track.id, decision]));
         return (
@@ -119,23 +157,24 @@ export function RecommendationHistoryList({ batches }: { batches: Recommendation
             <header className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--border)] px-5 py-4 sm:px-6">
               <div>
                 <p className="mb-1 text-[11px] font-bold tracking-[0.12em] text-[var(--subtle)]">
-                  {batch.rankingVersion === "hybrid-v0" ? "HYBRID RANKING" : "BASELINE RANKING"}
+                  추천 그룹
                 </p>
                 <h2 className="text-lg font-semibold text-[var(--foreground)]" id={`recommendation-batch-${batch.batchId}`}>
-                  {formatDateTime(batch.createdAt)}
+                  {batch.createdAt ? formatDateTime(batch.createdAt) : "추천 트랙"} <small className="text-sm font-normal text-[var(--muted)]">· {visibleTracks.length}곡</small>
                 </h2>
               </div>
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${batch.status === "current" ? "border-teal-400/35 bg-teal-400/10 text-teal-200" : "border-white/10 bg-white/[0.035] text-[var(--muted)]"}`}>
+              <div className="flex flex-wrap items-center gap-3"><span className={`rounded-full border px-3 py-1 text-xs font-semibold ${batch.status === "current" ? "border-teal-400/35 bg-teal-400/10 text-teal-200" : "border-white/10 bg-white/[0.035] text-[var(--muted)]"}`}>
                 {statusCopy[batch.status]}
-              </span>
+              </span><button aria-label={`추천 그룹 삭제 ${batch.createdAt ? formatDateTime(batch.createdAt) : "추천 트랙"}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-rose-400/30 px-3 text-sm text-rose-200 hover:bg-rose-400/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-40" disabled={busy} type="button" onClick={() => { if (!deletionInFlight.current && !confirmation) setConfirmation({ batchId: batch.batchId, bulk: true, items: displayedTracks.filter((item) => item.batchId === batch.batchId) }); }}><Trash2 aria-hidden="true" className="size-4" />그룹 삭제</button></div>
             </header>
             <div className="px-3 pb-3 sm:px-5 sm:pb-5">
               <TrackList
+                wideActions={Boolean(onAccept)}
                 mobileStacked
                 renderLeading={(track) => {
                   const key = `${batch.batchId}:${track.id}`;
-                  return <label className="flex min-h-10 w-full cursor-pointer items-center justify-center">
-                    <input aria-label={`추천 이력 선택 ${track.title}`} checked={selectedTrackKeys.has(key)} className="size-4 accent-violet-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]" disabled={deleting} type="checkbox" onChange={(event) => {
+                  return <label className="flex min-h-11 w-full cursor-pointer items-center justify-center">
+                    <input aria-label={`추천 이력 선택 ${track.title}`} checked={selectedTrackKeys.has(key)} className="size-4 accent-violet-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)]" disabled={busy} type="checkbox" onChange={(event) => {
                       const checked = event.target.checked;
                       setSelectedTrackKeys((current) => { const next = new Set(current); if (checked) next.add(key); else next.delete(key); return next; });
                     }} />
@@ -145,11 +184,14 @@ export function RecommendationHistoryList({ batches }: { batches: Recommendation
                 renderActions={(track) => {
                   const trackKey = `${batch.batchId}:${track.id}`;
                   const pending = pendingTrackKeys.has(trackKey);
+                  const decision = decisions.get(track.id);
                   return (
+                    <>
+                    {onAccept && onReject && decision !== "accept" && decision !== "reject" ? <><button className="gms-decision-button gms-decision-button--accept" disabled={busy} type="button" onClick={() => onAccept(track, batch.profileVersion)}>+ MMS</button><button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" disabled={busy} title="싫어요" type="button" onClick={() => onReject(track, batch.profileVersion)}><ThumbsDown aria-hidden="true" /></button></> : null}
                     <button
                       aria-label={`추천 이력에서 삭제 ${track.title}`}
-                      className="inline-grid size-9 place-items-center rounded-full text-[var(--subtle)] transition-colors hover:bg-rose-400/10 hover:text-rose-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50"
-                      disabled={deleting}
+                      className="inline-grid min-h-11 min-w-11 place-items-center rounded-full text-[var(--subtle)] transition-colors hover:bg-rose-400/10 hover:text-rose-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50"
+                      disabled={busy}
                       title="추천 이력에서 삭제"
                       type="button"
                       onClick={() => requestRemoval([{ batchId: batch.batchId, trackId: track.id, title: track.title, key: trackKey }], false)}
@@ -157,6 +199,7 @@ export function RecommendationHistoryList({ batches }: { batches: Recommendation
                       <Trash2 aria-hidden="true" className="size-4" />
                       {pending ? <span className="sr-only"> 삭제 중</span> : null}
                     </button>
+                    </>
                   );
                 }}
                 renderMeta={(track) => {

@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -38,6 +39,7 @@ export function LikesProvider({
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState(initialLikes);
   const [pendingKeys, setPendingKeys] = useState<Set<string>>(() => new Set());
+  const inFlightKeys = useRef(new Set<string>());
 
   const isLiked = useCallback((key: LikeKey) => {
     const target = itemKey(key);
@@ -51,7 +53,8 @@ export function LikesProvider({
 
   const toggle = useCallback(async (item: LikeKey & LikeSnapshot) => {
     const key = itemKey(item);
-    if (pendingKeys.has(key)) return;
+    if (inFlightKeys.current.has(key)) return;
+    inFlightKeys.current.add(key);
 
     const previousItem = items.find((candidate) => itemKey(candidate) === key) ?? null;
     const wasLiked = Boolean(previousItem);
@@ -102,13 +105,14 @@ export function LikesProvider({
         ? "좋아요를 해제하지 못했습니다. 잠시 후 다시 시도해 주세요."
         : "좋아요를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
+      inFlightKeys.current.delete(key);
       setPendingKeys((current) => {
         const next = new Set(current);
         next.delete(key);
         return next;
       });
     }
-  }, [items, pendingKeys]);
+  }, [items]);
 
   const value = useMemo(() => ({
     error,

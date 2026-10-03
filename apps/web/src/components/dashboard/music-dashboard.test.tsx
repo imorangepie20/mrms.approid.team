@@ -278,7 +278,7 @@ it("shows an irreversible exhaustion state without offering another batch", () =
   expect(screen.getByText("한 번 보여드린 곡은 다시 추천하지 않습니다. 추천 후보가 모두 소진되어 더 이상 새로운 추천을 만들 수 없습니다.")).toBeInTheDocument();
 });
 
-it("links GMS users to the dedicated recommendation history page", () => {
+it("shows groups directly on GMS without a separate history link", () => {
   renderDashboard(
     <MusicDashboard
       access={{ connectionStatus: "connected", isAuthenticated: true }}
@@ -289,10 +289,9 @@ it("links GMS users to the dedicated recommendation history page", () => {
     />,
   );
 
-  expect(screen.getByRole("link", { name: "추천 이력 보기" })).toHaveAttribute(
-    "href",
-    "/gms/history",
-  );
+  expect(screen.queryByRole("link", { name: "추천 이력 보기" })).not.toBeInTheDocument();
+  expect(screen.getByRole("heading", {name:/모든 추천/})).toBeInTheDocument();
+  expect(screen.getByRole("article")).toBeInTheDocument();
 });
 
 it("persists GMS decisions separately from the MMS like action", async () => {
@@ -365,8 +364,8 @@ it("renders GMS track recommendations as a list instead of cards", () => {
     />,
   );
 
-  expect(screen.getByRole("list", { name: "GMS 트랙 추천" })).toBeInTheDocument();
-  expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  expect(screen.getByRole("table")).toBeInTheDocument();
+  expect(screen.getAllByRole("row")).toHaveLength(3);
   expect(screen.queryByRole("region", { name: "GMS 추천" })).not.toBeInTheDocument();
   expect(document.querySelector(".gateway-card")).not.toBeInTheDocument();
   expect(screen.queryByText("취향 일치")).not.toBeInTheDocument();
@@ -389,11 +388,11 @@ it("queues all GMS tracks before playing a track from the list", async () => {
   );
 
   const playButton = screen.getByRole("button", { name: "재생 Midnight City" });
-  expect(playButton.querySelector("svg.play-icon")).toBeInTheDocument();
+  expect(playButton.querySelector("svg")).toBeInTheDocument();
   await user.click(playButton);
 
-  expect(session.setQueue).toHaveBeenCalledWith(tracks, { id: "gms", type: "gms" });
-  expect(session.playTrack).toHaveBeenCalledWith(catalog[0], { id: "gms", type: "gms" });
+  expect(session.setQueue).toHaveBeenCalledWith(tracks, { id: "gms-history-gms", type: "gms" });
+  expect(session.playTrack).toHaveBeenCalledWith(catalog[0], { id: "gms-history-gms", type: "gms" });
 });
 
 it("shows the GMS reject action as an accessible icon button", () => {

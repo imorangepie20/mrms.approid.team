@@ -1,4 +1,5 @@
 import type { RecommendationServingDecision } from "@/lib/recommendations/serving";
+import type { Track } from "@/lib/music/types";
 
 import {
   preparePersonalizedEmsRecommendations,
@@ -25,12 +26,13 @@ type RecommendationBatchRow = {
 export type RecommendationHistoryEntry = {
   batchId: string;
   createdAt: string;
+  profileVersion?: string | null;
   rankingVersion: "baseline" | "hybrid-v0";
   status: "current" | "replaced" | "exhausted";
   tracks: Array<{
     decidedAt: string | null;
     decision: "accept" | "reject" | "skip" | null;
-    track: EmsRecommendationTrack;
+    track: Track;
   }>;
 };
 
@@ -136,6 +138,7 @@ async function loadActiveBatch(userId: string, transaction: TransactionExecutor)
 
 async function visibleRecommendations(
   userId: string,
+  batchId: string,
   recommendations: PersonalizedRecommendations,
   transaction: TransactionExecutor,
 ) {
@@ -146,8 +149,13 @@ async function visibleRecommendations(
      FROM user_recommendation_decisions
      WHERE user_id = $1
        AND source_track_id = ANY($2::uuid[])
-       AND decision IN ('accept', 'reject')`,
-    [userId, trackIds],
+       AND decision IN ('accept', 'reject')
+     UNION
+     SELECT hidden.track_id AS source_track_id
+     FROM user_recommendation_history_hidden_tracks AS hidden
+     INNER JOIN user_recommendation_batches AS batch ON batch.id = hidden.batch_id
+     WHERE batch.user_id = $1 AND hidden.batch_id = $3`,
+    [userId, trackIds, batchId],
   );
   const hiddenIds = new Set(hidden.rows.map((row) => row.source_track_id));
   return {
@@ -163,6 +171,7 @@ async function savedBatchResult(
 ): Promise<PersonalizedRecommendationBatch> {
   const recommendations = await visibleRecommendations(
     userId,
+    row.id,
     parseRecommendations(row.recommendations),
     transaction,
   );
@@ -342,6 +351,51 @@ export async function getPersonalizedRecommendationHistoryPage(
   pageSize = DEFAULT_HISTORY_PAGE_SIZE,
   executor?: TransactionExecutor,
 ): Promise<RecommendationHistoryPage> {
+  return loadRecommendationHistory(auth0Subject, page, pageSize, executor);
+}
+
+export async function getAllPersonalizedRecommendationHistory(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+): Promise<RecommendationHistoryEntry[]> {
+  return (await loadRecommendationHistory(auth0Subject, 1, DEFAULT_HISTORY_PAGE_SIZE, executor, true)).items;
+}
+
+export async function hidePersonalizedRecommendationHistoryBatch(
+  auth0Subject: string,
+  batchId: string,
+  executor?: TransactionExecutor,
+) {
+  const database = executor ?? getDatabasePool();
+  const result = await database.query<{ found: boolean }>(
+    `WITH owned_batch AS (
+       SELECT batch.id, batch.track_ids
+       FROM user_recommendation_batches AS batch
+       INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
+       WHERE user_row.auth0_subject = $1 AND batch.id = $2
+     ), hidden_tracks AS (
+       INSERT INTO user_recommendation_history_hidden_tracks (batch_id, track_id)
+       SELECT owned.id, track_id FROM owned_batch AS owned
+       CROSS JOIN LATERAL unnest(owned.track_ids) AS track_id
+       ON CONFLICT (batch_id, track_id) DO NOTHING
+     ), hidden_batch AS (
+       INSERT INTO user_recommendation_history_hidden_batches (batch_id)
+       SELECT id FROM owned_batch
+       ON CONFLICT (batch_id) DO NOTHING
+     )
+     SELECT EXISTS(SELECT 1 FROM owned_batch) AS found`,
+    [auth0Subject, batchId],
+  );
+  return result.rows[0]?.found === true;
+}
+
+async function loadRecommendationHistory(
+  auth0Subject: string,
+  page: number,
+  pageSize: number,
+  executor?: TransactionExecutor,
+  all = false,
+): Promise<RecommendationHistoryPage> {
   const database = executor ?? getDatabasePool();
   const safePage = Math.max(1, Math.trunc(page) || 1);
   const safePageSize = Math.max(1, Math.min(MAX_HISTORY_PAGE_SIZE, Math.trunc(pageSize) || DEFAULT_HISTORY_PAGE_SIZE));
@@ -349,7 +403,8 @@ export async function getPersonalizedRecommendationHistoryPage(
     `SELECT count(*) AS total_count
      FROM user_recommendation_batches AS batch
      INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
-     WHERE user_row.auth0_subject = $1`,
+     WHERE user_row.auth0_subject = $1
+       AND NOT EXISTS (SELECT 1 FROM user_recommendation_history_hidden_batches AS hidden WHERE hidden.batch_id = batch.id)`,
     [auth0Subject],
   );
   const totalCount = Number(countResult.rows[0]?.total_count ?? 0);
@@ -360,9 +415,10 @@ export async function getPersonalizedRecommendationHistoryPage(
      FROM user_recommendation_batches AS batch
      INNER JOIN app_users AS user_row ON user_row.id = batch.user_id
      WHERE user_row.auth0_subject = $1
+       AND NOT EXISTS (SELECT 1 FROM user_recommendation_history_hidden_batches AS hidden WHERE hidden.batch_id = batch.id)
      ORDER BY batch.created_at DESC, batch.id DESC
-     LIMIT $2 OFFSET $3`,
-    [auth0Subject, safePageSize, (effectivePage - 1) * safePageSize],
+     ${all ? "" : "LIMIT $2 OFFSET $3"}`,
+    all ? [auth0Subject] : [auth0Subject, safePageSize, (effectivePage - 1) * safePageSize],
   );
 
   const parsedRows = result.rows.map((row) => ({
@@ -416,6 +472,7 @@ export async function getPersonalizedRecommendationHistoryPage(
     return {
       batchId: row.id,
       createdAt: isoDate(row.created_at),
+      profileVersion: recommendations.profileVersion,
       rankingVersion: recommendations.rankingVersion,
       status: row.status,
       tracks: recommendations.tracks.map((track) => ({

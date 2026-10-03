@@ -14,6 +14,8 @@ vi.mock("./gms-recommendations", () => ({
 
 import {
   getPersonalizedRecommendationHistoryPage,
+  getAllPersonalizedRecommendationHistory,
+  hidePersonalizedRecommendationHistoryBatch,
   getOrCreatePersonalizedRecommendationBatch,
   hidePersonalizedRecommendationHistoryTrack,
   rotatePersonalizedRecommendationBatch,
@@ -367,4 +369,33 @@ describe("persistent recommendation batches", () => {
 
     expect(result).toMatchObject({ page: 2, totalPages: 2 });
   });
+});
+
+it("loads more than 24 groups without pagination and excludes hidden groups in SQL", async () => {
+  const database=executor((sql,values)=>{
+    if(sql.includes("count(*)")) return {rows:[{total_count:25}]};
+    if(sql.includes("SELECT batch.id")) {
+      expect(sql).not.toContain("LIMIT");
+      expect(sql).toContain("NOT EXISTS (SELECT 1 FROM user_recommendation_history_hidden_batches");
+      expect(sql).toContain("ORDER BY batch.created_at DESC, batch.id DESC");
+      expect(values).toEqual(["auth0|listener"]);
+      return {rows:Array.from({length:25},(_,i)=>({id:`batch-${i}`,created_at:"2026-10-04T00:00:00Z",status:"replaced",recommendations:recommendations()}))};
+    }
+    return {rows:[]};
+  });
+  expect(await getAllPersonalizedRecommendationHistory("auth0|listener",database)).toHaveLength(25);
+});
+it("hides a group and all its tracks atomically without modifying original evidence", async () => {
+  const database=executor((sql,values)=>{
+    expect(sql).toContain("WITH owned_batch AS");
+    expect(sql).toContain("user_row.auth0_subject = $1 AND batch.id = $2");
+    expect(sql).toContain("INSERT INTO user_recommendation_history_hidden_batches");
+    expect(sql).toContain("INSERT INTO user_recommendation_history_hidden_tracks");
+    expect(sql).toContain("ON CONFLICT (batch_id) DO NOTHING");
+    expect(sql).not.toMatch(/DELETE FROM|UPDATE user_recommendation/);
+    expect(values).toEqual(["auth0|listener",batchId]);
+    return {rows:[{found:true}]};
+  });
+  expect(await hidePersonalizedRecommendationHistoryBatch("auth0|listener",batchId,database)).toBe(true);
+  expect(database.query).toHaveBeenCalledTimes(1);
 });

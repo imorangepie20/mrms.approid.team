@@ -474,6 +474,13 @@
     display: block;
   }
 }
+.track-list-mobile-stack .gms-decision-button {
+  min-height: 44px;
+}
+.track-list-mobile-stack .gms-decision-button--icon {
+  width: 44px;
+  min-width: 44px;
+}
 /* HUD UiModalNotification의 slideIn: 0.3s ease-out. */
 @keyframes template-notification-slide-in {
   from { transform: translateX(-10px); opacity: 0; }
