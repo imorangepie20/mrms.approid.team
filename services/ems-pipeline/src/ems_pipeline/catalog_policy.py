@@ -80,8 +80,8 @@ def persistent_exclusion_reason(
     row = connection.execute(
         """SELECT reason
              FROM ems_catalog_exclusions
-            WHERE (%s IS NOT NULL AND tidal_id = %s)
-               OR (%s IS NOT NULL AND isrc = %s)
+            WHERE (%s::text IS NOT NULL AND tidal_id = %s)
+               OR (%s::text IS NOT NULL AND isrc = %s)
             ORDER BY created_at
             LIMIT 1""",
         (tidal_id, tidal_id, isrc, isrc),

@@ -13,6 +13,8 @@ from psycopg.types.json import Jsonb
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from ems_pipeline import melon
+from ems_pipeline.catalog_policy import persistent_exclusion_reason
+from ems_pipeline.importer import TidalMatch, promote_match
 from ems_pipeline.tidal import CatalogRequestPaused
 
 
@@ -59,6 +61,12 @@ def main():
             if iteration == 0:
                 db.execute(down)
         print("PASS migration 001-032 / down-reapply / legacy ID, counts, cursors preserved")
+
+        for tidal_id, isrc in (("test-tidal", None), (None, "KRTEST1234567"), (None, None)):
+            assert persistent_exclusion_reason(db, tidal_id=tidal_id, isrc=isrc) is None
+        db.execute("INSERT INTO ems_catalog_exclusions(tidal_id,reason) VALUES ('excluded-test','regional_cleanup')")
+        assert persistent_exclusion_reason(db, tidal_id="excluded-test", isrc=None) == "regional_cleanup"
+        print("PASS nullable catalog identity query: TIDAL-only, ISRC-only, both missing, exact exclusion")
 
         for index in range(8):
             songs = [melon.MelonSong(str(100 + index * 5 + n), "Title", "Artist", "Album") for n in range(5)]
@@ -137,6 +145,19 @@ def main():
         assert db.execute("SELECT count(*) AS n FROM ems_melon_track_genres").fetchone()["n"] == 50
         assert db.execute("SELECT count(*) AS n FROM ems_ingest_candidates WHERE run_id=%s", (current,)).fetchone()["n"] == 45
         print("PASS same songs in different genres: source/candidate deduplication, all genre relations retained")
+        candidate = db.execute("SELECT id FROM ems_ingest_candidates WHERE run_id=%s AND candidate_key='melon:300'", (current,)).fetchone()
+        track_id = promote_match(db, str(candidate["id"]), TidalMatch(
+            tidal_id="isolated-tidal-300", title="Title", artist="Artist", album="Album",
+            artwork_url=None, duration_ms=180000, recording_mbid=None, isrc=None, match_confidence=0.95))
+        assert db.execute("SELECT resolver_status FROM ems_ingest_candidates WHERE id=%s", (candidate["id"],)).fetchone()["resolver_status"] == "matched"
+        db.execute("UPDATE ems_melon_jobs SET batch_discovered_count=0 WHERE id=%s", (current,))
+        melon._stage_page(db, str(current), GENRES[2], 6,
+                          [melon.MelonSong(str(300+n), "Updated Title", "Artist", None) for n in range(5)])
+        metadata = db.execute("SELECT metadata FROM ems_track_sources WHERE source_type='melon' AND track_id=%s", (track_id,)).fetchone()["metadata"]
+        assert metadata["title"] == "Updated Title" and metadata["album"] is None
+        assert len(metadata["genres"]) == 3
+        assert row(db, current)["staged_count"] == 45
+        print("PASS matched promotion and linked-source refresh: nullable album, three genre relations, no duplicate candidate")
 
 
 if __name__ == "__main__":

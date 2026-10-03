@@ -260,8 +260,8 @@ def _stage_page(connection: Any, job_id: str, genre: dict[str, str], start_index
             if song.song_id in linked:
                 connection.execute(
                     """UPDATE ems_track_sources SET
-                          metadata = jsonb_build_object('source_url', %s, 'title', %s,
-                            'artist', %s, 'album', %s,
+                          metadata = jsonb_build_object('source_url', %s::text, 'title', %s::text,
+                            'artist', %s::text, 'album', %s::text,
                             'genres', (SELECT jsonb_agg(jsonb_build_object('code', g.genre_code, 'name', g.genre_name))
                                          FROM ems_melon_track_genres g WHERE g.song_id = %s)),
                           last_seen_at = now()

@@ -12,6 +12,7 @@
    운영에서 TIDAL 관리자 작업 running 1개가 전체 처리 루프를 점유하고 멜론 pending 작업이 실행되지 않는 것도 확인했다. `admin_ingestion.py`의 TIDAL 후보 처리 사이에 실행 가능한 멜론 작업 한 tick을 처리해 기아 상태를 해소한다. 멜론 pause·다음 묶음 시각·TIDAL retry 시각은 존중한다.
 4. 관리자 안내를 5곡·장르 순환으로 맞추고 운영 런북을 갱신한다.
 5. 검증한 기능을 커밋·푸시하고 Web·EMS 이미지에 적용한다. DB backup 검증 후 migration을 적용하고 기존 열린 작업을 이어간다. 장애 시 체크포인트를 보존하고 멜론 작업을 일시정지한 상태로 이전 이미지를 복구한다. 운영 down migration은 하지 않는다.
+   첫 운영 검증에서 V4는 통과했으나 V5가 카탈로그 제외 조회의 PostgreSQL `could not determine data type of parameter $1`로 막혔다. `IS NOT NULL`에만 쓰는 placeholder의 타입이 추론되지 않는 기존 DB 계층 오류다. 같은 계층의 linked Melon 메타데이터 갱신에도 JSON 인자 타입이 없어 실제 DB 회귀를 추가했다. nullable identity와 nullable album 갱신에 명시적 text cast를 적용한 뒤 V1–V5를 다시 검증한다. 제외 조건과 lease 정책은 유지한다.
 
 ## 완료 기준과 객관적 검증
 
