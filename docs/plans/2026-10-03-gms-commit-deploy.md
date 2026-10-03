@@ -15,3 +15,7 @@
 3. 운영: 해당 커밋 git archive digest/이미지 revision 일치·Web 재배포, healthy·restart 0·local/public readiness 200·비-Web ID 유지·rollback 증거/임시 archive 정리. HTTP와 소스/label 검사로 검증하고 사용자 추천·취향 데이터를 추가 변경하지 않는다.
 
 필수 체크 3개 모두 PASS 후 완료로 보고한다. 조건부 DB 6개 skip은 이전 기능 검증 기록의 미실행 사유를 그대로 유지한다.
+
+## 실행 결과
+
+완료 체크 1–3 PASS. 기능 커밋 `f71ec9e` main push, Web 변경 18/18 정규화 SHA 일치, `20261003-gms-f71ec9e`의 revision/archive label 일치·서버 build exit 0·healthy/restart 0·내부/공개 ready 200·비-Web ID 유지·rollback 보존·임시 archive 정리를 확인했다. 배포 후 결과 문서만 별도 커밋·푸시해 운영 기능 커밋과 구분한다. [변경 기록](../changes/2026-10-03-gms-commit-deploy.md)에 구체적인 증거와 조건부 미실행 항목을 기록한다.

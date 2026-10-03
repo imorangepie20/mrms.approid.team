@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-10-03
 
-최신 기능 기준 커밋: `4636ee2`
+최신 기능 기준 커밋: `f71ec9e`
 
-최신 Zorin Web 배포: `20261003-template-dialog-47a7cd24e18f` (기존 `4636ee2` 기능 기반과 현재 작업 트리의 GMS/MMS·선택 삭제·템플릿 알림/확인창 snapshot, archive SHA-256 `47a7cd24e18f645cc812c5c5926cbec851573e6f9c1ad0180ea54567d87e346d`)
+최신 Zorin Web 배포: `20261003-gms-f71ec9e` (`f71ec9e23ba0b9c3f0613f029e3d3845928646d1` Git archive, SHA-256 `0acf2917765cb39bd7ab96dc711d05ac787f930c607523e6dccaadb3e940010b`)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-10-03 사용자 커밋·푸시·배포 요청으로 GMS/MMS 수정·선택 삭제·템플릿 알림/확인창과 회귀·문서 30파일을 `f71ec9e`에 커밋하고 origin/main에 push했다. Git archive로 운영 Web을 재배포했으며 source 18/18 정규화 일치, revision/archive label 일치, local/public readiness 200·healthy·restart 0·비-Web ID 유지와 rollback 보존을 확인했다. 기능 코드는 직전 전체 575개·관련 59개 통과 상태와 동일하다. 상세는 [커밋·푸시·배포 기록](../changes/2026-10-03-gms-commit-deploy.md)에 있다.
 - 2026-10-03 추천 이력의 곡별/전체 체크박스·선택 삭제와 +MMS 성공 알림, 삭제 확인창을 HUD 템플릿에서 재사용해 운영 Web에 적용했다. 관련 59개·전체 575개 통과(조건부 DB 6개 skip), lint 오류 0·기존 경고 6, 52개 route build, source 파일 6/6 일치·readiness 200·비-Web ID 유지와 desktop/390×844 취소/keyboard를 확인했다. native 확인창 검증에서 발생한 이력 hide 2건은 정확한 ID/time 검증 후 복구했고 두 곡 재표시를 확인했다. 상세는 [선택 삭제·템플릿 적용 기록](../changes/2026-10-03-gms-history-selection.md)에 있다.
 - 2026-10-03 사용자가 운영 `+ MMS` 무반응·MMS 미변화를 보고해 앞선 로컬 수정의 미배포를 확인하고 Web에 적용했다. 저장 중·곡명 포함 성공 안내와 MMS 링크, 저장 후 GMS/history/MMS route invalidation을 보완했다. 전체 Web 564개 통과·6개 조건부 skip, lint 오류 0·기존 경고 6, 52개 route build와 서버 image build를 통과했다. 운영에서 `Good Times Boogie` 수락 1건으로 대기 8→7, MMS 수락 5→6과 reload 유지, local/public readiness 200·healthy·restart 0·오류 로그 0을 확인했다. 비-Web container ID는 모두 유지했고 schema 변경은 없다. 상세는 [운영 적용 기록](../changes/2026-10-03-gms-production-accept.md)에 있다.
 - 2026-10-03 GMS 재점검 후 사용자 수정 요청으로 결정 저장 결과와 대기 목록 동기화, MMS의 `수락한 추천` 영속 조회, 모바일 추천 이력 배치를 로컬 수정했다. 저장 실패·부분 성공·중복 요청을 구분하고 수락과 하트를 분리하며 사용자별 영구 reject 제외를 유지한다. Web 561개 통과·6개 조건부 skip, 격리 PostgreSQL 통합 5개 통과·skip 0, lint 오류 0·기존 경고 6, 52개 route build와 실제 컴포넌트 로컬 Chrome 390×844/keyboard를 확인했다. 운영 미배포이며 최신 Zorin 배포 기준은 위 커밋을 유지한다. 상세는 [GMS 수정 기록](../changes/2026-10-03-gms-functional-fixes.md)에 있다.

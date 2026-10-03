@@ -16,6 +16,7 @@
 
 ### 개인화 추천·GMS
 
+- [GMS 변경 커밋·푸시·재배포 결과](changes/2026-10-03-gms-commit-deploy.md)
 - [GMS 변경 커밋·푸시·재배포 계획](plans/2026-10-03-gms-commit-deploy.md)
 - [추천 이력 선택 삭제·템플릿 알림/확인창 변경](changes/2026-10-03-gms-history-selection.md)
 - [추천 이력 선택 삭제·템플릿 알림/확인창 계획](plans/2026-10-03-gms-history-selection.md)
