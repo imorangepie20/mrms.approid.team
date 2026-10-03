@@ -29,4 +29,10 @@
 
 ## 후속 운영 적용·미검증
 
-DB 타입 수정의 EMS 후속 배포와 V4–V5 재검증 결과는 적용 후 기록한다. 전체 장르의 모든 페이지 완료와 실제 모바일 기기 조작은 이번 검증 범위에 포함하지 않는다.
+- 후속 기능 `21f12c6`을 origin/main에 push하고 EMS·source-routines에 `20261003-melon-sql-21f12c6`을 적용했다. archive SHA-256 `027531596c36ded74b6779051d1899ae24ffd21ab8786d3a6305694ce756ee72`, EMS image `sha256:a0dc7fa89697628146172a76fb04f0871f1e1dbb382694e1ad5a9211f0924989`.
+- Web 코드는 두 기능 커밋 사이에 변경이 없음을 `git diff --exit-code 7b690b1 21f12c6 -- apps/web apps/admin infra`로 확인했다. Web은 `7b690b1` image `sha256:09a698a73b6e391a527a2bda35bdde4b0166cf9ca141c85d9b7c84d2cd0994ab`를 유지했다. current release는 EMS 후속 release를 가리킨다.
+- PASS V4 재검증: backup checksum 유지, 032 checksum 일치, 실행 EMS 소스 3개 hash·revision/archive 일치, Web/EMS healthy·세 서비스 restart 0, local/public readiness 200, 비-EMS 서비스 ID 전부 유지. 실제 운영 DB에서 nullable identity 조회도 성공했다. 새 EMS 시작 이후 PostgreSQL 매개변수 타입 오류 0건.
+- PASS V5 재검증: 기존 작업 ID를 유지한 채 발견/후보 15곡, 현재 묶음 5곡, `GN0100`·`GN0200`·`GN0300` 다음 위치 각각 6을 확인했다. 원천 장르는 발라드 12,498곡·댄스 5곡·랩/힙합 5곡이며 다음 조회 장르는 R&B/Soul이다. 첫 5곡 묶음의 미처리 후보는 0개다. 이전 워커가 남긴 이후 후보 lease는 기존 만료·재시도 규칙으로 처리하며 임의 초기화하지 않았다.
+- 운영 재검증 스크립트와 결과는 `/home/approid/apps/music-pie/shared/artifacts/20261003-melon-sql-21f12c6/verify.sh`·`verification.txt`, 원본 배포/backup/이관 비교는 `shared/artifacts/20261003-melon-7b690b1/`에 남겼다. 이전 image·release와 backup은 rollback용으로 보존한다.
+
+필수 V1–V5는 모두 PASS다. 전체 8장르의 모든 페이지 완료는 장시간 수집이므로 끝까지 기다리지 않았고, 실제 모바일 기기는 사용할 수 없어 확인하지 않았다. 8장르 순환은 회귀/격리 DB로, 운영의 다른 장르 저장은 댄스·랩/힙합으로 확인했다. 다음 작업은 관리자 화면에서 이후 장르와 재시도 후보의 진행을 관찰하는 것이다.

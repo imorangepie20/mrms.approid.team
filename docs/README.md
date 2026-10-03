@@ -47,6 +47,8 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [멜론 5곡 묶음·장르 순환 변경](changes/2026-10-03-melon-five-track-round-robin.md)
+- [멜론 5곡 묶음·장르 순환 계획](plans/2026-10-03-melon-five-track-round-robin.md)
 - [Home 셰이더 히어로 계획](plans/2026-09-27-home-shader-hero.md)
 - [Home 셰이더 히어로 변경 기록](changes/2026-09-27-home-shader-hero.md)
 - [메인 콘텐츠 확장 계획](plans/2026-09-26-home-content.md)
