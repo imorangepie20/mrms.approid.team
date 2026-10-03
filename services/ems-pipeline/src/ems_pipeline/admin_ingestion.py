@@ -23,6 +23,7 @@ from .tidal_popularity import (
     select_editorial_candidates,
 )
 from .worker import HealthGate, run_worker
+from .editorial_refresh import service_editorial_refresh
 
 
 def _job_status(connection: Any, job_id: str) -> str:
@@ -350,6 +351,7 @@ def process_job(connection: Any, job_id: str) -> None:
         matched_since_embed = 0
         while _job_status(connection, job_id) in {"pending", "running"}:
             # The editorial loop can run for days; give Melon one resumable tick per turn.
+            service_editorial_refresh(connection)
             _service_melon_job(connection)
             _wait_for_disk(connection, job_id, client)
             _set_phase(connection, job_id, "resolving")
@@ -524,6 +526,8 @@ def serve_admin_jobs() -> None:
                     continue
                 prefer_melon = True
                 while True:
+                    if service_editorial_refresh(connection):
+                        continue
                     spotify_chart = connection.execute(
                         """SELECT run_id FROM ems_spotify_chart_runs
                             WHERE status IN ('pending', 'running')

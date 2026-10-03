@@ -220,23 +220,30 @@ def discover_editorial_memberships(
     return memberships
 
 
-def sync_editorial_sections(
+def project_editorial_sections(
     connection: object,
     definitions: Iterable[SectionDefinition],
     memberships: Iterable[EditorialMembership],
     *,
-    dry_run: bool,
-    enforce_gate: bool = False,
-) -> dict[str, SectionSyncCount]:
+    playable_only: bool = False,
+) -> list[_ProjectedSection]:
     definition_list = list(definitions)
     membership_list = list(memberships)
     tidal_ids = sorted({item.tidal_id for item in membership_list})
     isrcs = sorted({item.isrc.upper() for item in membership_list})
+    availability_filter = """AND duration_ms >= 30000 AND EXISTS (
+        SELECT 1 FROM LATERAL (
+          SELECT a.playable FROM ems_availability_events a
+          WHERE a.track_id = ems_tracks.id AND a.region = 'KR' AND a.capability = 'STREAM'
+          ORDER BY a.observed_at DESC, a.id DESC LIMIT 1
+        ) latest WHERE latest.playable = true
+    )""" if playable_only else ""
     rows = connection.execute(
         """SELECT id, tidal_id, upper(isrc) AS isrc
            FROM ems_tracks
            WHERE status = 'active'
-             AND (tidal_id = ANY(%s) OR upper(isrc) = ANY(%s))""",
+             AND (tidal_id = ANY(%s) OR upper(isrc) = ANY(%s))
+           """ + availability_filter + " ORDER BY id",
         (tidal_ids, isrcs),
     ).fetchall()
     by_tidal = {str(row["tidal_id"]): row for row in rows}
@@ -274,6 +281,18 @@ def sync_editorial_sections(
             )
         )
 
+    return projected_sections
+
+
+def sync_editorial_sections(
+    connection: object,
+    definitions: Iterable[SectionDefinition],
+    memberships: Iterable[EditorialMembership],
+    *,
+    dry_run: bool,
+    enforce_gate: bool = False,
+) -> dict[str, SectionSyncCount]:
+    projected_sections = project_editorial_sections(connection, definitions, memberships)
     ready_sections = sum(
         len(projected.joined) >= MIN_SECTION_TRACKS
         for projected in projected_sections

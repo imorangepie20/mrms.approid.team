@@ -3,6 +3,7 @@ import { Check, RotateCcw, Save } from "lucide-react";
 import { getScreenSections, updateScreenSection, type EmsSection, type Screen } from "../lib/api";
 import { apiErrorMessage } from "../lib/ui";
 import HomeContentEditor from "./HomeContentEditor";
+import EditorialRefreshPanel from "./EditorialRefreshPanel";
 
 type Draft = Pick<EmsSection, "title" | "description" | "sortOrder" | "active">;
 
@@ -74,6 +75,8 @@ export default function Sections({ screen }: { screen: Screen }) {
     {(error || notice) && <div role={error ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm ${error ? "border-hud-accent-danger/40 bg-hud-accent-danger/10 text-hud-accent-danger" : "border-hud-accent-success/40 bg-hud-accent-success/10 text-hud-accent-success"}`}>{error || notice}</div>}
 
     {isHome && <HomeContentEditor />}
+
+    <EditorialRefreshPanel onApplied={() => void getScreenSections(screen).then(setSections).catch((reason: unknown) => setError(apiErrorMessage(reason)))} />
 
     <div className="space-y-4">
       {isHome && <h2 className="text-2xl font-semibold">EMS 선곡 관리</h2>}

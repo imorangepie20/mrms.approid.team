@@ -55,7 +55,8 @@ def test_running_tidal_job_gives_melon_a_turn_between_candidates(monkeypatch) ->
     monkeypatch.setattr(admin_ingestion, "_wait_for_disk", Mock())
     monkeypatch.setattr(admin_ingestion, "_set_phase", Mock())
     monkeypatch.setattr(admin_ingestion, "_record_progress", Mock())
+    monkeypatch.setattr(admin_ingestion, "service_editorial_refresh", lambda _: turns.append("editorial"))
     monkeypatch.setattr(admin_ingestion, "_service_melon_job", lambda _: turns.append("melon"))
     monkeypatch.setattr(admin_ingestion, "run_worker", lambda *args, **kwargs: (turns.append("tidal") or {"not_found": 1}))
     admin_ingestion.process_job(db, "tidal-job")
-    assert turns == ["melon", "tidal", "melon", "tidal"]
+    assert turns == ["editorial", "melon", "tidal", "editorial", "melon", "tidal"]

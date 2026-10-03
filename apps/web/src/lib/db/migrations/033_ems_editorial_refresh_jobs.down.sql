@@ -1,0 +1,1 @@
+DROP TABLE ems_editorial_refresh_jobs;

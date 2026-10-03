@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { AdminApiError, getAudioAnalysis, getAudioAnalysisTrack, getEmsSummary, getEmsTracks, requeueAudioAnalysisTrack } from "./api";
+import { AdminApiError, getAudioAnalysis, getAudioAnalysisTrack, getEmsSummary, getEmsTracks, requeueAudioAnalysisTrack, getEditorialRefreshes, previewEditorialRefresh, applyEditorialRefresh } from "./api";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("admin API client", () => {
+  it("uses preview and saved-ID apply endpoints without provider/track inputs", async () => {
+    const mock = vi.fn().mockImplementation(async () => Response.json({})); vi.stubGlobal("fetch", mock);
+    await getEditorialRefreshes(); await previewEditorialRefresh(); await applyEditorialRefresh("saved-id");
+    expect(mock.mock.calls[0][0]).toBe("/api/admin/ems/editorial-refresh");
+    expect(mock.mock.calls[1][1].body).toBe("{}");
+    expect(mock.mock.calls[2][0]).toBe("/api/admin/ems/editorial-refresh/saved-id");
+    expect(mock.mock.calls[2][1].body).toBe(JSON.stringify({ action: "apply" }));
+  });
   it("requests summary from the same origin", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ activeTrackCount: 12 })));
 

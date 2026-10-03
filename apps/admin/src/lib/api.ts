@@ -358,6 +358,31 @@ export function getScreenSections(screen: Screen) {
   return requestJson<EmsSection[]>(`/api/admin/screens/${screen}/sections`);
 }
 
+export type EditorialRefreshTrack = { id: string; tidalTrackId: string; title: string; artist: string; rank: number; sourcePlaylistId: string; sourcePlaylistName: string };
+export type EditorialRefreshSection = { id: string | null; slug: string; title: string; discovered: number; currentCount: number; addedCount: number; removedCount: number; tracks: EditorialRefreshTrack[] };
+export type EditorialRefreshJob = {
+  id: string; status: "pending" | "running" | "ready" | "blocked" | "applied" | "failed" | "expired";
+  preview: { sections?: EditorialRefreshSection[]; canApply?: boolean }; errorCode: string | null;
+  createdAt: string; updatedAt: string; expiresAt: string | null; appliedAt: string | null;
+};
+export type EditorialRefreshData = {
+  criteria: Array<{ slug: string; title: string; source: string; ranking: string }>;
+  lastRefreshedAt: string | null;
+  limits: { playlistsPerSection: number; requestBudget: number; tracksPerSection: number; previewMinutes: number };
+  jobs: EditorialRefreshJob[];
+};
+export function getEditorialRefreshes() { return requestJson<EditorialRefreshData>("/api/admin/ems/editorial-refresh"); }
+export function previewEditorialRefresh() {
+  return requestJson<{ id: string; status: "pending" }>("/api/admin/ems/editorial-refresh", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({}),
+  });
+}
+export function applyEditorialRefresh(id: string) {
+  return requestJson<EditorialRefreshJob>(`/api/admin/ems/editorial-refresh/${encodeURIComponent(id)}`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "apply" }),
+  });
+}
+
 export function updateScreenSection(screen: Screen, id: string, patch: Pick<EmsSection, "title" | "description" | "sortOrder" | "active">) {
   return requestJson<EmsSection>(`/api/admin/screens/${screen}/sections/${encodeURIComponent(id)}`, {
     method: "PATCH",
