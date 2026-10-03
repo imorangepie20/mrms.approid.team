@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-10-03 11:51 KST 멜론 후속 운영 점검에서 8장르 첫 순환과 발라드 두 번째 묶음을 확인했다. 발견 45곡·중복 제외 후보 41곡·TIDAL matched 8곡이며 발라드 다음 위치 11·나머지 7장르 위치 6이다. 이전 lease 미처리와 matched의 active/KR STREAM 연결 누락, 배포 후 DB/워커 오류는 0건이다. readiness 200·restart 0과 기존 revision을 유지한다. 전체 카탈로그 수집은 계속 진행 중이다. 상세는 [멜론 변경 기록](../changes/2026-10-03-melon-five-track-round-robin.md)의 후속 운영 검증에 있다.
 - 2026-10-03 사용자 요청으로 멜론을 100곡에서 5곡 묶음으로 변경하고 8개 장르의 위치를 독립 저장해 순환한다. TIDAL 관리자 작업의 루프 점유와 제외/연결곡 갱신 SQL의 매개변수 타입 오류도 수정했다. EMS 105개·격리 DB 6개 assertion 묶음·Web 회귀 4개·두 앱 lint/build와 032 이관 보존을 통과했다. 운영 기존 작업에서 발견 15곡·댄스 5곡·랩/힙합 5곡 저장, 다음 R&B/Soul, readiness 200·restart 0·대상 외 서비스 보존을 확인했다. 전체 장르 완주와 실제 모바일 기기는 미검증이다. 상세는 [멜론 변경 기록](../changes/2026-10-03-melon-five-track-round-robin.md)에 있다.
 - 2026-10-03 사용자 커밋·푸시·배포 요청으로 GMS/MMS 수정·선택 삭제·템플릿 알림/확인창과 회귀·문서 30파일을 `f71ec9e`에 커밋하고 origin/main에 push했다. Git archive로 운영 Web을 재배포했으며 source 18/18 정규화 일치, revision/archive label 일치, local/public readiness 200·healthy·restart 0·비-Web ID 유지와 rollback 보존을 확인했다. 기능 코드는 직전 전체 575개·관련 59개 통과 상태와 동일하다. 상세는 [커밋·푸시·배포 기록](../changes/2026-10-03-gms-commit-deploy.md)에 있다.
 - 2026-10-03 추천 이력의 곡별/전체 체크박스·선택 삭제와 +MMS 성공 알림, 삭제 확인창을 HUD 템플릿에서 재사용해 운영 Web에 적용했다. 관련 59개·전체 575개 통과(조건부 DB 6개 skip), lint 오류 0·기존 경고 6, 52개 route build, source 파일 6/6 일치·readiness 200·비-Web ID 유지와 desktop/390×844 취소/keyboard를 확인했다. native 확인창 검증에서 발생한 이력 hide 2건은 정확한 ID/time 검증 후 복구했고 두 곡 재표시를 확인했다. 상세는 [선택 삭제·템플릿 적용 기록](../changes/2026-10-03-gms-history-selection.md)에 있다.

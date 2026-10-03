@@ -36,3 +36,15 @@
 - 운영 재검증 스크립트와 결과는 `/home/approid/apps/music-pie/shared/artifacts/20261003-melon-sql-21f12c6/verify.sh`·`verification.txt`, 원본 배포/backup/이관 비교는 `shared/artifacts/20261003-melon-7b690b1/`에 남겼다. 이전 image·release와 backup은 rollback용으로 보존한다.
 
 필수 V1–V5는 모두 PASS다. 전체 8장르의 모든 페이지 완료는 장시간 수집이므로 끝까지 기다리지 않았고, 실제 모바일 기기는 사용할 수 없어 확인하지 않았다. 8장르 순환은 회귀/격리 DB로, 운영의 다른 장르 저장은 댄스·랩/힙합으로 확인했다. 다음 작업은 관리자 화면에서 이후 장르와 재시도 후보의 진행을 관찰하는 것이다.
+
+## 후속 운영 연속 검증 — 2026-10-03 11:51 KST
+
+사용자 `다음` 요청에 따라 기존 작업을 관찰하고 최초 8장르 순환과 두 번째 발라드 묶음까지 확인했다. 작업 상태나 후보 lease를 임의 변경하지 않았다.
+
+- PASS F1: Web `7b690b1`, EMS/source-routines `21f12c6` revision 유지, Web/EMS healthy·세 서비스 restart 0·local/public readiness HTTP 200. `followup.sh`가 매 조회마다 assertion으로 확인했다.
+- PASS F2: 11:51:53 KST DB snapshot에서 발견 45곡·후보 41곡·현재 묶음 5곡이다. 발라드 원천은 12,503곡, 댄스·랩/힙합·R&B/Soul·인디음악·록/메탈·트로트·포크/블루스는 각각 5곡이다. 8장르 첫 5곡 뒤 체크포인트가 모두 6에 도달했고 발라드 두 번째 묶음 뒤 `GN0100.nextStartIndex=11`로 전진했다. 다음은 댄스 위치 6이다.
+- PASS F3: 이전 lease가 남았던 첫 15후보의 미처리 0건, matched 8곡의 active EMS·멜론 출처·KR STREAM 연결 누락 0건, 새 EMS 시작 이후 DB/워커 오류 각각 0건을 확인했다. 당시 후보는 matched 8·not_found 29·ambiguous 2·pending 1·resolving 1이며 마지막 두 건은 새 발라드 묶음의 정상 처리 중이다. 첫 40곡 묶음의 후보 36곡은 앞선 11:50:16 조회에서 모두 terminal 상태였다.
+
+증거 스크립트와 snapshot은 `/home/approid/apps/music-pie/shared/artifacts/20261003-melon-sql-21f12c6/followup.sh`·`followup-verification.txt`다. 후속 F1–F3를 모두 재실행해 PASS를 확인했다. 코드 변경은 없으며 문서 diff와 참조 경로를 확인한다.
+
+미검증: 전체 카탈로그의 모든 페이지 완료는 수집이 계속 진행 중이므로 확인하지 않았다. 실제 모바일 기기 조작은 이 서버 상태 점검의 범위 밖이다.
