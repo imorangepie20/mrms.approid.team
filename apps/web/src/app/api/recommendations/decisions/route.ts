@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { requireAuth0Subject } from "@/lib/auth/auth0";
 import { refreshTasteProfileFromActions } from "@/lib/embeddings/jobs";
 import {
@@ -66,6 +67,10 @@ export async function POST(request: Request) {
     }
     return Response.json({ code: "decision_unavailable" }, { status: 503 });
   }
+
+  revalidatePath("/gms");
+  revalidatePath("/gms/history");
+  revalidatePath("/mms");
 
   if (decision.decision !== "skip") {
     try {

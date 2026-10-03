@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ThumbsDown } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { HomeShaderHero } from "@/components/dashboard/home-shader-hero";
 import { EditorialSectionRail } from "@/components/ems/editorial-section-rail";
@@ -12,6 +12,7 @@ import { AddToPlaylistButton } from "@/components/music/add-to-playlist-button";
 import { TrackList } from "@/components/music/track-list";
 import { LikeButton } from "@/components/music/like-button";
 import { MmsLibrary, type MmsImportedPlaylist } from "@/components/music/mms-library";
+import { MmsAddedAlert } from "@/components/music/mms-added-alert";
 import { PlayIcon } from "@/components/music/play-icon";
 import { trackLikeItem } from "@/lib/likes/adapters";
 import { fetchEmsSections } from "@/lib/ems/client";
@@ -35,6 +36,7 @@ const copy = {
 
 export function MusicDashboard({
   access,
+  acceptedRecommendationTracks = [],
   importedPlaylists = [],
   mmsPlaylists = [],
   profileVersion = "ems-v1",
@@ -46,6 +48,7 @@ export function MusicDashboard({
   tracks: providedTracks,
 }: {
   access?: PersonalizationAccess;
+  acceptedRecommendationTracks?: Track[];
   importedPlaylists?: MmsImportedPlaylist[];
   mmsPlaylists?: MmsPlaylistSummary[];
   profileVersion?: string;
@@ -57,39 +60,68 @@ export function MusicDashboard({
   tracks?: Track[];
 }) {
   const { acceptTrack, playTrack, rejectTrack, setQueue } = useMusicSession();
-  const tracks = space === "gms" ? providedTracks ?? [] : providedTracks ?? [];
+  const router = useRouter();
+  const decisionInFlight = useRef(false);
+  const [decisionPending, setDecisionPending] = useState(false);
+  const [decidedTrackIds, setDecidedTrackIds] = useState(() => new Set<string>());
+  const [decisionError, setDecisionError] = useState<string | null>(null);
+  const [decisionNotice, setDecisionNotice] = useState<{ title: string; accepted: boolean } | null>(null);
+  const [addedTrackTitle, setAddedTrackTitle] = useState<string | null>(null);
+  const tracks = (providedTracks ?? []).filter((track) => space !== "gms" || !decidedTrackIds.has(track.id));
 
   if (space === "home") return <Home />;
   if (space === "mms") {
     if (access && !access.isAuthenticated) {
       return <section className="dashboard-page"><header className="space-title">My Music Space<small>MMS</small></header><PersonalizationGate access={access} returnTo="/mms" /></section>;
     }
-    return <MmsLibrary access={access} importedPlaylists={importedPlaylists} mmsPlaylists={mmsPlaylists} />;
+    return <MmsLibrary access={access} acceptedRecommendationTracks={acceptedRecommendationTracks} importedPlaylists={importedPlaylists} mmsPlaylists={mmsPlaylists} />;
   }
   const meta = copy[space];
   const personalizationAllowed = access ? canUsePersonalization(access) : false;
-  const persistDecision = (track: Track, decision: "accept" | "reject") => {
-    void fetch("/api/recommendations/decisions", {
-      body: JSON.stringify({
-        decision,
-        profileVersion,
-        rankingVersion: track.recommendation?.rankingVersion ?? "baseline",
-        reasonCodes: track.recommendation?.reasonCodes ?? ["user_action"],
-        scoreComponents: track.recommendation?.scoreComponents ?? {},
-        sourceTrackId: track.id,
-      }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    }).catch(() => {});
-    if (decision === "accept") acceptTrack(track.id);
-    else rejectTrack(track.id);
+  const persistDecision = async (track: Track, decision: "accept" | "reject") => {
+    if (decisionInFlight.current || decidedTrackIds.has(track.id)) return;
+    decisionInFlight.current = true;
+    setDecisionPending(true);
+    setDecisionError(null);
+    setDecisionNotice(null);
+    try {
+      const response = await fetch("/api/recommendations/decisions", {
+        body: JSON.stringify({
+          decision,
+          profileVersion,
+          rankingVersion: track.recommendation?.rankingVersion ?? "baseline",
+          reasonCodes: track.recommendation?.reasonCodes ?? ["user_action"],
+          scoreComponents: track.recommendation?.scoreComponents ?? {},
+          sourceTrackId: track.id,
+        }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      });
+      const partialSuccess = !response.ok && response.status === 503
+        && (await response.json().catch(() => null))?.decisionSaved === true;
+      if (!response.ok && !partialSuccess) throw new Error("decision_save_failed");
+      if (decision === "accept") acceptTrack(track.id);
+      else rejectTrack(track.id);
+      setDecidedTrackIds((current) => new Set(current).add(track.id));
+      setDecisionNotice({ title: track.title, accepted: decision === "accept" });
+      if (partialSuccess) {
+        setDecisionError("결정은 저장했습니다. 취향 프로필을 갱신하지 못했으니 잠시 후 취향 분석을 다시 실행해 주세요.");
+      }
+      router.refresh();
+      if (decision === "accept") setAddedTrackTitle(track.title);
+    } catch {
+      setDecisionError(`“${track.title}” 결정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
+    } finally {
+      decisionInFlight.current = false;
+      setDecisionPending(false);
+    }
   };
   const playGmsTrack = (track: Track) => {
     const source = { id: "gms", type: "gms" as const };
     setQueue(tracks, source);
     void playTrack(track, source);
   };
-  return <section className="dashboard-page"><header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />한 번 추천된 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><div className="gms-profile-tools"><AudioProfileRefreshControl /><Link href="/gms/history">추천 이력 보기 <span aria-hidden="true">→</span></Link></div></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway batchId={recommendationBatchId} error={recommendationError} exhausted={recommendationExhausted} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  return <section className="dashboard-page">{addedTrackTitle ? <MmsAddedAlert title={addedTrackTitle} onClose={() => setAddedTrackTitle(null)} /> : null}<header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{tracks.length}<small>{space === "ems" ? "총 트랙" : "대기 중"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />한 번 추천된 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><div className="gms-profile-tools"><AudioProfileRefreshControl /><Link href="/gms/history">추천 이력 보기 <span aria-hidden="true">→</span></Link></div></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway batchId={recommendationBatchId} decisionError={decisionError} decisionNotice={decisionNotice} decisionPending={decisionPending} error={recommendationError} exhausted={recommendationExhausted} ready={recommendationReady} tracks={tracks} onPlay={playGmsTrack} onAccept={(track) => persistDecision(track, "accept")} onReject={(track) => persistDecision(track, "reject")} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
 }
 
 type AudioProfileRefreshResponse = {
@@ -238,12 +270,12 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
-function Gateway({ batchId, tracks, error, exhausted, ready, onPlay, onAccept, onReject }: { batchId: string | null; tracks: Track[]; error: boolean; exhausted: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
+function Gateway({ batchId, tracks, decisionError, decisionNotice, decisionPending, error, exhausted, ready, onPlay, onAccept, onReject }: { batchId: string | null; tracks: Track[]; decisionError: string | null; decisionNotice: { title: string; accepted: boolean } | null; decisionPending: boolean; error: boolean; exhausted: boolean; ready: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
   const router = useRouter();
   const [refreshState, setRefreshState] = useState<"idle" | "loading" | "error">("idle");
 
   const refreshRecommendations = async () => {
-    if (!batchId || exhausted || refreshState === "loading") return;
+    if (!batchId || exhausted || decisionPending || refreshState === "loading") return;
     setRefreshState("loading");
     try {
       const response = await fetch("/api/recommendations/refresh", {
@@ -266,13 +298,16 @@ function Gateway({ batchId, tracks, error, exhausted, ready, onPlay, onAccept, o
       <div className="gms-recommendation-heading">
         <h2 className="dash-heading" id="gms-track-list-title">결정 대기 중 <small>{tracks.length}곡</small></h2>
         <div className="gms-refresh-control">
-          <button disabled={!batchId || exhausted || refreshState === "loading"} type="button" onClick={refreshRecommendations}>
+          <button disabled={!batchId || exhausted || decisionPending || refreshState === "loading"} type="button" onClick={refreshRecommendations}>
             {refreshState === "loading" ? "추천 중…" : exhausted ? "추천 완료" : "다시 추천 받기"}
           </button>
           {!exhausted ? <small>새 추천을 받으면 현재 곡들은 다시 추천되지 않습니다.</small> : null}
           {refreshState === "error" ? <span role="alert">새 추천을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</span> : null}
         </div>
       </div>
+      {decisionError ? <p className="notice" role="alert">{decisionError}</p> : null}
+      {decisionPending ? <p role="status">결정을 저장하고 취향을 반영하고 있습니다.</p> : null}
+      {decisionNotice ? <p className="notice" role="status">“{decisionNotice.title}” {decisionNotice.accepted ? "MMS에 추가했습니다." : "이후 추천에서 제외했습니다."}{decisionNotice.accepted ? <> <Link href="/mms" prefetch={false}>MMS 보기 <span aria-hidden="true">→</span></Link></> : null}</p> : null}
       {exhausted ? <GatewayEmptyState variant="exhausted" /> : !tracks.length ? <GatewayEmptyState variant="empty" /> : <>
         <div aria-hidden="true" className="gms-track-list-header">
           <span>#</span><span>곡</span><span>아티스트</span><span>앨범</span><span>결정</span>
@@ -281,6 +316,7 @@ function Gateway({ batchId, tracks, error, exhausted, ready, onPlay, onAccept, o
           {tracks.map((track, index) => (
             <GatewayTrackRow
               index={index}
+              decisionPending={decisionPending || refreshState === "loading"}
               key={track.id}
               onAccept={onAccept}
               onPlay={onPlay}
@@ -294,7 +330,7 @@ function Gateway({ batchId, tracks, error, exhausted, ready, onPlay, onAccept, o
   );
 }
 
-function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: number; track: Track; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
+function GatewayTrackRow({ index, track, decisionPending, onPlay, onAccept, onReject }: { index: number; track: Track; decisionPending: boolean; onPlay: (track: Track) => void; onAccept: (track: Track) => void; onReject: (track: Track) => void }) {
   const [artworkFailed, setArtworkFailed] = useState(false);
   const playbackUnavailable = track.playbackAvailable === false;
 
@@ -317,8 +353,8 @@ function GatewayTrackRow({ index, track, onPlay, onAccept, onReject }: { index: 
       <span className="gms-track-artist">{track.artist}</span>
       <span className="gms-track-album">{track.album}</span>
       <div className="gms-track-actions">
-        <button className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>+ MMS</button>
-        <button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" title="싫어요" type="button" onClick={() => onReject(track)}><ThumbsDown aria-hidden="true" /></button>
+        <button disabled={decisionPending} className="gms-decision-button gms-decision-button--accept" type="button" onClick={() => onAccept(track)}>+ MMS</button>
+        <button disabled={decisionPending} aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" title="싫어요" type="button" onClick={() => onReject(track)}><ThumbsDown aria-hidden="true" /></button>
         <AddToPlaylistButton track={track} />
         <LikeButton item={trackLikeItem(track)} />
       </div>

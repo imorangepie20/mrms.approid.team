@@ -1,10 +1,10 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-09-29
+최종 갱신: 2026-10-03
 
 최신 기능 기준 커밋: `4636ee2`
 
-최신 Zorin Web 배포 기준 커밋: `4636ee2` (GMS 최근성 발매일 기준 보정)
+최신 Zorin Web 배포: `20261003-template-dialog-47a7cd24e18f` (기존 `4636ee2` 기능 기반과 현재 작업 트리의 GMS/MMS·선택 삭제·템플릿 알림/확인창 snapshot, archive SHA-256 `47a7cd24e18f645cc812c5c5926cbec851573e6f9c1ad0180ea54567d87e346d`)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -16,6 +16,9 @@
 
 ## 현재 구현
 
+- 2026-10-03 추천 이력의 곡별/전체 체크박스·선택 삭제와 +MMS 성공 알림, 삭제 확인창을 HUD 템플릿에서 재사용해 운영 Web에 적용했다. 관련 59개·전체 575개 통과(조건부 DB 6개 skip), lint 오류 0·기존 경고 6, 52개 route build, source 파일 6/6 일치·readiness 200·비-Web ID 유지와 desktop/390×844 취소/keyboard를 확인했다. native 확인창 검증에서 발생한 이력 hide 2건은 정확한 ID/time 검증 후 복구했고 두 곡 재표시를 확인했다. 상세는 [선택 삭제·템플릿 적용 기록](../changes/2026-10-03-gms-history-selection.md)에 있다.
+- 2026-10-03 사용자가 운영 `+ MMS` 무반응·MMS 미변화를 보고해 앞선 로컬 수정의 미배포를 확인하고 Web에 적용했다. 저장 중·곡명 포함 성공 안내와 MMS 링크, 저장 후 GMS/history/MMS route invalidation을 보완했다. 전체 Web 564개 통과·6개 조건부 skip, lint 오류 0·기존 경고 6, 52개 route build와 서버 image build를 통과했다. 운영에서 `Good Times Boogie` 수락 1건으로 대기 8→7, MMS 수락 5→6과 reload 유지, local/public readiness 200·healthy·restart 0·오류 로그 0을 확인했다. 비-Web container ID는 모두 유지했고 schema 변경은 없다. 상세는 [운영 적용 기록](../changes/2026-10-03-gms-production-accept.md)에 있다.
+- 2026-10-03 GMS 재점검 후 사용자 수정 요청으로 결정 저장 결과와 대기 목록 동기화, MMS의 `수락한 추천` 영속 조회, 모바일 추천 이력 배치를 로컬 수정했다. 저장 실패·부분 성공·중복 요청을 구분하고 수락과 하트를 분리하며 사용자별 영구 reject 제외를 유지한다. Web 561개 통과·6개 조건부 skip, 격리 PostgreSQL 통합 5개 통과·skip 0, lint 오류 0·기존 경고 6, 52개 route build와 실제 컴포넌트 로컬 Chrome 390×844/keyboard를 확인했다. 운영 미배포이며 최신 Zorin 배포 기준은 위 커밋을 유지한다. 상세는 [GMS 수정 기록](../changes/2026-10-03-gms-functional-fixes.md)에 있다.
 - 2026-09-29 `4636ee2`에서 인도·아랍·터키·히브리권 EMS 제외 정책과 최소 identity tombstone을 구현하고 운영에 배포했다. 기존 대상 928곡은 GMS exposure·batch 참조·관련 shadow run을 정리한 뒤 hard delete해 active EMS가 49,155곡에서 48,227곡으로 줄었고, tombstone 928건·삭제 대상 잔존 0건·batch orphan 0건을 확인했다. 영향받은 현재 GMS batch는 12곡에서 요청 대상이 아닌 프랑스어·독일어·영어 4곡으로 축소됐다. 신규 match는 `IN`·`TR`·`IL` ISRC, 아랍·히브리 문자, 확인된 인도·터키 레이블, exact TIDAL ID·ISRC tombstone으로 승격 전에 차단한다. GMS 최근성은 EMS 갱신 시각 대신 실제 발매일 기준으로 보정했다. EMS 85개, Web 554개 통과·3개 skip, lint 오류 0, 52개 route build, migration 031 apply/down/reapply를 통과했다. 운영 backup을 검증하고 Web·EMS·source-routines를 교체했으며 local/public readiness 200, restart 0, 오류 로그 0건을 확인했다. 상세는 `docs/changes/2026-09-29-ems-regional-catalog-exclusion.md`에 기록한다.
 - 2026-09-29 `1291bf9`에서 회원가입·TIDAL 연결 뒤 플레이리스트 저장은 무한 진행, MusicBrainz는 실제 처리·남은 수, 취향 벡터는 성공·남음·실패 수 기반 진행률을 표시하도록 온보딩을 보완했다. `profileReady`일 때만 100% 완료하며 실패·재시도에도 마지막 진행 상태를 유지한다. 추천 자동 생성·자동 이동, DB/API 계약과 새로고침 복구는 변경하지 않았다. Web 전체 144개 파일·555개 테스트 중 552개 통과·3개 skip, lint 오류 0, 52개 route build와 코드 검토를 통과했다. 운영 Web만 교체했고 local/public readiness 200, Web 오류 0건과 비-Web container 무중단을 확인했다. 로그인 온보딩과 플레이리스트 목록은 읽기 전용으로 확인했으며 실제 import는 실행하지 않았다. 상세는 `docs/changes/2026-09-29-onboarding-taste-analysis-progress.md`에 기록한다.
 - 2026-09-29 `d5d6314`에서 회원가입 진입점과 legacy signup redirect에 `returnTo=/onboarding?tidal=connected`를 추가해 Auth0 가입과 TIDAL Device 승인 뒤 플레이리스트 선택 화면으로 복귀하도록 수정했다. 이미 연결된 사용자의 `플레이리스트 가져오기`도 같은 목적지로 통일했다. 일반 로그인·관리자 callback·same-origin 검증은 유지했다. Web 전체 144개 파일·551개 테스트 중 548개 통과·3개 skip, lint 오류 0, 52개 route build와 코드·보안 검토를 통과했다. 운영 Web만 교체했고 local/public readiness 200, Auth0 가입 파라미터·state 보존, Web 오류 0건과 비-Web container 무중단을 확인했다. 기존 로그인 세션에서는 실제 플레이리스트 선택 화면과 TIDAL 목록 로드까지 확인했으며 신규 계정 생성은 수행하지 않았다. 상세는 `docs/changes/2026-09-29-signup-onboarding-return.md`에 기록한다.

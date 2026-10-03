@@ -12,18 +12,22 @@ import type { PlaybackSource } from "@/lib/tidal/player";
 import { useMusicSession } from "@/providers/music-session-provider";
 
 type TrackListProps = {
+  mobileStacked?: boolean;
   emptyMessage?: string;
   heading?: string;
   renderActions?: (track: Track, index: number) => ReactNode;
+  renderLeading?: (track: Track, index: number) => ReactNode;
   renderMeta?: (track: Track, index: number) => ReactNode;
   source: { id: string; type: PlaybackSource };
   tracks: Track[];
 };
 
 export function TrackList({
+  mobileStacked = false,
   emptyMessage = "표시할 트랙이 없습니다.",
   heading,
   renderActions,
+  renderLeading,
   renderMeta,
   source,
   tracks,
@@ -46,10 +50,10 @@ export function TrackList({
         <p className="empty-state">{emptyMessage}</p>
       ) : (
         <div className="overflow-hidden border-y border-[var(--border)]">
-          <table className="w-full table-fixed border-collapse text-left">
+          <table className={`w-full table-fixed border-collapse text-left${mobileStacked ? " track-list-mobile-stack" : ""}${renderLeading ? " track-list-selectable" : ""}`}>
             <thead>
               <tr className="h-11 text-[11px] font-medium tracking-[0.08em] text-[var(--subtle)]">
-                <th className="w-10 px-2 text-center" scope="col">#</th>
+                <th className={`${renderLeading ? "w-12 px-1" : "w-10 px-2"} text-center`} scope="col">{renderLeading ? <span className="sr-only">곡 선택</span> : "#"}</th>
                 <th className="w-[48%] px-2" scope="col">TITLE</th>
                 <th className="w-[25%] px-2" scope="col">ARTIST</th>
                 <th className="hidden w-[22%] px-2 md:table-cell" scope="col">ALBUM</th>
@@ -63,9 +67,11 @@ export function TrackList({
                   index={index}
                   isCurrent={isSameTrack(track, currentTrack)}
                   key={track.id}
+                  mobileStacked={mobileStacked}
                   onPlay={selectTrack}
                   playbackStatus={playbackStatus}
                   renderActions={renderActions}
+                  renderLeading={renderLeading}
                   renderMeta={renderMeta}
                   track={track}
                 />
@@ -80,18 +86,22 @@ export function TrackList({
 
 function TrackRow({
   index,
+  mobileStacked,
   isCurrent,
   onPlay,
   playbackStatus,
   renderActions,
+  renderLeading,
   renderMeta,
   track,
 }: {
   index: number;
+  mobileStacked: boolean;
   isCurrent: boolean;
   onPlay: (track: Track) => void;
   playbackStatus: PlaybackStatus;
   renderActions?: (track: Track, index: number) => ReactNode;
+  renderLeading?: (track: Track, index: number) => ReactNode;
   renderMeta?: (track: Track, index: number) => ReactNode;
   track: Track;
 }) {
@@ -106,8 +116,8 @@ function TrackRow({
       aria-current={isCurrent ? "true" : undefined}
       className={`group h-[68px] transition-colors ${playbackUnavailable ? "opacity-50" : isCurrent ? "bg-fuchsia-400/[0.08] hover:bg-fuchsia-400/[0.11]" : "hover:bg-white/[0.025]"}`}
     >
-      <td className={`px-2 text-center text-sm ${isCurrent ? "text-fuchsia-300" : "text-[var(--subtle)]"}`}>
-        {isCurrent ? <CurrentTrackIndicator playbackStatus={playbackStatus} /> : index + 1}
+      <td className={`${renderLeading ? "px-1" : "px-2"} text-center text-sm ${isCurrent ? "text-fuchsia-300" : "text-[var(--subtle)]"}`}>
+        {renderLeading ? renderLeading(track, index) : isCurrent ? <CurrentTrackIndicator playbackStatus={playbackStatus} /> : index + 1}
       </td>
       <td className="px-2">
         <button
@@ -142,6 +152,7 @@ function TrackRow({
           </span>
           <span className="grid min-w-0 gap-1">
             <span className={`truncate text-sm font-[560] ${isCurrent ? "text-fuchsia-200" : "text-[var(--foreground)]"}`}>{track.title}</span>
+            {mobileStacked ? <span className="track-list-mobile-details truncate text-xs text-[var(--muted)]">{track.artist} · {track.album}</span> : null}
             {renderMeta?.(track, index)}
           </span>
         </button>

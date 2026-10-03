@@ -16,6 +16,15 @@
 
 ### 개인화 추천·GMS
 
+- [GMS 변경 커밋·푸시·재배포 계획](plans/2026-10-03-gms-commit-deploy.md)
+- [추천 이력 선택 삭제·템플릿 알림/확인창 변경](changes/2026-10-03-gms-history-selection.md)
+- [추천 이력 선택 삭제·템플릿 알림/확인창 계획](plans/2026-10-03-gms-history-selection.md)
+- [GMS +MMS 운영 적용·실제 클릭 검증](changes/2026-10-03-gms-production-accept.md)
+- [GMS +MMS 운영 적용 계획](plans/2026-10-03-gms-production-accept.md)
+- [GMS 결정·MMS·모바일 이력 수정 결과](changes/2026-10-03-gms-functional-fixes.md)
+- [GMS 결정·MMS·모바일 이력 수정 계획](plans/2026-10-03-gms-functional-fixes.md)
+- [GMS 전체 기능 재점검 결과](changes/2026-10-03-gms-functional-review.md)
+- [GMS 전체 기능 재점검 계획](plans/2026-10-03-gms-functional-review.md)
 - [통합 취향 분석 시스템](overview/taste-analysis-system.md)
 - [30초 프리뷰 취향 분석 구현 계획](plans/2026-09-29-audio-preview-analysis-implementation.md)
 - [하이브리드 추천 제한 serving 안전 기반 변경 기록](changes/2026-09-29-hybrid-recommendation-serving-gate.md)

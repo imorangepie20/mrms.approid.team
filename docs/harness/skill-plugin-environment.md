@@ -1,5 +1,11 @@
 # 스킬·플러그인 환경 기록
 
+## 2026-10-03 GMS 재점검 세션
+
+- `computer-use`의 `SKILL.md`, guidance와 confirmations를 읽었다. 현재 세션은 native app 제어가 비활성이고 `mcp__cua_repl` 브라우저 제어가 노출되어 Chrome GMS·이력·MMS에서 실제 탐색·재생·viewport 점검을 실행했다.
+- 스킬 캐시 경로는 `openai-bundled/computer-use/26.930.21537`다. 캐시 존재·세션 도구 노출·이번 실행은 확인했으며 별도의 plugin installed/enabled 조회나 native `sky` 실행은 하지 않았다.
+- 설치·설정·배포는 수행하지 않았다. 결과는 `docs/changes/2026-10-03-gms-functional-review.md`에 기록했다.
+
 ## 2026-09-26 Codex Desktop 확인
 
 - 이번 멜론 수집 작업에서 `ecc:orch-add-feature` 2.2.2 스킬 파일을 읽고 조사·계획·구현·코드 및 보안 검토 단계를 실행했다. 설치 상태와 별개로 실제 단계 사용을 확인했다. 상위 개발 지침에 따라 테스트 추가·실행 및 두 확인 게이트는 적용하지 않았다.

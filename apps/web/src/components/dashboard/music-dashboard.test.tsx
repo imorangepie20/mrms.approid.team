@@ -333,6 +333,7 @@ it("persists GMS decisions separately from the MMS like action", async () => {
     decision: "accept",
     sourceTrackId: "ems-track-a",
   });
+  expect(screen.getByRole("status", {name:"추가되었습니다"})).toBeInTheDocument();
   vi.unstubAllGlobals();
 });
 

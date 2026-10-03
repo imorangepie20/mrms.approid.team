@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LikeItem } from "@/lib/likes/types";
+import { catalog } from "@/lib/music/fixtures";
 import type { MmsPlaylistSummary } from "@/lib/mms/playlists";
 import { LikesProvider } from "@/providers/likes-provider";
 
@@ -128,6 +129,7 @@ describe("MmsLibrary likes", () => {
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "내 플레이리스트",
       "가져온 플레이리스트",
+      "수락한 추천",
       "좋아요한 트랙",
       "좋아요한 플레이리스트",
       "좋아요한 앨범",
@@ -153,6 +155,7 @@ describe("MmsLibrary likes", () => {
     expect(screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent)).toEqual([
       "내 플레이리스트",
       "가져온 플레이리스트",
+      "수락한 추천",
       "좋아요한 트랙",
       "좋아요한 플레이리스트",
       "좋아요한 앨범",
@@ -283,4 +286,18 @@ describe("MmsLibrary likes", () => {
 
     expect(await screen.findByText("내 플레이리스트가 없습니다.")).toBeInTheDocument();
   });
+});
+
+it("displays accepted recommendations without liking them and queues the durable MMS list", async () => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  const accepted = [catalog[0], catalog[1]];
+  render(<LikesProvider initialLikes={[]} isAuthenticated>
+    <MmsLibrary acceptedRecommendationTracks={accepted} />
+  </LikesProvider>);
+  expect(screen.getByRole("heading", {name:"수락한 추천"})).toBeInTheDocument();
+  expect(screen.getByTestId("liked-track-count")).toHaveTextContent("0");
+  await userEvent.setup().click(screen.getByRole("button", {name:"재생 Midnight City"}));
+  expect(session.setQueue).toHaveBeenCalledWith(accepted, {id:"accepted-recommendations",type:"mms"});
+  expect(session.playTrack).toHaveBeenCalledWith(accepted[0], {id:"accepted-recommendations",type:"mms"});
 });

@@ -81,10 +81,12 @@ function likedTrackToTrack(item: LikeItem): Track {
 
 export function MmsLibrary({
   access,
+  acceptedRecommendationTracks = [],
   importedPlaylists = [],
   mmsPlaylists = [],
 }: {
   access?: PersonalizationAccess;
+  acceptedRecommendationTracks?: Track[];
   importedPlaylists?: MmsImportedPlaylist[];
   mmsPlaylists?: MmsPlaylistSummary[];
 }) {
@@ -344,6 +346,9 @@ export function MmsLibrary({
             <LikeButton className="absolute right-3 top-3 bg-black/60 text-white" item={likeItem} />
           </article>;
         })}</div> : <EmptyState label="가져온 플레이리스트" />}
+      </LikedSection>
+      <LikedSection count={acceptedRecommendationTracks.length} title="수락한 추천">
+        <TrackList mobileStacked emptyMessage="아직 수락한 추천이 없습니다. GMS에서 마음에 드는 곡을 수락해 보세요." source={{ id: "accepted-recommendations", type: "mms" }} tracks={acceptedRecommendationTracks} />
       </LikedSection>
       <LikedSection count={tracks.length} title="좋아요한 트랙">{tracks.length ? <TrackList source={{ id: "liked-tracks", type: "mms" }} tracks={tracks} /> : <EmptyState label="좋아요한 트랙" />}</LikedSection>
       <LikedSection count={playlists.length} title="좋아요한 플레이리스트">{playlists.length ? <LikeGrid items={playlists} onOpen={openDetail} /> : <EmptyState label="좋아요한 플레이리스트" />}</LikedSection>

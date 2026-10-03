@@ -880,3 +880,52 @@ export async function saveRecommendationDecision(
   );
   if (!result.rows[0]) throw new Error("recommendation_user_not_found");
 }
+
+export async function getAcceptedRecommendationTracks(
+  auth0Subject: string,
+  executor?: TransactionExecutor,
+): Promise<Track[]> {
+  const result = await database(executor).query<{
+    id: string; tidal_id: string; title: string; artist: string;
+    album: string | null; artwork_url: string | null;
+    duration_ms: number; playable: boolean;
+  }>(
+    `WITH accepted AS (
+       SELECT decision.user_id, decision.source_track_id,
+         MAX(decision.created_at) AS accepted_at
+       FROM user_recommendation_decisions AS decision
+       INNER JOIN app_users AS u ON u.id = decision.user_id
+       WHERE u.auth0_subject = $1 AND decision.decision = 'accept'
+       GROUP BY decision.user_id, decision.source_track_id
+     )
+     SELECT e.id, e.tidal_id, e.title, e.artist, e.album,
+       e.artwork_url, e.duration_ms,
+       COALESCE(availability.playable, false) AS playable
+     FROM accepted
+     INNER JOIN ems_tracks AS e ON e.id = accepted.source_track_id
+     LEFT JOIN LATERAL (
+       SELECT event.playable FROM ems_availability_events AS event
+       WHERE event.track_id = e.id AND event.region = 'KR'
+         AND event.capability = 'STREAM'
+       ORDER BY event.observed_at DESC, event.id DESC LIMIT 1
+     ) AS availability ON true
+     WHERE e.status = 'active' AND NOT EXISTS (
+       SELECT 1 FROM user_recommendation_decisions AS rejected
+       WHERE rejected.user_id = accepted.user_id
+         AND rejected.source_track_id = e.id AND rejected.decision = 'reject'
+     )
+     ORDER BY accepted.accepted_at DESC, e.id`,
+    [auth0Subject],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    tidalTrackId: row.tidal_id,
+    title: row.title,
+    artist: row.artist,
+    album: row.album ?? "Unknown Album",
+    artworkUrl: row.artwork_url ?? "",
+    artworkClass: "from-teal-700 via-violet-700 to-slate-900",
+    durationSeconds: Math.round(row.duration_ms / 1000),
+    playbackAvailable: row.playable,
+  }));
+}
