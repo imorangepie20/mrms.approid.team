@@ -226,6 +226,7 @@ def project_editorial_sections(
     memberships: Iterable[EditorialMembership],
     *,
     playable_only: bool = False,
+    current_track_ids: Iterable[str] = (),
 ) -> list[_ProjectedSection]:
     definition_list = list(definitions)
     membership_list = list(memberships)
@@ -248,6 +249,7 @@ def project_editorial_sections(
     ).fetchall()
     by_tidal = {str(row["tidal_id"]): row for row in rows}
     by_isrc = {str(row["isrc"]).upper(): row for row in rows if row.get("isrc")}
+    current_ids = {str(track_id) for track_id in current_track_ids}
 
     projected_sections: list[_ProjectedSection] = []
     seen_track_ids: set[str] = set()
@@ -263,13 +265,21 @@ def project_editorial_sections(
                 item.source_playlist_id,
             )
         )
-        joined: list[tuple[EditorialMembership, object]] = []
+        resolved = []
         for item in discovered:
             row = by_tidal.get(item.tidal_id) or by_isrc.get(item.isrc.upper())
-            if row is None or str(row["id"]) in seen_track_ids:
+            if row is not None:
+                resolved.append((item, row["id"]))
+        # Stable grouping keeps source rank within each group. Resolve aliases first,
+        # so a different TIDAL ID for the same EMS track does not count as new.
+        if current_ids:
+            resolved.sort(key=lambda pair: str(pair[1]) in current_ids)
+        joined: list[tuple[EditorialMembership, object]] = []
+        for item, track_id in resolved:
+            if str(track_id) in seen_track_ids:
                 continue
-            seen_track_ids.add(str(row["id"]))
-            joined.append((item, row["id"]))
+            seen_track_ids.add(str(track_id))
+            joined.append((item, track_id))
             if len(joined) == MAX_SECTION_TRACKS:
                 break
         projected_sections.append(

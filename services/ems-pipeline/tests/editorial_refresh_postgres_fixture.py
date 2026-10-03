@@ -38,8 +38,10 @@ def main():
         after=c.execute(SNAPSHOT_SQL,(SLUGS,SLUGS)).fetchone()['snapshot']
         assert before==after
         assert preview['canApply'] and all(len(s['tracks'])==12 for s in preview['sections'])
-        assert all(t['rank'] >= 3 for s in preview['sections'] for t in s['tracks'])
-        assert all(s['addedCount']==7 and s['removedCount']==3 for s in preview['sections'])
+        assert all(int(t['title'].rsplit('-',1)[1]) >= 3 for s in preview['sections'] for t in s['tracks'])
+        assert all([t['rank'] for t in s['tracks']]==list(range(12)) for s in preview['sections'])
+        assert all([int(t['title'].rsplit('-',1)[1]) for t in s['tracks']]==[*range(8,16),*range(3,7)] for s in preview['sections'])
+        assert all(s['addedCount']==8 and s['removedCount']==4 for s in preview['sections'])
         job=c.execute("INSERT INTO ems_editorial_refresh_jobs(status,preview,backup,created_by,expires_at) VALUES ('ready',%s,%s,'fixture',now()+interval '30 minutes') RETURNING id",(Jsonb(preview),Jsonb(before))).fetchone()
         blocked=build_preview(c,[],before)
         assert not blocked['canApply'] and all(not s['tracks'] for s in blocked['sections'])

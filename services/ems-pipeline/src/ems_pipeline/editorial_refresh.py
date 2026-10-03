@@ -22,7 +22,10 @@ SNAPSHOT_SQL = """SELECT jsonb_build_object(
 
 
 def build_preview(connection: Any, memberships: list[Any], snapshot: dict[str, Any]) -> dict[str, Any]:
-    projected = project_editorial_sections(connection, SECTION_DEFINITIONS, memberships, playable_only=True)
+    projected = project_editorial_sections(
+        connection, SECTION_DEFINITIONS, memberships, playable_only=True,
+        current_track_ids=[row['track_id'] for row in snapshot['memberships']],
+    )
     ids = [track_id for section in projected for _, track_id in section.joined]
     rows = connection.execute(
         "SELECT id,tidal_id,title,artist FROM ems_tracks WHERE id=ANY(%s::uuid[])", (ids,)
@@ -42,9 +45,9 @@ def build_preview(connection: Any, memberships: list[Any], snapshot: dict[str, A
             'tracks': [{
                 'id': str(track_id), 'tidalTrackId': str(tracks[str(track_id)]['tidal_id']),
                 'title': tracks[str(track_id)]['title'], 'artist': tracks[str(track_id)]['artist'],
-                'rank': item.rank, 'sourcePlaylistId': item.source_playlist_id,
+                'rank': rank, 'sourcePlaylistId': item.source_playlist_id,
                 'sourcePlaylistName': item.source_playlist_name,
-            } for item, track_id in section.joined],
+            } for rank, (item, track_id) in enumerate(section.joined)],
         })
     return {'sections': sections, 'canApply': len(existing) == 5 and all(len(s['tracks']) >= MIN_SECTION_TRACKS for s in sections)}
 

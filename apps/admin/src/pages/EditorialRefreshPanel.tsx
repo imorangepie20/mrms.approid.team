@@ -40,6 +40,8 @@ export default function EditorialRefreshPanel({ onApplied }: { onApplied: () => 
   const canApply = job?.status === "ready" && job.preview.canApply === true
     && !!job.expiresAt && new Date(job.expiresAt).getTime() > Date.now();
   const count = job?.preview.sections?.reduce((sum, section) => sum + section.tracks.length, 0) ?? 0;
+  const addedCount = job?.preview.sections?.reduce((sum, section) => sum + section.addedCount, 0) ?? 0;
+  const removedCount = job?.preview.sections?.reduce((sum, section) => sum + section.removedCount, 0) ?? 0;
 
   async function preview() {
     setBusy(true); setError(""); setNotice("");
@@ -63,6 +65,7 @@ export default function EditorialRefreshPanel({ onApplied }: { onApplied: () => 
       <div>
         <h2 id="editorial-refresh-title" className="text-xl font-semibold">홈·EMS 선곡 갱신</h2>
         <p className="mt-2 max-w-3xl text-sm text-hud-text-secondary">TIDAL 공개 편집 플레이리스트에서 EMS에 등록된 한국 재생 가능 곡을 고릅니다. 선곡을 적용하면 홈과 EMS 양쪽에 반영됩니다.</p>
+        <p className="mt-2 max-w-3xl text-sm text-hud-text-secondary">현재 노출 중이 아닌 곡을 먼저 고릅니다. 다른 후보가 부족하면 기존 곡으로 채우며, 과거 노출된 곡은 다시 선정될 수 있습니다.</p>
         <p className="mt-1 text-xs text-hud-text-muted">마지막 선곡 갱신: {date(data?.lastRefreshedAt ?? null)} · 화면별 제목·설명·순서·노출 설정은 유지됩니다.</p>
       </div>
       <button type="button" disabled={busy || loading || !data} onClick={() => void preview()} className="inline-flex items-center gap-2 rounded-lg bg-hud-accent-primary px-4 py-2.5 text-sm font-semibold text-hud-bg-primary disabled:opacity-50"><RefreshCw size={16} className={loading ? "animate-spin" : ""} />{loading ? "조회 중…" : "갱신 미리보기"}</button>
@@ -80,6 +83,7 @@ export default function EditorialRefreshPanel({ onApplied }: { onApplied: () => 
         {job.status === "ready" && <button type="button" disabled={busy || !canApply} onClick={() => { setConfirmedCount(count); setConfirmId(job.id); }} className="rounded-lg border border-hud-accent-primary px-4 py-2 text-sm text-hud-accent-primary disabled:opacity-50">미리보기 적용</button>}
       </div>
       {job.status === "ready" && <p className="text-xs text-hud-text-muted">{date(job.expiresAt)}까지 적용 가능합니다. 새 미리보기를 만들면 이전 미리보기는 만료됩니다.</p>}
+      {(job.status === "ready" || job.status === "applied") && <p className="text-sm text-hud-text-secondary">전체 추가 {addedCount}곡 · 제외 {removedCount}곡{addedCount === 0 && removedCount === 0 ? " · 추가·제외되는 곡이 없습니다. 다른 곡을 선정하려면 원본 후보가 더 필요합니다." : ""}</p>}
       {job.status === "blocked" && <p role="alert" className="text-sm text-hud-accent-warning">5개 섹션에 각각 6곡 이상이 필요합니다. 기존 선곡은 유지했습니다.</p>}
       {job.status === "failed" && <p role="alert" className="text-sm text-hud-accent-danger">최신 선곡을 조회하지 못했습니다. 기존 선곡은 유지했습니다. 잠시 뒤 다시 시도해 주세요.</p>}
       {job.preview.sections?.map((section) => <details key={section.slug} className="rounded-xl border border-hud-border-secondary p-4">
