@@ -301,6 +301,30 @@ def _embed_one_batch(connection: Any, job_id: str, client: TidalCatalogClient) -
     return result["embedded"] == 0
 
 
+def _service_melon_job(connection: Any) -> bool:
+    job = connection.execute(
+        """SELECT id FROM ems_melon_jobs WHERE status IN ('pending', 'running')
+             AND (next_batch_at IS NULL OR next_batch_at <= now())
+             AND (next_tidal_retry_at IS NULL OR next_tidal_retry_at <= now())
+             ORDER BY created_at LIMIT 1"""
+    ).fetchone()
+    if job is None:
+        return False
+    from .melon import fail_job, process_job as process_melon_job
+
+    job_id = str(job["id"])
+    try:
+        process_melon_job(connection, job_id)
+    except CatalogRequestPaused:
+        pass
+    except psycopg.Error:
+        raise
+    except Exception as error:
+        fail_job(connection, job_id, error)
+        print(json.dumps({"job_id": job_id, "status": "failed", "error_code": str(error)[:120]}), flush=True)
+    return True
+
+
 def process_job(connection: Any, job_id: str) -> None:
     interval = max(0.5, float(os.environ.get("TIDAL_MIN_REQUEST_INTERVAL_SECONDS", "1.5")))
     client_id = os.environ["TIDAL_CLIENT_ID"].strip()
@@ -325,6 +349,8 @@ def process_job(connection: Any, job_id: str) -> None:
             _discover_playlists(connection, job_id, client)
         matched_since_embed = 0
         while _job_status(connection, job_id) in {"pending", "running"}:
+            # The editorial loop can run for days; give Melon one resumable tick per turn.
+            _service_melon_job(connection)
             _wait_for_disk(connection, job_id, client)
             _set_phase(connection, job_id, "resolving")
             recent_result: ResolveResult | None = None
@@ -565,18 +591,7 @@ def serve_admin_jobs() -> None:
                                ORDER BY r.created_at LIMIT 1"""
                         ).fetchone()
                         if melon_job is not None and (snapshot is None or prefer_melon):
-                            from .melon import fail_job, process_job as process_melon_job
-
-                            melon_id = str(melon_job["id"])
-                            try:
-                                process_melon_job(connection, melon_id)
-                            except CatalogRequestPaused:
-                                pass
-                            except psycopg.Error:
-                                raise
-                            except Exception as error:
-                                fail_job(connection, melon_id, error)
-                                print(json.dumps({"job_id": melon_id, "status": "failed", "error_code": str(error)[:120]}), flush=True)
+                            _service_melon_job(connection)
                             time.sleep(1)
                             prefer_melon = False
                             continue

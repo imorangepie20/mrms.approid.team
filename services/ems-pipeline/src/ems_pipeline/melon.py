@@ -21,7 +21,7 @@ BASE_URL = "https://www.melon.com"
 GENRE_RE = re.compile(r"^/genre/song_list\.htm\?gnrCode=(GN0[1-8]00)$")
 SONG_ID_RE = re.compile(r"^[0-9]+$")
 PAGE_SIZE = 50
-BATCH_SIZE = 100
+BATCH_SIZE = 5
 BATCH_INTERVAL_SECONDS = 60
 _tidal_token_cache: tuple[str, float] | None = None
 
@@ -98,15 +98,16 @@ class MelonClient:
                 raise CatalogRequestPaused("melon job paused")
             time.sleep(max(0.0, min(1.0, until - time.monotonic())))
 
-    def get_page(self, genre_code: str, start_index: int) -> str:
-        if not re.fullmatch(r"GN0[1-8]00", genre_code) or start_index < 1:
+    def get_page(self, genre_code: str, start_index: int, *, page_size: int = PAGE_SIZE) -> str:
+        if (not re.fullmatch(r"GN0[1-8]00", genre_code) or start_index < 1
+                or page_size not in (BATCH_SIZE, PAGE_SIZE)):
             raise ValueError("invalid_melon_page")
-        if start_index == 1:
+        if start_index == 1 and page_size == PAGE_SIZE:
             path = "/genre/song_list.htm"
             params: dict[str, str | int] = {"gnrCode": genre_code}
         else:
             path = "/genre/song_listPaging.htm"
-            params = {"startIndex": start_index, "pageSize": PAGE_SIZE, "gnrCode": genre_code,
+            params = {"startIndex": start_index, "pageSize": page_size, "gnrCode": genre_code,
                       "dtlGnrCode": "", "orderBy": "NEW", "steadyYn": "N"}
         for attempt in range(3):
             self.wait(max(0.0, self.interval_seconds - (time.monotonic() - self.last_request_at)))
@@ -169,15 +170,56 @@ def _progress(connection: Any, job_id: str) -> None:
     )
 
 
+def _batch_closed(discovered_count: int) -> bool:
+    # Even a short final page closes the batch; legacy 100-song batches drain first.
+    return discovered_count > 0
+
+
+def _next_genre_state(job: Any, songs: list[MelonSong]) -> dict[str, Any]:
+    if len(songs) > BATCH_SIZE:
+        raise ValueError("melon_page_size_changed")
+    genres = job["genre_codes"]
+    index = int(job["genre_index"])
+    start_index = int(job["next_start_index"])
+    checkpoints = {code: dict(value) for code, value in job["genre_checkpoints"].items()}
+    # Initialize new jobs, or preserve legacy sequential progress if no checkpoints exist.
+    for position, genre in enumerate(genres):
+        checkpoints.setdefault(genre["code"], {
+            "nextStartIndex": start_index if position == index else 1,
+            "lastPageFirstSongId": job["last_page_first_song_id"] if position == index else None,
+            "completed": position < index,
+        })
+    code = genres[index]["code"]
+    previous = checkpoints[code]
+    if songs and start_index > 1 and previous["lastPageFirstSongId"] == songs[0].song_id:
+        raise ValueError("melon_pagination_repeated")
+    checkpoints[code] = {
+        "nextStartIndex": start_index + len(songs),
+        "lastPageFirstSongId": songs[0].song_id if songs else previous["lastPageFirstSongId"],
+        "completed": len(songs) < BATCH_SIZE,
+    }
+    for offset in range(1, len(genres) + 1):
+        next_index = (index + offset) % len(genres)
+        checkpoint = checkpoints[genres[next_index]["code"]]
+        if not checkpoint["completed"]:
+            return {"genre_checkpoints": checkpoints, "genre_index": next_index,
+                    "next_start_index": checkpoint["nextStartIndex"],
+                    "last_page_first_song_id": checkpoint["lastPageFirstSongId"]}
+    return {"genre_checkpoints": checkpoints, "genre_index": len(genres),
+            "next_start_index": 1, "last_page_first_song_id": None}
+
+
 def _stage_page(connection: Any, job_id: str, genre: dict[str, str], start_index: int,
                 songs: list[MelonSong]) -> None:
-    if len(songs) > PAGE_SIZE:
-        raise ValueError("melon_page_size_changed")
     previous = connection.execute(
-        "SELECT last_page_first_song_id FROM ems_melon_jobs WHERE id = %s", (job_id,),
+        """SELECT genre_codes, genre_index, next_start_index, last_page_first_song_id,
+                  genre_checkpoints FROM ems_melon_jobs WHERE id = %s""", (job_id,),
     ).fetchone()
-    if songs and start_index > 1 and previous["last_page_first_song_id"] == songs[0].song_id:
-        raise ValueError("melon_pagination_repeated")
+    if (not previous or int(previous["genre_index"]) >= len(previous["genre_codes"])
+            or previous["genre_codes"][int(previous["genre_index"])] != genre
+            or int(previous["next_start_index"]) != start_index):
+        raise CatalogRequestPaused("melon checkpoint changed")
+    state = _next_genre_state(previous, songs)
     candidate_keys = [f"melon:{song.song_id}" for song in songs]
     existing = connection.execute(
         """SELECT source_id FROM ems_track_sources WHERE source_type = 'melon'
@@ -227,24 +269,21 @@ def _stage_page(connection: Any, job_id: str, genre: dict[str, str], start_index
                     (song.source_url, song.title, song.artist, song.album, song.song_id, song.song_id),
                 )
         stage_candidates(connection, job_id, candidates, sequence_start=int(sequence_start))
-        if len(songs) < PAGE_SIZE:
-            connection.execute(
-                """UPDATE ems_melon_jobs SET genre_index = genre_index + 1, next_start_index = 1,
-                          last_page_first_song_id = NULL, next_batch_at = NULL,
-                          batch_discovered_count = batch_discovered_count + %s,
-                          discovered_count = discovered_count + %s,
-                          staged_count = staged_count + %s, heartbeat_at = now(), updated_at = now()
-                    WHERE id = %s AND status = 'running'""", (len(songs), len(songs), len(candidates), job_id),
-            )
-        else:
-            connection.execute(
-                """UPDATE ems_melon_jobs SET next_start_index = %s, last_page_first_song_id = %s,
-                          next_batch_at = NULL, batch_discovered_count = batch_discovered_count + %s,
-                          discovered_count = discovered_count + %s, staged_count = staged_count + %s,
-                          heartbeat_at = now(), updated_at = now()
-                    WHERE id = %s AND status = 'running'""",
-                (start_index + PAGE_SIZE, songs[0].song_id, len(songs), len(songs), len(candidates), job_id),
-            )
+        changed = connection.execute(
+            """UPDATE ems_melon_jobs SET genre_checkpoints = %s, genre_index = %s,
+                      next_start_index = %s, last_page_first_song_id = %s,
+                      next_batch_at = NULL, batch_discovered_count = batch_discovered_count + %s,
+                      discovered_count = discovered_count + %s, staged_count = staged_count + %s,
+                      heartbeat_at = now(), updated_at = now()
+                WHERE id = %s AND status = 'running' AND genre_index = %s
+                  AND next_start_index = %s AND batch_discovered_count = 0 RETURNING id""",
+            (Jsonb(state["genre_checkpoints"]), state["genre_index"], state["next_start_index"],
+             state["last_page_first_song_id"], len(songs), len(songs), len(candidates), job_id,
+             previous["genre_index"], start_index),
+        ).fetchone()
+        if not changed:
+            # Roll back source rows and candidates as well if paused or the cursor moved.
+            raise CatalogRequestPaused("melon job paused or checkpoint changed")
     _progress(connection, job_id)
 
 
@@ -328,12 +367,12 @@ def process_job(connection: Any, job_id: str) -> None:
             _phase(connection, job_id, "batch_wait")
             return
         batch_count = int(job["batch_discovered_count"])
-        batch_closed = batch_count >= BATCH_SIZE or (batch_count > 0 and int(job["next_start_index"]) == 1)
+        batch_closed = _batch_closed(batch_count)
         if index < len(genres) and not batch_closed:
             genre = genres[index]
             start_index = int(job["next_start_index"])
             _phase(connection, job_id, "discovering")
-            songs = parse_songs(melon.get_page(genre["code"], start_index))
+            songs = parse_songs(melon.get_page(genre["code"], start_index, page_size=BATCH_SIZE))
             if not songs and start_index == 1:
                 raise ValueError("melon_song_structure_changed")
             _stage_page(connection, job_id, genre, start_index, songs)
@@ -404,8 +443,7 @@ def process_job(connection: Any, job_id: str) -> None:
                     return
                 if not embedded:
                     _finish(connection, job_id, "completed")
-        elif (int(refreshed["batch_discovered_count"]) >= BATCH_SIZE
-              or (int(refreshed["batch_discovered_count"]) > 0 and int(refreshed["next_start_index"]) == 1)):
+        elif _batch_closed(int(refreshed["batch_discovered_count"])):
             if not remaining:
                 connection.execute(
                     """UPDATE ems_melon_jobs SET batch_discovered_count = 0,
