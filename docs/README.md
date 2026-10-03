@@ -47,6 +47,10 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [관리자 홈·EMS 선곡 갱신 변경](changes/2026-10-03-admin-editorial-refresh.md)
+- [관리자 홈·EMS 선곡 갱신 계획](plans/2026-10-03-admin-editorial-refresh.md)
+- [홈·EMS 노출 트랙 운영 갱신](changes/2026-10-03-home-ems-track-refresh.md)
+- [홈·EMS 노출 트랙 갱신 계획](plans/2026-10-03-home-ems-track-refresh.md)
 - [멜론 5곡 묶음·장르 순환 변경](changes/2026-10-03-melon-five-track-round-robin.md)
 - [멜론 5곡 묶음·장르 순환 계획](plans/2026-10-03-melon-five-track-round-robin.md)
 - [Home 셰이더 히어로 계획](plans/2026-09-27-home-shader-hero.md)

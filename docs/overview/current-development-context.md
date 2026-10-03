@@ -2,13 +2,13 @@
 
 최종 갱신: 2026-10-03
 
-최신 기능 기준 커밋: `21f12c6`
+최신 기능 기준 커밋: `5f165a9`
 
-최신 Zorin Web 배포: `20261003-melon-7b690b1` (`7b690b17cfd3d03251edf4941861383fd54b203e` Git archive, SHA-256 `a22c2438e8e52a67f65da29493e92a12315380c82e6059c31e5033646d1a103e`)
+최신 Zorin Web 배포: `20261003-admin-editorial-5f165a9` (`5f165a93606a7a8074eea1466bf33be065315f08`, 관리자 홈·EMS 선곡 미리보기/확인 후 적용)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS 배포: `20261003-melon-sql-21f12c6` (`21f12c60b1132aaa630de176ce085aaa37ace422`, 멜론 5곡·8장르 순환과 nullable SQL 타입 오류 수정). current release는 이 경로를 가리키며 Web 코드는 직전 `7b690b1`과 동일하다.
+최신 Zorin EMS 배포: `20261003-admin-editorial-5f165a9` (`5f165a93606a7a8074eea1466bf33be065315f08`, 선곡 미리보기 worker 추가). current release는 이 경로를 가리킨다. 기존 Melon 5곡·8장르 순환을 유지하며 source-routines 컨테이너는 직전 이미지/실행 상태를 유지한다.
 
 ## 이번 목표
 
@@ -16,6 +16,8 @@
 
 ## 현재 구현
 
+- 2026-10-03 `5f165a9`에서 관리자 메인/EMS 화면 관리에 선곡 기준·갱신 미리보기·HUD 커스텀 확인 후 적용을 추가했다. 033 이관, Python 110개·Web 관련 41개·Admin 13개 테스트, 격리 DB 11개 assertion 묶음과 desktop/390×844 UI 검증을 통과했다. 운영 미리보기 5×12곡을 적용했고 홈 36곡·EMS 60곡과 일치한다. 독립 화면 설정·사용자 18개 테이블·비대상 membership을 보존했고 Melon 후보 326→343 진전을 확인했다. 상세와 일회성 공개 520 응답의 미확정 원인은 [관리자 선곡 갱신 변경](../changes/2026-10-03-admin-editorial-refresh.md)에 있다.
+- 2026-10-03 13:59 KST 홈/EMS 기존 선곡을 최신 TIDAL 공개 편집 플레이리스트로 갱신했다. 홈 신규 7곡·EMS 신규 11곡, 각 섹션 12곡·중복 0과 실제 브라우저/API 일치를 확인했다. 상세는 [운영 트랙 갱신 기록](../changes/2026-10-03-home-ems-track-refresh.md)에 있다.
 - 2026-10-03 11:51 KST 멜론 후속 운영 점검에서 8장르 첫 순환과 발라드 두 번째 묶음을 확인했다. 발견 45곡·중복 제외 후보 41곡·TIDAL matched 8곡이며 발라드 다음 위치 11·나머지 7장르 위치 6이다. 이전 lease 미처리와 matched의 active/KR STREAM 연결 누락, 배포 후 DB/워커 오류는 0건이다. readiness 200·restart 0과 기존 revision을 유지한다. 전체 카탈로그 수집은 계속 진행 중이다. 상세는 [멜론 변경 기록](../changes/2026-10-03-melon-five-track-round-robin.md)의 후속 운영 검증에 있다.
 - 2026-10-03 사용자 요청으로 멜론을 100곡에서 5곡 묶음으로 변경하고 8개 장르의 위치를 독립 저장해 순환한다. TIDAL 관리자 작업의 루프 점유와 제외/연결곡 갱신 SQL의 매개변수 타입 오류도 수정했다. EMS 105개·격리 DB 6개 assertion 묶음·Web 회귀 4개·두 앱 lint/build와 032 이관 보존을 통과했다. 운영 기존 작업에서 발견 15곡·댄스 5곡·랩/힙합 5곡 저장, 다음 R&B/Soul, readiness 200·restart 0·대상 외 서비스 보존을 확인했다. 전체 장르 완주와 실제 모바일 기기는 미검증이다. 상세는 [멜론 변경 기록](../changes/2026-10-03-melon-five-track-round-robin.md)에 있다.
 - 2026-10-03 사용자 커밋·푸시·배포 요청으로 GMS/MMS 수정·선택 삭제·템플릿 알림/확인창과 회귀·문서 30파일을 `f71ec9e`에 커밋하고 origin/main에 push했다. Git archive로 운영 Web을 재배포했으며 source 18/18 정규화 일치, revision/archive label 일치, local/public readiness 200·healthy·restart 0·비-Web ID 유지와 rollback 보존을 확인했다. 기능 코드는 직전 전체 575개·관련 59개 통과 상태와 동일하다. 상세는 [커밋·푸시·배포 기록](../changes/2026-10-03-gms-commit-deploy.md)에 있다.
