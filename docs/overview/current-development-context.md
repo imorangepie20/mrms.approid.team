@@ -2,13 +2,13 @@
 
 최종 갱신: 2026-10-03
 
-최신 기능 기준 커밋: `5f165a9`
+최신 기능 기준 커밋: `3cd1ea3`
 
-최신 Zorin Web 배포: `20261003-admin-editorial-5f165a9` (`5f165a93606a7a8074eea1466bf33be065315f08`, 관리자 홈·EMS 선곡 미리보기/확인 후 적용)
+최신 Zorin Web 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 관리자 갱신 시 현재 노출 밖 후보 우선)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS 배포: `20261003-admin-editorial-5f165a9` (`5f165a93606a7a8074eea1466bf33be065315f08`, 선곡 미리보기 worker 추가). current release는 이 경로를 가리킨다. 기존 Melon 5곡·8장르 순환을 유지하며 source-routines 컨테이너는 직전 이미지/실행 상태를 유지한다.
+최신 Zorin EMS 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 현재 노출 회피 선곡). current release는 이 경로를 가리킨다. 기존 Melon 5곡·8장르 순환을 유지하며 source-routines 컨테이너는 직전 이미지/실행 상태를 유지한다.
 
 ## 이번 목표
 
@@ -16,6 +16,7 @@
 
 ## 현재 구현
 
+- 2026-10-03 `3cd1ea3`에서 같은 원본 상위 곡을 다시 선택하던 관리자 갱신을 수정했다. 현재 공통 선곡 밖 후보 우선·부족 시 기존 곡 채움·화면 순위 재부여와 전체 변경 수/0곡 안내를 적용했다. Python 116개·Web 관련 41개·Admin 13개·격리 DB 11개 assertion과 두 앱 lint/build를 통과했다. 실제 운영 관리자 버튼으로 15:12 KST 적용한 선곡은 홈 29곡·EMS 52곡이 교체됐고 공개 API/브라우저 곡 순서와 일치한다. 개인 데이터·화면 설정·source-routines 보존과 Melon 진전을 확인했다. 상세와 일회성 520의 미확정 원인은 [같은 곡 재선정 수정](../changes/2026-10-03-editorial-refresh-variety.md)에 있다.
 - 2026-10-03 `5f165a9`에서 관리자 메인/EMS 화면 관리에 선곡 기준·갱신 미리보기·HUD 커스텀 확인 후 적용을 추가했다. 033 이관, Python 110개·Web 관련 41개·Admin 13개 테스트, 격리 DB 11개 assertion 묶음과 desktop/390×844 UI 검증을 통과했다. 운영 미리보기 5×12곡을 적용했고 홈 36곡·EMS 60곡과 일치한다. 독립 화면 설정·사용자 18개 테이블·비대상 membership을 보존했고 Melon 후보 326→343 진전을 확인했다. 상세와 일회성 공개 520 응답의 미확정 원인은 [관리자 선곡 갱신 변경](../changes/2026-10-03-admin-editorial-refresh.md)에 있다.
 - 2026-10-03 13:59 KST 홈/EMS 기존 선곡을 최신 TIDAL 공개 편집 플레이리스트로 갱신했다. 홈 신규 7곡·EMS 신규 11곡, 각 섹션 12곡·중복 0과 실제 브라우저/API 일치를 확인했다. 상세는 [운영 트랙 갱신 기록](../changes/2026-10-03-home-ems-track-refresh.md)에 있다.
 - 2026-10-03 11:51 KST 멜론 후속 운영 점검에서 8장르 첫 순환과 발라드 두 번째 묶음을 확인했다. 발견 45곡·중복 제외 후보 41곡·TIDAL matched 8곡이며 발라드 다음 위치 11·나머지 7장르 위치 6이다. 이전 lease 미처리와 matched의 active/KR STREAM 연결 누락, 배포 후 DB/워커 오류는 0건이다. readiness 200·restart 0과 기존 revision을 유지한다. 전체 카탈로그 수집은 계속 진행 중이다. 상세는 [멜론 변경 기록](../changes/2026-10-03-melon-five-track-round-robin.md)의 후속 운영 검증에 있다.

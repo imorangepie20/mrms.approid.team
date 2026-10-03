@@ -47,6 +47,8 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [갱신 때 같은 곡 재선정 수정](changes/2026-10-03-editorial-refresh-variety.md)
+- [현재 노출 회피 갱신 계획](plans/2026-10-03-editorial-refresh-variety.md)
 - [관리자 홈·EMS 선곡 갱신 변경](changes/2026-10-03-admin-editorial-refresh.md)
 - [관리자 홈·EMS 선곡 갱신 계획](plans/2026-10-03-admin-editorial-refresh.md)
 - [홈·EMS 노출 트랙 운영 갱신](changes/2026-10-03-home-ems-track-refresh.md)
