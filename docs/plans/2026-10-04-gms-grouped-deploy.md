@@ -19,3 +19,13 @@ Zorin 대상은 기존 `/home/approid/apps/music-pie`·`approid@192.168.219.174`
 5. 운영 접근·기록: 공개 `/gms` HTTP 200·옛 history redirect·비회원 DELETE 401, 브라우저 공개 화면/로그인 가능 시 조회·삭제 확인 취소만 검증, 운영 증거/미검증·다음 작업 기록과 문서 링크/diff 검사.
 
 5개 필수 체크가 모두 PASS일 때 완료로 보고한다. 로그인된 실계정 삭제·수락과 실제 모바일 기기·TIDAL 재생은 별도 미실행 항목이다.
+
+## 실행 결과
+
+- PASS 1 — `d7fd609` 25파일·Web SHA 20/20, 직전 Web 610개/격리 DB 3개 및 lint/build 통과 결과 유지, 서버 build exit 0.
+- PASS 2 — 기능·결과 문서 commit 각각 push exit 0·HEAD/remote 일치, 사용자 13개 파일 해시 보존 확인.
+- PASS 3 — backup 298,223,660bytes·목록 검사 성공, 기존 checksum 33개 일치·034 한 건 적용, 개인 14개 table 적용 전후/배포 후 hash·count 동일.
+- PASS 4 — `20261004-gms-groups-d7fd609` healthy·restart 0·내부/공개 ready 200, image/source label 일치·비-Web ID 6/6 동일·rollback 보존·incoming archive 정리.
+- PASS 5 — `/gms` 200·history 307 `/gms`·비회원 DELETE 401, 로그인 Chrome 4그룹/14곡/개별 제거 14개/그룹 삭제 4개·취소 후 보존/포커스 복귀·console error 0. 최종 문서 링크/diff 검사 exit 0.
+
+초기 script CRLF/SSH 인용 오류는 운영 변경 전에 발생해 전달 형식을 수정하고 전체 배포 검증을 다시 수행했다. 제품 소스는 바꾸지 않았다. 구체적 digest·container·보존/미실행 범위는 [배포 결과](../changes/2026-10-04-gms-grouped-deploy.md)에 있다.

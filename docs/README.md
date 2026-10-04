@@ -16,6 +16,8 @@
 
 ### 개인화 추천·GMS
 
+- [GMS 추천 그룹 커밋·푸시·배포 결과](changes/2026-10-04-gms-grouped-deploy.md)
+- [GMS 추천 그룹 커밋·푸시·배포 계획](plans/2026-10-04-gms-grouped-deploy.md)
 - [GMS 추천 그룹 통합 UI·UX 계획](plans/2026-10-04-gms-grouped-recommendations.md)
 - [GMS 추천 그룹 통합 UI·UX 변경](changes/2026-10-04-gms-grouped-recommendations.md)
 - [GMS 변경 커밋·푸시·재배포 결과](changes/2026-10-03-gms-commit-deploy.md)

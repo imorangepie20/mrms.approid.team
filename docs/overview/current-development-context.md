@@ -1,20 +1,22 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-10-03
+최종 갱신: 2026-10-04
 
-최신 기능 기준 커밋: `3cd1ea3`
+최신 기능 기준 커밋: `d7fd609`
 
-최신 Zorin Web 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 관리자 갱신 시 현재 노출 밖 후보 우선)
+최신 Zorin Web 배포: `20261004-gms-groups-d7fd609` (`d7fd609b1c2b89e294ed0d64d71db19024503dcf`, GMS 모든 추천 그룹·개별/그룹 제거·좋아요 동기화)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 현재 노출 회피 선곡). current release는 이 경로를 가리킨다. 기존 Melon 5곡·8장르 순환을 유지하며 source-routines 컨테이너는 직전 이미지/실행 상태를 유지한다.
+최신 Zorin EMS 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 현재 노출 회피 선곡). 공통 current symlink는 위 최신 Web release를 가리키며 EMS·source-routines 컨테이너는 기존 이미지/실행 상태를 유지한다. 기존 Melon 5곡·8장르 순환도 유지한다.
 
 ## 이번 목표
 
 사용자가 MMS 내부 플레이리스트를 만들고 트랙을 구성하며, TIDAL에서 가져온 플레이리스트와 검색·GMS·EMS에서 좋아요한 트랙·플레이리스트·앨범·아티스트를 탐색하고 재생한다.
 
 ## 현재 구현
+
+- 2026-10-04 사용자 커밋·푸시·배포 요청으로 GMS 추천 그룹 변경 25파일을 `d7fd609`에 커밋·push하고 034와 Web만 운영에 적용했다. 298MB backup 검증·migration 기존 checksum 33개 일치·pending 034 한 건·개인 14개 table 전후 보존, Web source 20/20·healthy·restart 0·readiness 200·비-Web ID 6/6 유지·rollback 보존을 확인했다. 로그인 GMS의 4그룹·14트랙·모든 제거 버튼·그룹 확인 취소/포커스 복귀·console error 0을 확인했다. 실제 저장 요청은 보내지 않았다. 상세는 [추천 그룹 배포 기록](../changes/2026-10-04-gms-grouped-deploy.md)에 있다. 아래 로컬 구현 기록은 배포 전 단계의 결과다.
 
 - 2026-10-04 GMS 로컬 UI·UX를 수정했다. `추천 이력 보기`를 없애고 현재·지난 추천 전체를 회차별 그룹으로 표시하며 모든 트랙 제거·그룹 전체 삭제를 제공한다. 수락·싫어요 결과는 그룹에 유지하고 트랙/플레이어 하트 상태를 공유한다. 034 그룹 숨김 migration을 추가했으며 원본 snapshot·exposure·결정·MMS/EMS는 보존한다. 전체 Web 610개 통과·기존 조건부 6개 skip, 격리 PostgreSQL 3개 통과·skip 0, lint 오류 0·기존 경고 8, build와 desktop/390×844·keyboard를 확인했다. 운영 미배포이며 적용 시 034 migration이 선행되어야 한다. [GMS 추천 그룹 변경](../changes/2026-10-04-gms-grouped-recommendations.md) 참조.
 - 2026-10-03 `3cd1ea3`에서 같은 원본 상위 곡을 다시 선택하던 관리자 갱신을 수정했다. 현재 공통 선곡 밖 후보 우선·부족 시 기존 곡 채움·화면 순위 재부여와 전체 변경 수/0곡 안내를 적용했다. Python 116개·Web 관련 41개·Admin 13개·격리 DB 11개 assertion과 두 앱 lint/build를 통과했다. 실제 운영 관리자 버튼으로 15:12 KST 적용한 선곡은 홈 29곡·EMS 52곡이 교체됐고 공개 API/브라우저 곡 순서와 일치한다. 개인 데이터·화면 설정·source-routines 보존과 Melon 진전을 확인했다. 상세와 일회성 520의 미확정 원인은 [같은 곡 재선정 수정](../changes/2026-10-03-editorial-refresh-variety.md)에 있다.
