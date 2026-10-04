@@ -2,9 +2,9 @@
 
 최종 갱신: 2026-10-04
 
-최신 기능 기준 커밋: `d7fd609`
+최신 기능 기준 커밋: `9171051`
 
-최신 Zorin Web 배포: `20261004-gms-groups-d7fd609` (`d7fd609b1c2b89e294ed0d64d71db19024503dcf`, GMS 모든 추천 그룹·개별/그룹 제거·좋아요 동기화)
+최신 Zorin Web 배포: `20261004-gms-layout-9171051` (`91710518214357f16973fff8ff82d85504c84369`, GMS 트랙 정보 압축·중간 화면 폭 회귀 수정)
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
@@ -15,6 +15,8 @@
 사용자가 MMS 내부 플레이리스트를 만들고 트랙을 구성하며, TIDAL에서 가져온 플레이리스트와 검색·GMS·EMS에서 좋아요한 트랙·플레이리스트·앨범·아티스트를 탐색하고 재생한다.
 
 ## 현재 구현
+
+- 2026-10-04 사용자 screenshot의 제목/배지 세로 압축을 운영 1000px에서 재현하고 `9171051`로 수정·push·Web 배포했다. 실제 목록 container 폭으로 두 줄 전환하고 넓은 table의 제목 공간을 확보한다. 관련 72개·lint/build, 로컬 7조건·운영 6조건×12곡·키보드 취소를 통과했다. 제목 32.75→491px(1000px 화면), 배지 66→19.5px, 모든 버튼 fit·overflow 0·console error 0이다. 기존 비-Web 필터의 빈 비교도 정정해 실제 ID 6/6, 사용자 문서 13/13·개인 table 15/15·schema 34/34 보존을 확인했다. 상세는 [트랙 정보 압축 수정](../changes/2026-10-04-gms-track-layout.md)에 있다.
 
 - 2026-10-04 사용자 커밋·푸시·배포 요청으로 GMS 추천 그룹 변경 25파일을 `d7fd609`에 커밋·push하고 034와 Web만 운영에 적용했다. 298MB backup 검증·migration 기존 checksum 33개 일치·pending 034 한 건·개인 14개 table 전후 보존, Web source 20/20·healthy·restart 0·readiness 200·비-Web ID 6/6 유지·rollback 보존을 확인했다. 로그인 GMS의 4그룹·14트랙·모든 제거 버튼·그룹 확인 취소/포커스 복귀·console error 0을 확인했다. 실제 저장 요청은 보내지 않았다. 상세는 [추천 그룹 배포 기록](../changes/2026-10-04-gms-grouped-deploy.md)에 있다. 아래 로컬 구현 기록은 배포 전 단계의 결과다.
 

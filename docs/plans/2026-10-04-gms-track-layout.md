@@ -16,3 +16,7 @@
 4. 운영·기록: Web healthy·restart 0·내부/공개 ready 200, 로그인 GMS 동일 viewport/container 기준의 제목·상태·버튼 영역 및 삭제 확인 취소·오류 0, 문서 링크 검사·결과 문서 push 확인.
 
 실제 저장·삭제·좋아요·추천 생성과 TIDAL 재생, 실제 iOS/Android·Safari/Firefox는 별도 미실행 항목으로 기록한다. 첫 검증 pass의 실패/미검증이 2개를 넘으면 개별 증상을 고치지 않고 원인 계층을 보고한다.
+
+## 결과
+
+체크 1–4 PASS. 실제 fixture 7조건·운영 6조건×12곡에서 폭/행/상태/overflow 기준, 72개 회귀·lint/build·키보드 취소, `9171051` commit/push·source 3/3·실제 non-Web ID 6/6·사용자 파일 13/13·개인 table 15/15·schema 34/34 보존을 확인했다. Web만 교체했고 migration 실행은 없다. 초기 레이아웃 최소 폭과 Docker 필터 문제를 각 원인 계층에서 보완하고 전체 관련 검증을 다시 확인했다. 자세한 증거·미실행은 [변경 기록](../changes/2026-10-04-gms-track-layout.md)에 있다.
