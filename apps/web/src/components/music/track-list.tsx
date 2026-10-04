@@ -51,7 +51,7 @@ export function TrackList({
       {tracks.length === 0 ? (
         <p className="empty-state">{emptyMessage}</p>
       ) : (
-        <div className="overflow-hidden border-y border-[var(--border)]">
+        <div className={`overflow-hidden border-y border-[var(--border)]${mobileStacked ? " track-list-responsive" : ""}`}>
           <table className={`w-full table-fixed border-collapse text-left${mobileStacked ? " track-list-mobile-stack" : ""}${renderLeading ? " track-list-selectable" : ""}`}>
             <thead>
               <tr className="h-11 text-[11px] font-medium tracking-[0.08em] text-[var(--subtle)]">

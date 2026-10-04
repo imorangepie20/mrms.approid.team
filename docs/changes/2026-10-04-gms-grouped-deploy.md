@@ -28,6 +28,8 @@
 
 ## 별도 미실행·다음 작업
 
+후속 레이아웃 수정 조사에서 비-Web 비교 스크립트의 `--filter label=com.docker.compose.service!=web`가 실제로 0행을 반환한 것을 확인했다. 기존 `nonweb-before.txt`/after의 빈 diff만으로 6개 보존을 증명한 것은 잘못된 검증이다. 최초 SSH inventory와 후속 inventory의 실제 6개 ID는 일치하지만, 스크립트 증거에는 이 한계가 있다. 이후 [레이아웃 수정 배포](2026-10-04-gms-track-layout.md)는 올바른 `label!=com.docker.compose.service=web` 필터와 6행 count assertion·ID diff로 검증한다.
+
 - 실제 운영 계정의 트랙/그룹 삭제·수락·좋아요 변경·다시 추천 받기는 개인 데이터를 변경하므로 이번 배포 검증에서 실행하지 않았다. 해당 저장/실패/동기화 동작은 로컬 컴포넌트 회귀·격리 PostgreSQL 통합으로 검증했다.
 - 실제 iOS/Android·Safari/Firefox·TIDAL 재생은 실행하지 않았다. 직전 390×844 Chrome UI 검증은 통과했다.
 - 기존 조건부 PostgreSQL 6개 테스트는 세 환경변수가 없어 skip됐다. 세부 이름·이유는 위 기능 검증 기록에 있다. 이번 034 격리 PostgreSQL 3개는 skip 없이 실행했다.

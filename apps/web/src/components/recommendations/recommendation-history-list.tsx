@@ -205,7 +205,7 @@ export function RecommendationHistoryList({ batches, disabled = false, onBusyCha
                 renderMeta={(track) => {
                   const decision = decisions.get(track.id);
                   return (
-                    <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${decision === "accept" ? "bg-violet-400/15 text-violet-200" : decision === "reject" ? "bg-rose-400/10 text-rose-200" : "bg-white/[0.04] text-[var(--subtle)]"}`}>
+                    <span className={`w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${decision === "accept" ? "bg-violet-400/15 text-violet-200" : decision === "reject" ? "bg-rose-400/10 text-rose-200" : "bg-white/[0.04] text-[var(--subtle)]"}`}>
                       {decision ? decisionCopy[decision] : "결정 없음"}
                     </span>
                   );
