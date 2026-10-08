@@ -191,11 +191,14 @@ def _next_genre_state(job: Any, songs: list[MelonSong]) -> dict[str, Any]:
         })
     code = genres[index]["code"]
     previous = checkpoints[code]
-    if songs and start_index > 1 and previous["lastPageFirstSongId"] == songs[0].song_id:
+    song_ids = [song.song_id for song in songs]
+    # Legacy checkpoints have no full page; seed it without inferring a repeat from one song.
+    if songs and start_index > 1 and previous.get("lastPageSongIds") == song_ids:
         raise ValueError("melon_pagination_repeated")
     checkpoints[code] = {
         "nextStartIndex": start_index + len(songs),
         "lastPageFirstSongId": songs[0].song_id if songs else previous["lastPageFirstSongId"],
+        "lastPageSongIds": song_ids,
         "completed": len(songs) < BATCH_SIZE,
     }
     for offset in range(1, len(genres) + 1):

@@ -101,6 +101,39 @@ def test_repeated_page_is_checked_against_same_genre_after_rotation() -> None:
         melon._next_genre_state(state, songs(100))
 
 
+def test_same_first_song_with_different_remaining_songs_advances() -> None:
+    state = job()
+    for step in range(8):
+        state.update(melon._next_genre_state(state, songs(100 + step * 5)))
+    overlap = [songs(100)[0], *songs(200, 4)]
+    state.update(melon._next_genre_state(state, overlap))
+    assert state["genre_checkpoints"]["GN0100"]["nextStartIndex"] == 11
+    assert state["genre_checkpoints"]["GN0100"]["lastPageSongIds"] == ["100", "200", "201", "202", "203"]
+    assert state["genre_index"] == 1
+
+
+def test_legacy_checkpoint_bootstraps_full_page_before_rejecting_repeat() -> None:
+    state = job(start=1361)
+    state["last_page_first_song_id"] = "100"
+    state["genre_checkpoints"] = {"GN0100": {
+        "nextStartIndex": 1361, "lastPageFirstSongId": "100", "completed": False,
+    }}
+    state.update(melon._next_genre_state(state, songs(100)))
+    assert state["genre_checkpoints"]["GN0100"]["nextStartIndex"] == 1366
+    for step in range(7):
+        state.update(melon._next_genre_state(state, songs(200 + step * 5)))
+    with pytest.raises(ValueError, match="melon_pagination_repeated"):
+        melon._next_genre_state(state, songs(100))
+
+
+def test_same_song_ids_in_a_different_order_are_not_an_identical_page() -> None:
+    state = job()
+    for step in range(8):
+        state.update(melon._next_genre_state(state, songs(100 + step * 5)))
+    state.update(melon._next_genre_state(state, list(reversed(songs(100)))))
+    assert state["genre_checkpoints"]["GN0100"]["nextStartIndex"] == 11
+
+
 def test_more_than_five_tracks_cannot_advance_or_be_staged() -> None:
     with pytest.raises(ValueError, match="melon_page_size_changed"):
         melon._next_genre_state(job(), songs(100, 6))

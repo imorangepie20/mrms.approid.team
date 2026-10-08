@@ -159,6 +159,32 @@ def main():
         assert row(db, current)["staged_count"] == 45
         print("PASS matched promotion and linked-source refresh: nullable album, three genre relations, no duplicate candidate")
 
+        # Finish the previous fixture before opening another job: production permits one open job.
+        db.execute("UPDATE ems_melon_jobs SET status='completed' WHERE id=%s", (current,))
+        overlap_job = new_job(db, status="running")
+        melon._stage_page(db, str(overlap_job), GENRES[0], 1,
+                          [melon.MelonSong(str(810+n), "Title", "Artist", None) for n in range(5)])
+        db.execute("""UPDATE ems_melon_jobs SET genre_index=0,next_start_index=6,
+                      last_page_first_song_id='810',batch_discovered_count=0 WHERE id=%s""", (overlap_job,))
+        overlap_songs = [melon.MelonSong(str(n), "Title", "Artist", None) for n in (810, 820, 821, 822, 823)]
+        melon._stage_page(db, str(overlap_job), GENRES[0], 6, overlap_songs)
+        overlap_state = row(db, overlap_job)
+        assert (overlap_state["discovered_count"], overlap_state["staged_count"]) == (10, 9)
+        assert overlap_state["genre_checkpoints"]["GN0100"]["nextStartIndex"] == 11
+        assert overlap_state["genre_checkpoints"]["GN0100"]["lastPageSongIds"] == ["810", "820", "821", "822", "823"]
+        assert db.execute("SELECT count(*) AS n FROM ems_ingest_candidates WHERE run_id=%s", (overlap_job,)).fetchone()["n"] == 9
+        db.execute("""UPDATE ems_melon_jobs SET genre_index=0,next_start_index=11,
+                      last_page_first_song_id='810',batch_discovered_count=0 WHERE id=%s""", (overlap_job,))
+        before_repeat = row(db, overlap_job)
+        try:
+            melon._stage_page(db, str(overlap_job), GENRES[0], 11, overlap_songs)
+            raise AssertionError("Identical page accepted")
+        except ValueError as error:
+            assert str(error) == "melon_pagination_repeated"
+        assert row(db, overlap_job) == before_repeat
+        assert db.execute("SELECT count(*) AS n FROM ems_ingest_candidates WHERE run_id=%s", (overlap_job,)).fetchone()["n"] == 9
+        print("PASS first-song overlap commits nine unique candidates and advances cursor; exact full-page repeat preserves job and candidates")
+
 
 if __name__ == "__main__":
     main()
