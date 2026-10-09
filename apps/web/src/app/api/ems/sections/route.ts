@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     limit > 12 ||
     !Number.isInteger(sectionLimit) ||
     sectionLimit < 1 ||
-    sectionLimit > 5 ||
+    sectionLimit > 8 ||
     (screen !== null && screen !== "home" && screen !== "ems")
   ) {
     return Response.json(

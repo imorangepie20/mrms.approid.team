@@ -189,7 +189,7 @@ function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchEmsSections("home", 3, controller.signal)
+    fetchEmsSections("home", 6, controller.signal)
       .then((result) => {
         setResponse(result);
         setState("ready");

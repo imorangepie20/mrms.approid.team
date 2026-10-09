@@ -90,6 +90,9 @@ def test_definitions_keep_approved_copy_and_order() -> None:
         ("night-rnb", "도시의 밤을 채우는 R&B"),
         ("feel-good", "기분 좋은 리듬이 필요할 때"),
         ("focus", "잠깐, 음악에만 집중"),
+        ("kpop-hits", "지금 듣는 K-Pop"),
+        ("kpop-classics", "다시 만나는 K-Pop 클래식"),
+        ("kpop-cafe", "카페에서 흐르는 K-Pop"),
     ]
 
 
@@ -114,6 +117,20 @@ def test_rank_section_tracks_deduplicates_isrc_and_keeps_provenance() -> None:
             source_playlist_name="R&B Hits",
         )
     ]
+
+
+def test_kpop_discovery_excludes_unrelated_search_matches(monkeypatch) -> None:
+    monkeypatch.setattr("ems_pipeline.editorial_sections.fetch_editorial_playlists", lambda *_: [
+        EditorialPlaylist("jpop", "J-Pop Hits", 20000),
+        EditorialPlaylist("kpop", "K-Pop Hits", 10000),
+    ])
+    monkeypatch.setattr("ems_pipeline.editorial_sections.fetch_playlist_tracks", lambda *_args, **_kwargs: [
+        EditorialTrack("track", "ISRC", "Song", "Artist", "Album", 180000, 0.9, 10000),
+    ])
+    result = discover_editorial_memberships(object(), "token", playlist_limit=2)
+    kpop = [item for item in result if item.section_slug.startswith("kpop-")]
+    assert kpop and {item.section_slug for item in kpop} == {"kpop-hits"}
+    assert all(item.source_playlist_id == "kpop" for item in kpop)
 
 
 def test_pagination_rejects_external_repeated_and_oversized_sequences() -> None:

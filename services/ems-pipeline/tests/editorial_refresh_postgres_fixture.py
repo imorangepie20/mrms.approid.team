@@ -45,7 +45,7 @@ def main():
         job=c.execute("INSERT INTO ems_editorial_refresh_jobs(status,preview,backup,created_by,expires_at) VALUES ('ready',%s,%s,'fixture',now()+interval '30 minutes') RETURNING id",(Jsonb(preview),Jsonb(before))).fetchone()
         blocked=build_preview(c,[],before)
         assert not blocked['canApply'] and all(not s['tracks'] for s in blocked['sections'])
-        print(json.dumps({'fixtureJob':str(job['id']),'previewTracks':60,'previewWrites':0,'latestKRFalseExcluded':True,'shortAndUSExcluded':True,'emptyPreviewBlocked':True}))
+        print(json.dumps({'fixtureJob':str(job['id']),'previewTracks':96,'previewWrites':0,'latestKRFalseExcluded':True,'shortAndUSExcluded':True,'emptyPreviewBlocked':True}))
 
 
 if __name__ == '__main__': main()

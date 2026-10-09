@@ -27,12 +27,18 @@ describe("GET /api/ems/sections", () => {
     );
   });
 
+  it.each([["home", 6], ["ems", 8]])("accepts the expanded %s screen limit", async (screen, sectionLimit) => {
+    const response = await GET(new Request(`https://music-pie.test/api/ems/sections?screen=${screen}&sectionLimit=${sectionLimit}`));
+    expect(response.status).toBe(200);
+    expect(mocks.list).toHaveBeenCalledWith({ limit: 12, region: "KR", sectionLimit, screen }, expect.anything());
+  });
+
   it.each([
     "?region=US",
     "?limit=0",
     "?limit=13",
     "?sectionLimit=0",
-    "?sectionLimit=6",
+    "?sectionLimit=9",
   ])("rejects invalid filters: %s", async (query) => {
     const response = await GET(
       new Request(`https://music-pie.test/api/ems/sections${query}`),

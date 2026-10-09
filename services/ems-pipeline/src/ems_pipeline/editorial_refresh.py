@@ -49,7 +49,7 @@ def build_preview(connection: Any, memberships: list[Any], snapshot: dict[str, A
                 'sourcePlaylistName': item.source_playlist_name,
             } for rank, (item, track_id) in enumerate(section.joined)],
         })
-    return {'sections': sections, 'canApply': len(existing) == 5 and all(len(s['tracks']) >= MIN_SECTION_TRACKS for s in sections)}
+    return {'sections': sections, 'canApply': len(existing) == len(SECTION_DEFINITIONS) and all(len(s['tracks']) >= MIN_SECTION_TRACKS for s in sections)}
 
 
 def service_editorial_refresh(connection: Any) -> bool:
@@ -66,7 +66,7 @@ def service_editorial_refresh(connection: Any) -> bool:
         snapshot = connection.execute(SNAPSHOT_SQL, (SLUGS, SLUGS)).fetchone()['snapshot']
         with httpx.Client(timeout=8.0) as http_client:
             client = TidalCatalogClient(os.environ['TIDAL_CLIENT_ID'], os.environ['TIDAL_CLIENT_SECRET'],
-                request_budget=24, http_client=http_client)
+                request_budget=36, http_client=http_client)
             memberships = discover_editorial_memberships(client, client.get_token(), playlist_limit=2)
         preview = build_preview(connection, memberships, snapshot)
         connection.execute("""UPDATE ems_editorial_refresh_jobs

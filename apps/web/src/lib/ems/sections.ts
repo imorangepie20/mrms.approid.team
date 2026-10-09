@@ -173,7 +173,7 @@ export async function listEmsSections(
 ): Promise<EmsSectionsResponse> {
   const limit = Math.min(12, Math.max(1, Math.trunc(options.limit ?? 12)));
   const sectionLimit = Math.min(
-    5,
+    8,
     Math.max(1, Math.trunc(options.sectionLimit ?? 5)),
   );
   const region = (options.region ?? "KR").toUpperCase();

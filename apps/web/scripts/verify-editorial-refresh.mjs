@@ -54,8 +54,8 @@ try {
     const ids = actual.memberships.filter((m) => m.section_id === section.id).map((m) => m.track_id);
     assert.deepEqual(ids, section.tracks.map((t) => t.id));
   }
-  assert.equal(actual.memberships.length, 60);
-  assert.equal(new Set(actual.memberships.map((m) => m.track_id)).size, 60);
+  assert.equal(actual.memberships.length, 96);
+  assert.equal(new Set(actual.memberships.map((m) => m.track_id)).size, 96);
   assert.deepEqual((await pool.query("SELECT * FROM ems_screen_sections ORDER BY screen,section_id")).rows, screensBefore);
   assert.deepEqual((await pool.query("SELECT id,auth0_subject,created_at FROM app_users ORDER BY id")).rows, userBefore);
   assert.deepEqual(actual.sections.map(({ updated_at, ...s }) => s), original.sections.map(({ updated_at, ...s }) => s));

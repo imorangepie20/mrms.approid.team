@@ -92,6 +92,27 @@ SECTION_DEFINITIONS = (
         ("Classical", "Focus"),
         ("classical", "focus", "instrumental"),
     ),
+    SectionDefinition(
+        "kpop-hits",
+        "지금 듣는 K-Pop",
+        "TIDAL K-Pop 히트곡과 새로운 흐름을 한자리에서",
+        ("K-Pop Hits",),
+        ("k-pop hits", "certified k-pop"),
+    ),
+    SectionDefinition(
+        "kpop-classics",
+        "다시 만나는 K-Pop 클래식",
+        "시간이 지나도 즐겨 듣는 K-Pop 셀렉션",
+        ("K-Pop Classics",),
+        ("k-pop: headphone classics", "k-pop classics"),
+    ),
+    SectionDefinition(
+        "kpop-cafe",
+        "카페에서 흐르는 K-Pop",
+        "잠깐의 여유에 어울리는 편안한 K-Pop",
+        ("K-Pop Cafe Shop Music",),
+        ("k-pop cafe shop music",),
+    ),
 )
 
 

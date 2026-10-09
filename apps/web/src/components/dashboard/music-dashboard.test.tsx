@@ -36,7 +36,7 @@ function renderDashboard(node: React.ReactNode, initialLikes: LikeItem[] = []) {
   );
 }
 
-it("renders the top three real EMS editorial sections without fixtures", async () => {
+it("renders the six real EMS editorial sections without fixtures", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({
     totalCount: 54,
     sections: [
@@ -66,6 +66,7 @@ it("renders the top three real EMS editorial sections without fixtures", async (
         description: "늦은 시간에 어울리는 부드러운 트랙",
         tracks: [],
       },
+      ...["지금 듣는 K-Pop", "다시 만나는 K-Pop 클래식", "카페에서 흐르는 K-Pop"].map((title, index) => ({ slug: `kpop-${index}`, title, description: "K-Pop", tracks: [] })),
     ],
   })));
 
@@ -74,10 +75,11 @@ it("renders the top three real EMS editorial sections without fixtures", async (
   expect(
     await screen.findByRole("heading", { name: "신곡 퍼레이드" }),
   ).toBeInTheDocument();
-  expect(screen.getAllByRole("link", { name: "EMS에서 더 보기" })).toHaveLength(3);
+  expect(screen.getAllByRole("link", { name: "EMS에서 더 보기" })).toHaveLength(6);
+  expect(screen.getByRole("heading", { name: "카페에서 흐르는 K-Pop" })).toBeInTheDocument();
   expect(screen.queryByText("Midnight Frequencies")).not.toBeInTheDocument();
   expect(fetch).toHaveBeenCalledWith(
-    expect.stringContaining("sectionLimit=3"),
+    expect.stringContaining("sectionLimit=6"),
     expect.anything(),
   );
 });

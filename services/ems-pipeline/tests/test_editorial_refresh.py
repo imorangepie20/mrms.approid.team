@@ -51,7 +51,7 @@ def test_empty_discovery_blocks_all_sections_instead_of_removing_existing():
     db = RecordingConnection([])
     preview = editorial_refresh.build_preview(db, [], {'sections': [], 'memberships': []})
     assert not preview['canApply']
-    assert len(preview['sections']) == 5
+    assert len(preview['sections']) == 8
     assert all(section['tracks'] == [] for section in preview['sections'])
     assert db.transaction_count == 0
 
@@ -83,6 +83,13 @@ def test_refresh_same_provider_candidates_selects_unfeatured_tracks_in_source_or
     assert all(not call.args[0].lstrip().startswith(('INSERT', 'UPDATE', 'DELETE')) for call in db.execute.call_args_list)
 
 
+def test_refresh_requires_all_eight_sections_including_kpop():
+    db, members, snapshot = preview_fixture()
+    assert editorial_refresh.build_preview(db, members, snapshot)['canApply']
+    snapshot['sections'] = [s for s in snapshot['sections'] if s['slug'] != 'kpop-cafe']
+    assert not editorial_refresh.build_preview(db, members, snapshot)['canApply']
+
+
 @pytest.mark.parametrize('candidate_count,expected_indices,added', [
     (15, [12, 13, 14, *range(9)], 3),
     (12, list(range(12)), 0),
@@ -110,7 +117,7 @@ def test_rotation_uses_resolved_isrc_id_and_avoids_tracks_current_in_other_secti
     new = preview['sections'][0]['tracks']
     assert new[0]['id'] == 'new-releases-13'
     assert new[-1]['id'] == 'new-releases-0'
-    assert len(selected) == len(set(selected)) == 60
+    assert len(selected) == len(set(selected)) == 96
 
 
 def test_cli_projection_retains_original_top_rank_selection():

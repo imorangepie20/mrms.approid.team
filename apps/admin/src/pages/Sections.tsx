@@ -59,7 +59,7 @@ export default function Sections({ screen }: { screen: Screen }) {
 
   const isHome = screen === "home";
   const title = isHome ? "메인 화면 관리" : "EMS 화면 관리";
-  const visibleLimit = isHome ? 3 : 5;
+  const visibleLimit = isHome ? 6 : 8;
 
   return <div className="space-y-6">
     <header className="flex flex-wrap items-end justify-between gap-4">

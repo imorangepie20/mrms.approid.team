@@ -91,6 +91,7 @@ describe("EmsBrowser", () => {
     expect(screen.getByText("54")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Spotify" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Apple Music" })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("sectionLimit=8"), expect.anything());
   });
 
   it("shows Spotify playlists as cards and switches the selected track list", async () => {

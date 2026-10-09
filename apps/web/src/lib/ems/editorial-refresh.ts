@@ -2,13 +2,16 @@ import { isDeepStrictEqual } from "node:util";
 import type { Pool } from "pg";
 import type { QueryExecutor } from "@/lib/ems/admin";
 
-export const EDITORIAL_SLUGS = ["new-releases", "seasonal-jazz", "night-rnb", "feel-good", "focus"];
+export const EDITORIAL_SLUGS = ["new-releases", "seasonal-jazz", "night-rnb", "feel-good", "focus", "kpop-hits", "kpop-classics", "kpop-cafe"];
 export const EDITORIAL_CRITERIA = [
   { slug: "new-releases", title: "신곡", source: "Best New Tracks · New Arrivals", ranking: "플레이리스트 최근 갱신 → 곡 인기도 → 원래 곡 순서" },
   { slug: "seasonal-jazz", title: "재즈", source: "Jazz", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
   { slug: "night-rnb", title: "R&B", source: "R&B · Soul", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
   { slug: "feel-good", title: "팝·댄스", source: "Pop · Dance", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
   { slug: "focus", title: "집중", source: "Classical · Focus", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
+  { slug: "kpop-hits", title: "K-Pop 히트곡", source: "K-Pop Hits · Certified K-Pop", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
+  { slug: "kpop-classics", title: "K-Pop 클래식", source: "K-Pop: Headphone Classics · K-Pop Classics", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
+  { slug: "kpop-cafe", title: "K-Pop 카페", source: "K-Pop Cafe Shop Music", ranking: "플레이리스트 팔로워 → 곡 인기도 → 원래 곡 순서" },
 ];
 
 type PreviewTrack = { id: string; tidalTrackId: string; title: string; artist: string; rank: number; sourcePlaylistId: string; sourcePlaylistName: string };
@@ -42,7 +45,7 @@ export async function listEditorialRefreshes(executor: QueryExecutor) {
   const latest = await executor.query<{ last_refreshed_at: string | null }>(`SELECT max(updated_at) AS last_refreshed_at
     FROM ems_editorial_sections WHERE slug=ANY($1::text[])`, [EDITORIAL_SLUGS]);
   return { criteria: EDITORIAL_CRITERIA, lastRefreshedAt: latest.rows[0]?.last_refreshed_at ?? null,
-    limits: { playlistsPerSection: 2, requestBudget: 24, tracksPerSection: 12, previewMinutes: 30 },
+    limits: { playlistsPerSection: 2, requestBudget: 36, tracksPerSection: 12, previewMinutes: 30 },
     jobs: result.rows.map(mapJob) };
 }
 
@@ -67,7 +70,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function validRefreshId(value: string) { return UUID.test(value); }
 
 function validPreview(preview: Preview) {
-  if (!preview?.canApply || !Array.isArray(preview.sections) || preview.sections.length !== 5) return false;
+  if (!preview?.canApply || !Array.isArray(preview.sections) || preview.sections.length !== EDITORIAL_SLUGS.length) return false;
   const sectionIds = new Set<string>(); const trackIds = new Set<string>(); const slugs = new Set<string>();
   for (const section of preview.sections) {
     if (!UUID.test(section.id) || sectionIds.has(section.id) || !EDITORIAL_SLUGS.includes(section.slug) || slugs.has(section.slug)

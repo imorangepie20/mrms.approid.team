@@ -66,6 +66,13 @@ function fakeExecutor(fixtures: {
 }
 
 describe("EMS editorial section repository", () => {
+  it("includes three added K-Pop sections after the existing five", async () => {
+    const slugs = ["new-releases", "seasonal-jazz", "night-rnb", "feel-good", "focus", "kpop-hits", "kpop-classics", "kpop-cafe"];
+    const executor = fakeExecutor({ count: [{ total_count: 8 }], sectionRows: slugs.map((slug, index) => row(slug, index, `track-${index}`, 0)) });
+    const result = await listEmsSections({ screen: "ems", sectionLimit: 8 }, executor as never);
+    expect(result.sections.map((section) => section.slug)).toEqual(slugs);
+    expect(new Set(result.sections.flatMap((section) => section.tracks.map((track) => track.id))).size).toBe(8);
+  });
   it("orders sections, deduplicates tracks, and reports the real total", async () => {
     const executor = fakeExecutor({
       count: [{ total_count: 54 }],
