@@ -1,5 +1,26 @@
 # 스킬·플러그인 환경 기록
 
+## 2026-10-27 Claude Code(데스크톱 Code 탭) 이관
+
+Codex에서 실제로 쓰던 구성을 기준으로 Claude Code에 맞춰 정리했다. 판단 근거는 `~/.codex/config.toml`의 `[[skills.config]]`·`[plugins.*]` 값이다. Codex에서 `enabled = false`로 꺼 둔 스킬(Caveman·디자인 계열, ECC 326개, designlang·diagram-design 스킬 등)은 이관 대상에서 제외했다.
+
+| 항목 | 범위·경로 | 출처·버전 | 조치 | 확인 결과 |
+|---|---|---|---|---|
+| superpowers 절차 스킬(5절 13개 + diagnosing-superpowers) | 사용자 전역 플러그인 `superpowers@claude-plugins-official` | 7.0.0 | 기존 설치 유지 | `claude plugin list` enabled, 세션 노출 확인 |
+| karpathy-guidelines, vercel-composition-patterns, vercel-react-best-practices, web-design-guidelines | `~/.claude/skills/` (vercel·web-design은 `~/.agents/skills` junction) | 기존 | 유지 | 세션 노출 확인 |
+| `ui-ux-pro-max` | `~/.claude/skills/ui-ux-pro-max` → `~/.agents/skills/ui-ux-pro-max` junction | 원본 패키지 전체 공유 | 신규 연결 | 세션 노출 확인, 기능 실행 미검증 |
+| `investigate-first` | `~/.claude/skills/investigate-first` → `~/.agents/skills/investigate-first` junction | 같음 | 신규 연결 | 세션 노출 확인, 기능 실행 미검증 |
+| `harness@harness-marketplace` | 프로젝트 `.claude/settings.json` (`revfactory/harness` GitHub 마켓플레이스) | 2.1.0 | 신규 설치 | `claude plugin list`에서 project scope enabled. 같은 세션 후속 턴에서 `harness:harness`·`harness:evolve` 스킬 노출 확인, 기능 실행 미검증 |
+| frontend-design, context7 | 사용자 전역 플러그인 | 기존 | 유지 | context7 MCP는 인증 필요 상태(`/mcp`) |
+
+제외·미이관:
+
+- `deploy-to-vercel`: 배포 대상이 Zorin Docker compose(`infra/compose.zorin.yml`)라 이관하지 않았다.
+- `claude-mem@claude-mem-local`: 로컬 마켓플레이스·훅·sqlite 워커를 쓰는 별도 메모리 시스템이다. Claude Code 자체 메모리와 중복되고 데이터 보관 정책이 미정이라 설치하지 않았다.
+- ECC, designlang, diagram-design: Codex에서 스킬 전부 비활성이었다.
+- `openai-bundled`·`openai-primary-runtime` 플러그인: Codex 전용. Claude Code에서는 내장 브라우저·Chrome 확장·`anthropic-skills`(docx/pdf/xlsx/pptx)·visualize로 대체된다.
+- `.codex/hooks.json` Impeccable 훅: 이 프로젝트에 해당 파일이 없어 이관 대상이 없다.
+
 ## 2026-10-03 GMS 재점검 세션
 
 - `computer-use`의 `SKILL.md`, guidance와 confirmations를 읽었다. 현재 세션은 native app 제어가 비활성이고 `mcp__cua_repl` 브라우저 제어가 노출되어 Chrome GMS·이력·MMS에서 실제 탐색·재생·viewport 점검을 실행했다.
