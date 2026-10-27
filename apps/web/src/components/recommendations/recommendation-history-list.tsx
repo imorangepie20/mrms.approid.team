@@ -1,6 +1,6 @@
 "use client";
 
-import { ThumbsDown, Trash2 } from "lucide-react";
+import { LoaderCircle, ThumbsDown, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Track } from "@/lib/music/types";
@@ -21,9 +21,10 @@ const decisionCopy = {
   skip: "건너뜀",
 } as const;
 
-export function RecommendationHistoryList({ batches, disabled = false, onBusyChange, onAccept, onReject }: {
+export function RecommendationHistoryList({ batches, disabled = false, pendingDecision = null, onBusyChange, onAccept, onReject }: {
   batches: RecommendationHistoryEntry[];
   disabled?: boolean;
+  pendingDecision?: { trackId: string; decision: "accept" | "reject" } | null;
   onBusyChange?: (busy: boolean) => void;
   onAccept?: (track: Track, profileVersion?: string | null) => void;
   onReject?: (track: Track, profileVersion?: string | null) => void;
@@ -187,7 +188,9 @@ export function RecommendationHistoryList({ batches, disabled = false, onBusyCha
                   const decision = decisions.get(track.id);
                   return (
                     <>
-                    {onAccept && onReject && decision !== "accept" && decision !== "reject" ? <><button className="gms-decision-button gms-decision-button--accept" disabled={busy} type="button" onClick={() => onAccept(track, batch.profileVersion)}>+ MMS</button><button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" disabled={busy} title="싫어요" type="button" onClick={() => onReject(track, batch.profileVersion)}><ThumbsDown aria-hidden="true" /></button></> : null}
+                    {onAccept && onReject && decision !== "accept" && decision !== "reject" ? <>{pendingDecision?.trackId === track.id && pendingDecision.decision === "accept"
+                      ? <button aria-busy="true" aria-label="MMS에 추가 중" className="gms-decision-button gms-decision-button--accept gms-decision-button--pending" disabled type="button"><span aria-hidden="true" className="gms-decision-button__label">+ MMS</span><LoaderCircle aria-hidden="true" className="gms-decision-spinner" /></button>
+                      : <button className="gms-decision-button gms-decision-button--accept" disabled={busy} type="button" onClick={() => onAccept(track, batch.profileVersion)}>+ MMS</button>}<button aria-label="싫어요" className="gms-decision-button gms-decision-button--icon" disabled={busy} title="싫어요" type="button" onClick={() => onReject(track, batch.profileVersion)}><ThumbsDown aria-hidden="true" /></button></> : null}
                     <button
                       aria-label={`추천 이력에서 삭제 ${track.title}`}
                       className="inline-grid min-h-11 min-w-11 place-items-center rounded-full text-[var(--subtle)] transition-colors hover:bg-rose-400/10 hover:text-rose-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-50"

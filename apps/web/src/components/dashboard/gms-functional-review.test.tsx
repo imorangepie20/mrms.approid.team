@@ -125,3 +125,27 @@ it("keeps past undecided tracks actionable with their original profile version",
   expect(screen.getByText("MMS로 보냄")).toBeInTheDocument();
   expect(screen.getByRole("button",{name:"추천 이력에서 삭제 Midnight City"})).toBeInTheDocument();
 });
+
+it("shows saving progress on the pressed + MMS button until the decision is saved", async () => {
+  let complete!: (response: Response) => void;
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise<Response>((resolve) => { complete=resolve; })));
+  renderGms();
+  await userEvent.setup().click(screen.getByRole("button", {name:"+ MMS"}));
+  const pending = screen.getByRole("button", {name:"MMS에 추가 중"});
+  expect(pending).toBeDisabled();
+  expect(pending).toHaveAttribute("aria-busy", "true");
+  complete(new Response(null, {status:204}));
+  await waitFor(() => expect(screen.queryByRole("button", {name:"MMS에 추가 중"})).not.toBeInTheDocument());
+  expect(screen.getByText("MMS로 보냄")).toBeInTheDocument();
+});
+
+it("restores the + MMS button after a failed save", async () => {
+  let complete!: (response: Response) => void;
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise<Response>((resolve) => { complete=resolve; })));
+  renderGms();
+  await userEvent.setup().click(screen.getByRole("button", {name:"+ MMS"}));
+  expect(screen.getByRole("button", {name:"MMS에 추가 중"})).toBeInTheDocument();
+  complete(Response.json({code:"decision_unavailable"}, {status:503}));
+  expect(await screen.findByRole("button", {name:"+ MMS"})).toBeEnabled();
+  expect(screen.getByRole("alert")).toBeInTheDocument();
+});

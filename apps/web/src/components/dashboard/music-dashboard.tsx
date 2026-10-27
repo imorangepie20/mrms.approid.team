@@ -63,6 +63,7 @@ export function MusicDashboard({
   const router = useRouter();
   const decisionInFlight = useRef(false);
   const [decisionPending, setDecisionPending] = useState(false);
+  const [pendingDecision, setPendingDecision] = useState<{ trackId: string; decision: "accept" | "reject" } | null>(null);
   const [decisions, setDecisions] = useState(() => new Map<string, "accept" | "reject">());
   const [removalPending, setRemovalPending] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export function MusicDashboard({
     if (decisionInFlight.current || removalPending || decisions.has(track.id)) return;
     decisionInFlight.current = true;
     setDecisionPending(true);
+    setPendingDecision({ trackId: track.id, decision });
     setDecisionError(null);
     setDecisionNotice(null);
     try {
@@ -125,9 +127,10 @@ export function MusicDashboard({
     } finally {
       decisionInFlight.current = false;
       setDecisionPending(false);
+      setPendingDecision(null);
     }
   };
-  return <section className="dashboard-page">{addedTrackTitle ? <MmsAddedAlert title={addedTrackTitle} onClose={() => setAddedTrackTitle(null)} /> : null}<header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{space === "gms" ? batches.reduce((count, batch) => count + batch.tracks.length, 0) : tracks.length}<small>{space === "ems" ? "총 트랙" : "추천 트랙"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />한 번 추천된 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><div className="gms-profile-tools"><AudioProfileRefreshControl /></div></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway batches={batches} pendingCount={pendingCount} removalPending={removalPending} onRemovalPending={setRemovalPending} batchId={recommendationBatchId} decisionError={decisionError} decisionNotice={decisionNotice} decisionPending={decisionPending} error={recommendationError} exhausted={recommendationExhausted} ready={recommendationReady} onAccept={(track, version) => persistDecision(track, "accept", version)} onReject={(track, version) => persistDecision(track, "reject", version)} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
+  return <section className="dashboard-page">{addedTrackTitle ? <MmsAddedAlert title={addedTrackTitle} onClose={() => setAddedTrackTitle(null)} /> : null}<header className="space-title">{meta.name}<small>{meta.code}</small></header><div className={`space-hero ${meta.tone === "teal" ? "gms-hero" : "ems-hero"}`}><p>{meta.name.toUpperCase()}</p><h1>{meta.code}</h1><span>{meta.lead}</span><strong>{space === "gms" ? batches.reduce((count, batch) => count + batch.tracks.length, 0) : tracks.length}<small>{space === "ems" ? "총 트랙" : "추천 트랙"}</small></strong></div>{space === "gms" && personalizationAllowed ? <><p className="notice"><span aria-hidden="true" className="notice-mark" />한 번 추천된 트랙은 이 사용자에게 다시 추천되지 않으며, EMS 카탈로그에는 영향을 주지 않습니다.</p><div className="gms-profile-tools"><AudioProfileRefreshControl /></div></> : null}{space === "gms" && access && !personalizationAllowed ? <PersonalizationGate access={access} returnTo={`/${space}`} /> : space === "gms" ? <Gateway batches={batches} pendingCount={pendingCount} removalPending={removalPending} onRemovalPending={setRemovalPending} batchId={recommendationBatchId} decisionError={decisionError} decisionNotice={decisionNotice} decisionPending={decisionPending} pendingDecision={pendingDecision} error={recommendationError} exhausted={recommendationExhausted} ready={recommendationReady} onAccept={(track, version) => persistDecision(track, "accept", version)} onReject={(track, version) => persistDecision(track, "reject", version)} /> : <TrackList heading="트랙 목록" source={{ id: space, type: space }} tracks={tracks} />}</section>;
 }
 
 type AudioProfileRefreshResponse = {
@@ -276,7 +279,7 @@ function HomeEditorialSkeleton() {
     </div>
   );
 }
-function Gateway({ batches, pendingCount, removalPending, onRemovalPending, batchId, decisionError, decisionNotice, decisionPending, error, exhausted, ready, onAccept, onReject }: { batches: RecommendationHistoryEntry[]; pendingCount: number; removalPending: boolean; onRemovalPending: (pending: boolean) => void; batchId: string | null; decisionError: string | null; decisionNotice: { title: string; accepted: boolean } | null; decisionPending: boolean; error: boolean; exhausted: boolean; ready: boolean; onAccept: (track: Track, profileVersion?: string | null) => void; onReject: (track: Track, profileVersion?: string | null) => void }) {
+function Gateway({ batches, pendingCount, removalPending, onRemovalPending, batchId, decisionError, decisionNotice, decisionPending, pendingDecision, error, exhausted, ready, onAccept, onReject }: { batches: RecommendationHistoryEntry[]; pendingCount: number; removalPending: boolean; onRemovalPending: (pending: boolean) => void; batchId: string | null; decisionError: string | null; decisionNotice: { title: string; accepted: boolean } | null; decisionPending: boolean; pendingDecision: { trackId: string; decision: "accept" | "reject" } | null; error: boolean; exhausted: boolean; ready: boolean; onAccept: (track: Track, profileVersion?: string | null) => void; onReject: (track: Track, profileVersion?: string | null) => void }) {
   const router = useRouter();
   const [refreshState, setRefreshState] = useState<"idle" | "loading" | "error">("idle");
 
@@ -315,7 +318,7 @@ function Gateway({ batches, pendingCount, removalPending, onRemovalPending, batc
       {decisionPending ? <p role="status">결정을 저장하고 취향을 반영하고 있습니다.</p> : null}
       {decisionNotice ? <p className="notice" role="status">“{decisionNotice.title}” {decisionNotice.accepted ? "MMS에 추가했습니다." : "이후 추천에서 제외했습니다."}{decisionNotice.accepted ? <> <Link href="/mms" prefetch={false}>MMS 보기 <span aria-hidden="true">→</span></Link></> : null}</p> : null}
       {exhausted ? <GatewayEmptyState variant="exhausted" /> : null}
-      {batches.length ? <RecommendationHistoryList batches={batches} disabled={decisionPending || refreshState === "loading"} onBusyChange={onRemovalPending} onAccept={onAccept} onReject={onReject} /> : !exhausted ? <GatewayEmptyState variant="empty" /> : null}
+      {batches.length ? <RecommendationHistoryList batches={batches} disabled={decisionPending || refreshState === "loading"} pendingDecision={pendingDecision} onBusyChange={onRemovalPending} onAccept={onAccept} onReject={onReject} /> : !exhausted ? <GatewayEmptyState variant="empty" /> : null}
     </section>
   );
 }

@@ -57,6 +57,7 @@
 - [K-Pop 섹션 추가 계획](plans/2026-10-09-kpop-screen-sections.md)
 - [멜론 페이지 반복 오탐 수정](changes/2026-10-09-melon-pagination-repeat-fix.md)
 - [멜론 페이지 반복 수정 계획](plans/2026-10-09-melon-pagination-repeat-fix.md)
+- [GMS +MMS 버튼 진행 표시](changes/2026-10-27-gms-mms-button-progress.md)
 - [ems-source-routines 중단 원인 조사](changes/2026-10-27-ems-source-routines-stopped.md)
 - [관리자 진입 시 일반 사이드 메뉴 잔존 수정(root layout 분리)](changes/2026-10-27-admin-link-full-navigation.md)
 - [갱신 때 같은 곡 재선정 수정](changes/2026-10-03-editorial-refresh-variety.md)
