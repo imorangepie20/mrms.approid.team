@@ -1,18 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 
-const { getSession, getUserLikes, usePathname, readHeaders } = vi.hoisted(() => ({
+const { getSession, getUserLikes, usePathname } = vi.hoisted(() => ({
   getSession: vi.fn(),
   getUserLikes: vi.fn(),
   usePathname: vi.fn(),
-  readHeaders: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname,
 }));
-
-vi.mock("next/headers", () => ({ headers: readHeaders }));
 
 vi.mock("@/lib/auth/auth0", () => ({
   auth0: { getSession },
@@ -29,7 +26,6 @@ import RootLayout from "./layout";
 
 beforeEach(() => {
   usePathname.mockReturnValue("/ems");
-  readHeaders.mockResolvedValue(new Headers({ "x-music-pie-pathname": "/ems" }));
   getSession.mockResolvedValue(null);
   getUserLikes.mockResolvedValue([]);
 });
@@ -87,12 +83,3 @@ it("keeps one music session provider around route content and the global player"
   expect(sessionRoot).toContainElement(screen.getByLabelText("전역 음악 플레이어"));
 });
 
-it("renders the admin shell without the user navigation or global player", async () => {
-  readHeaders.mockResolvedValue(new Headers({ "x-music-pie-pathname": "/admin" }));
-
-  render(await RootLayout({ children: <div data-testid="admin-content">admin</div> }));
-
-  expect(screen.getByTestId("admin-content")).toBeInTheDocument();
-  expect(screen.queryByRole("link", { name: "홈MAIN" })).not.toBeInTheDocument();
-  expect(screen.queryByLabelText("전역 음악 플레이어")).not.toBeInTheDocument();
-});

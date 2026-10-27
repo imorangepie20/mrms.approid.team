@@ -53,6 +53,7 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [관리자 진입 시 일반 사이드 메뉴 잔존 수정(root layout 분리)](changes/2026-10-27-admin-link-full-navigation.md)
 - [갱신 때 같은 곡 재선정 수정](changes/2026-10-03-editorial-refresh-variety.md)
 - [현재 노출 회피 갱신 계획](plans/2026-10-03-editorial-refresh-variety.md)
 - [관리자 홈·EMS 선곡 갱신 변경](changes/2026-10-03-admin-editorial-refresh.md)

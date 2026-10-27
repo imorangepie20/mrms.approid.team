@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { headers } from "next/headers";
 
 import { MusicSessionProvider } from "@/providers/music-session-provider";
 import { PersistentPlayer } from "@/components/player/persistent-player";
@@ -10,7 +9,7 @@ import { isAdminAuth0Subject } from "@/lib/auth/admin";
 import { getUserLikes } from "@/lib/db/user-likes";
 import { LikesProvider } from "@/providers/likes-provider";
 
-import "./globals.css";
+import "../globals.css";
 
 export const metadata: Metadata = {
   title: "Music Pie",
@@ -18,16 +17,6 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const requestHeaders = await headers();
-  const isAdminRoute = requestHeaders.get("x-music-pie-pathname")?.startsWith("/admin") ?? false;
-  if (isAdminRoute) {
-    return (
-      <html lang="ko" className="h-full antialiased">
-        <body className="min-h-full">{children}</body>
-      </html>
-    );
-  }
-
   const session = await auth0.getSession();
   const likes = session?.user.sub && process.env.DATABASE_URL
     ? await getUserLikes(session.user.sub)
