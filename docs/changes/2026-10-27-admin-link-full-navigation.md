@@ -32,4 +32,23 @@ Next.js route group으로 root layout을 둘로 나눴다. 서로 다른 root la
 ## 미검증
 
 - 관리자 계정으로 로그인한 브라우저에서 `관리자` 링크를 클릭해 확인하지 않았다.
-- 배포하지 않았다.
+
+## 운영 배포(2026-10-27)
+
+사용자 요청으로 커밋 `57b7ec434848f9ef89ffb845839a06bdbe034510`을 push한 뒤 Zorin Web만 교체했다. 직전 배포 `6b19816` 이후 코드 변경은 `apps/web/src/app`뿐이라 migration·다른 서비스 교체는 없다.
+
+- source: `git archive 57b7ec4`, 6,737,920bytes, SHA-256 `0792c0a0a3dfca9d375861fce49a20e60f06beccfadcc3694236282d3713183f`
+- release: `/home/approid/apps/music-pie/releases/20261027-admin-layout-57b7ec4`(`current` symlink는 기존 그대로)
+- image `music-pie-web:admin-layout-57b7ec4`, label revision·source-sha256 일치. override `shared/compose.admin-layout.yml`을 기존 `compose.zorin.yml`·`compose.musicbrainz-ssd.yml`·`compose.kpop-sections.yml` 뒤에 추가하고 `up -d --no-deps --no-build --force-recreate --pull never web`
+- 결과: healthy·restart 0, 내부 `/`·`/ems` 200(일반 셸 포함), `/admin` 307 → 로그인, 없는 경로 404, readiness 200, 최근 5분 Web 로그 error 0. 공개 `https://mrms.approid.team`의 `/` 200, `/admin` 307, readiness 200
+- 비-Web container 6개 ID 전후 동일
+- rollback: 이전 image `sha256:56ff14d257cb426c0473c50653e5376c7e2b31766cb2c10593b6e6f3517bd2b2`, tag `music-pie-web:pre-admin-layout-20261027`. `shared/compose.admin-layout.yml`을 빼고 같은 방식으로 web만 다시 올리면 된다.
+- 서버 증거: `shared/artifacts/20261027-admin-layout-57b7ec4/`(build/deploy/verify scripts, `web-build.log`, `nonweb-before/after.txt`, `rollback-image.txt`, `verification.txt`)
+
+## 미검증(배포 후)
+
+- 관리자 계정으로 로그인한 운영 브라우저에서 `관리자` 링크 클릭 이동은 확인하지 않았다.
+
+## 참고
+
+- 배포 전 inventory에서 `music-pie-ems-source-routines-1`(image `music-pie-ems-pipeline:ssd-storage-20261009`)이 `Exited (127)` 상태로 2일째 멈춰 있었다. 이번 작업 범위 밖이라 건드리지 않았다.

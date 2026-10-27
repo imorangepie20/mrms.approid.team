@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount external SSD and start music-pie EMS source routines when the SSD appears
+RequiresMountsFor=/mnt/external-ssd/music-pie/musicbrainz
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker start music-pie-ems-source-routines-1
+
+[Install]
+WantedBy=dev-disk-by\x2duuid-9d63d07a\x2d28bd\x2d441d\x2d91b7\x2db29efa3c3313.device
