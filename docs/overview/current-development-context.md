@@ -1,20 +1,28 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-10-04
+최종 갱신: 2026-10-09
 
-최신 기능 기준 커밋: `9171051`
+최신 기능 기준 커밋: `6b19816` (메인·EMS K-Pop 섹션 3개 추가)
 
-최신 Zorin Web 배포: `20261004-gms-layout-9171051` (`91710518214357f16973fff8ff82d85504c84369`, GMS 트랙 정보 압축·중간 화면 폭 회귀 수정)
+최신 Zorin Web 배포: `music-pie-web:kpop-sections-6b19816` (K-Pop 3개·메인 6개/EMS 8개 표시). 소스 release는 `20261009-kpop-sections-6b19816`이며 공통 current symlink는 기존 `20261004-gms-layout-9171051`을 유지하고 image override를 사용한다.
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS 배포: `20261003-editorial-variety-3cd1ea3` (`3cd1ea35b0da74eef733b513d344fc3f48da9689`, 현재 노출 회피 선곡). 공통 current symlink는 위 최신 Web release를 가리키며 EMS·source-routines 컨테이너는 기존 이미지/실행 상태를 유지한다. 기존 Melon 5곡·8장르 순환도 유지한다.
+최신 Zorin EMS pipeline 배포: `music-pie-ems-pipeline:kpop-sections-6b19816` (Melon 수정 image 기반 에디토리얼 두 모듈만 변경). `shared/compose.kpop-sections.yml`이 Web/pipeline image를 지정하며 SSD override와 함께 적용한다. source-routines는 SSD 저장소와 기존 image·실행 상태를 유지하며, 현재 노출 회피 선곡과 Melon 5곡·8장르 순환도 유지한다.
 
 ## 이번 목표
 
 사용자가 MMS 내부 플레이리스트를 만들고 트랙을 구성하며, TIDAL에서 가져온 플레이리스트와 검색·GMS·EMS에서 좋아요한 트랙·플레이리스트·앨범·아티스트를 탐색하고 재생한다.
 
 ## 현재 구현
+
+- 2026-10-09 메인·EMS 상단에 K-Pop 히트곡·클래식·카페 3개 섹션 각 12곡을 운영 반영했다. 기존 노출과 개인 테이블 18개·비대상 container 68개·SSD/Melon을 보존했다. Python 121·Web 관련 56·Admin 13·두 lint/build·격리 DB 적용 11개 assertion, 운영 4개 viewport/page 조건·End/Home 키·API exact 비교를 통과했다. 관리자 갱신은 8섹션·budget 36으로 확장했고 운영 읽기 전용 미리보기 26요청·8×12곡을 확인했다. [K-Pop 섹션 결과](../changes/2026-10-09-kpop-screen-sections.md) 참조.
+
+- 2026-10-09 사용자 요청으로 기존 Hindsight `music-pie` 뱅크의 등록을 확인하고 SSD 이전·멜론 수정 완료 결과를 별도 날짜 문서에 저장했다. retain operation 완료·원문/hash 일치·memory 10개·recall 10개와 기존 등록·다른 뱅크 4개 보존을 확인했다. [Hindsight 등록 결과](../changes/2026-10-09-ems-recovery-hindsight.md) 참조.
+
+- 2026-10-09 멜론의 첫 곡 하나만 비교하던 페이지 반복 판정을 전체 곡 ID·순서 비교로 수정했다. legacy 체크포인트는 첫 조회에서 전체 정보를 기록한다. EMS 119개·격리 DB 7개 assertion 묶음 통과 후 pipeline만 `363e2ac`으로 배포했다. 기존 활성 작업 발견 15→30·인디/록 두 묶음·전체 ID 저장, 과거 실패 위치 읽기 전용 재생 1361→1366, healthy·restart 0·비대상 컨테이너 67개·SSD source-routines 보존·Web 200·새 worker/DB 오류 0을 확인했다. 과거 실패 행은 변경하지 않았다. [멜론 반복 수정 결과](../changes/2026-10-09-melon-pagination-repeat-fix.md) 참조.
+
+- 2026-10-09 MusicBrainz 자료 28파일·47.1GB를 기존 연결 SSD의 `/mnt/external-ssd/music-pie/musicbrainz`로 이전했다. SHA-256·권한·소유권 불일치 0을 확인한 뒤 내부 디스크 원본을 정리해 사용률 73.68%→54.87%, 세 disk gate 통과를 확인했다. source-routines만 기존 image로 재생성했고 비대상 컨테이너 67개 ID와 Web readiness 200을 보존했다. 운영에는 storage override를 적용했으며 core·metadata의 기존 disk 오류 재시도를 앞당겼다. 전체 신규 snapshot 처리와 재부팅 테스트는 별도다. [SSD 이전 결과](../changes/2026-10-09-musicbrainz-ssd-storage.md) 참조.
 
 - 2026-10-04 사용자 screenshot의 제목/배지 세로 압축을 운영 1000px에서 재현하고 `9171051`로 수정·push·Web 배포했다. 실제 목록 container 폭으로 두 줄 전환하고 넓은 table의 제목 공간을 확보한다. 관련 72개·lint/build, 로컬 7조건·운영 6조건×12곡·키보드 취소를 통과했다. 제목 32.75→491px(1000px 화면), 배지 66→19.5px, 모든 버튼 fit·overflow 0·console error 0이다. 기존 비-Web 필터의 빈 비교도 정정해 실제 ID 6/6, 사용자 문서 13/13·개인 table 15/15·schema 34/34 보존을 확인했다. 상세는 [트랙 정보 압축 수정](../changes/2026-10-04-gms-track-layout.md)에 있다.
 

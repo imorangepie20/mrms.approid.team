@@ -1,5 +1,9 @@
 # EMS 카탈로그 수집 운영 절차
 
+## 현재 운영 image override
+
+2026-10-09 K-Pop 3개 추가 후 Web/pipeline은 `shared/compose.kpop-sections.yml`을 사용한다. Compose 적용에는 기존 base, `shared/compose.musicbrainz-ssd.yml`, `shared/compose.kpop-sections.yml` 순서로 포함한다. 이전 `compose.melon-pagination.yml`은 과거 image이므로 새 override 뒤에 적용하지 않는다. source-routines는 재생성하지 않는다. 후속 배포에서는 검증한 후속 image로 override를 대체한다. 상세와 복구 근거는 [K-Pop 섹션 운영 결과](../changes/2026-10-09-kpop-screen-sections.md)에 있다.
+
 ## 사전 조건
 
 - Zorin 접속: `approid@192.168.219.174`.
@@ -87,6 +91,7 @@ docker run --rm --network container:music-pie-web-1 \
 - 기본 멜론 요청 간격은 최소 3초이며 `MELON_MIN_REQUEST_INTERVAL_SECONDS`로 늘릴 수 있다. 429는 `Retry-After` 뒤 한정 재시도한다. 401·403·로그인/차단 이동·목록 구조 변경은 실패 코드로 표시하고 우회하지 않는다.
 - 원천곡 저장과 EMS 활성곡은 다르다. 멜론 곡을 TIDAL에서 곡명·가수·앨범으로 확인하고 KR `STREAM`을 확인한 뒤에만 활성화한다. 모호하거나 일치하지 않는 후보는 승격하지 않는다.
 - 장르별 원천 수와 TIDAL 연결 수는 관리자 페이지에서 별도로 본다. 매 묶음마다 다음 미완료 장르로 순환한다. 마지막 페이지가 비거나 5곡 미만인 장르는 완료로 표시해 이후 순환에서 건너뛴다. 8개 장르를 한 번씩 조회한 뒤 각 장르의 다음 5곡을 이어서 읽는다.
+- 2026-10-09부터 장르 체크포인트의 `lastPageSongIds`로 이전 묶음 전체의 ID·순서를 비교한다. 첫 곡만 같으면 진행하며 전체가 같을 때 `melon_pagination_repeated`로 중단한다. legacy 체크포인트는 첫 조회에서 전체 정보를 기록한다. 과거 실패 작업을 복구하기 전 새 활성 작업 여부를 확인해 동시에 열린 작업 하나 제약을 지킨다.
 - `019_ems_melon_batches.sql`의 후보 처리 후 60초 대기는 유지하고, `032_melon_genre_checkpoints.sql`부터 묶음 크기는 최대 5곡이다. 기존 열린 작업의 위치와 누적 수를 이관하고 이전 100곡 묶음의 후보를 먼저 처리한 뒤 새 묶음을 시작한다. 관리자 화면은 현재 묶음 곡 수·확인 대기 후보·다음 장르/묶음 시각을 표시한다. 실행 중인 TIDAL 관리자 수집도 후보 처리 사이에 멜론 한 tick을 처리하므로 해당 작업의 완료를 기다리지 않는다.
 - 배포 시 Web과 `ems-pipeline` 이미지를 함께 갱신한다. DB 백업 후 migration을 적용한다. 문제가 나면 새 워커를 이전 이미지로 되돌리고 멜론 작업을 일시정지한다. 운영 데이터를 지우는 down migration은 운영 롤백에 쓰지 않는다.
 
@@ -95,7 +100,9 @@ docker run --rm --network container:music-pie-web-1 \
 - TIDAL 에디토리얼: 이전 작업 완료 뒤 하루 후 새 작업을 예약한다. `lastUpdatedAt`이 그대로인 플레이리스트는 생략한다. 갱신 시각이 없으면 다시 읽는다. 수동으로 일시정지한 작업은 자동 재개하지 않는다.
 - MusicBrainz core: `LATEST`를 12시간마다 확인하고 새 버전일 때만 서명·SHA-256을 검증해 다운로드한다. 새 녹음·새 ISRC의 후보를 만든다.
 - MusicBrainz canonical: 배포 목록을 24시간마다 확인하고 새 버전일 때만 SHA-256을 검증해 다운로드한다. core 후보의 대표 발매와 순위에 사용한다. canonical만 바뀌어도 독립적인 곡은 생기지 않는다.
-- 원본은 저장소 밖 `/home/approid/apps/music-pie/shared/musicbrainz`에 둔다. 검증된 최신 두 버전만 보관한다. 디스크 사용률이 70% 이상이면 새 다운로드를 시작하지 않고 오류와 다음 재시도 시각을 기록한다.
+- 원본은 저장소 밖 SSD 전용 `/mnt/external-ssd/music-pie/musicbrainz`에 둔다. `infra/compose.zorin.yml`의 long bind mount는 경로 부재 시 자동 생성을 금지한다. 검증된 최신 두 버전만 보관한다. disk gate는 예약 공간을 더한 사용량이 70% 미만이어야 통과하며 core 25GiB·canonical 12GiB·metadata 2GiB를 예약한다. 현재 core·canonical은 컨테이너 `/`, metadata는 실제 MusicBrainz 작업 경로를 확인한다.
+- 2026-10-09 이전 운영 release의 Compose를 사용할 때는 `/home/approid/apps/music-pie/shared/compose.musicbrainz-ssd.yml`을 추가 `-f`로 함께 적용한다. 이 override는 SSD mount만 변경한다. 새 release에도 SSD 경로가 포함되어 있는지 `config --quiet`와 실제 container mount를 확인한다. image를 보존하기 위한 일회성 activation override는 향후 배포에서 재사용하지 않는다.
+- SSD는 UUID `9d63d07a-28bd-441d-91b7-b29efa3c3313`로 `/etc/fstab`에 등록되어 있다. 서비스 기동 전 해당 경로의 실제 filesystem을 확인하며, SSD 분리·재부팅 후에는 mount와 disk gate를 다시 검증한다.
 - MusicBrainz 후보는 기존 TIDAL resolver와 임베딩 경로를 통과한다. 현재 수동 TIDAL 작업이 실행 중이면 후보는 DB에 대기한다. 429 `Retry-After`와 최소 요청 간격을 따른다.
 - `정기 수집 중지`는 이후 확인과 해당 MusicBrainz 후보의 다음 요청을 막는다. `정기 수집 켜기` 또는 `지금 확인`으로 이어간다.
 

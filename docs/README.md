@@ -53,6 +53,10 @@
 
 ### EMS 카탈로그·에디토리얼
 
+- [메인·EMS K-Pop 섹션 3개 추가](changes/2026-10-09-kpop-screen-sections.md)
+- [K-Pop 섹션 추가 계획](plans/2026-10-09-kpop-screen-sections.md)
+- [멜론 페이지 반복 오탐 수정](changes/2026-10-09-melon-pagination-repeat-fix.md)
+- [멜론 페이지 반복 수정 계획](plans/2026-10-09-melon-pagination-repeat-fix.md)
 - [ems-source-routines 중단 원인 조사](changes/2026-10-27-ems-source-routines-stopped.md)
 - [관리자 진입 시 일반 사이드 메뉴 잔존 수정(root layout 분리)](changes/2026-10-27-admin-link-full-navigation.md)
 - [갱신 때 같은 곡 재선정 수정](changes/2026-10-03-editorial-refresh-variety.md)
@@ -98,6 +102,10 @@
 
 ### 배포·운영
 
+- [EMS 수집 복구 Hindsight 등록](changes/2026-10-09-ems-recovery-hindsight.md)
+- [Hindsight 결과 등록 계획](plans/2026-10-09-ems-recovery-hindsight.md)
+- [MusicBrainz SSD 저장소 이전](changes/2026-10-09-musicbrainz-ssd-storage.md)
+- [MusicBrainz SSD 이전 계획](plans/2026-10-09-musicbrainz-ssd-storage.md)
 - [관리자·일반 회원 접근 분리 계획](plans/2026-09-25-admin-member-separation.md)
 - [관리자·일반 회원 접근 분리 변경 기록](changes/2026-09-25-admin-member-separation.md)
 - [Zorin 운영 배포 설계](superpowers/specs/2026-09-22-zorin-production-deployment-design.md)

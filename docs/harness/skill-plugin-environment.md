@@ -21,6 +21,13 @@ Codex에서 실제로 쓰던 구성을 기준으로 Claude Code에 맞춰 정리
 - `openai-bundled`·`openai-primary-runtime` 플러그인: Codex 전용. Claude Code에서는 내장 브라우저·Chrome 확장·`anthropic-skills`(docx/pdf/xlsx/pptx)·visualize로 대체된다.
 - `.codex/hooks.json` Impeccable 훅: 이 프로젝트에 해당 파일이 없어 이관 대상이 없다.
 
+## 2026-10-04 Hindsight 프로젝트 등록
+
+- 로컬 Docker의 `ghcr.io/vectorize-io/hindsight:0.10.2` 서비스가 실행 중이다. `http://127.0.0.1:8888/openapi.json`의 버전·API 계약과 `/health` HTTP 200·database connected를 확인했다.
+- 현재 세션에 Hindsight 전용 MCP 도구는 노출되지 않았으며 Codex MCP 설정에서 Hindsight 연결도 확인되지 않았다. 설치·활성화 상태를 MCP 노출 상태와 동일하게 취급하지 않는다.
+- 이미 실행 중인 HTTP API로 Music Pie 전용 `music-pie` 뱅크 생성·비동기 retain·문서 재조회·recall을 실제 실행했다. 서비스 설치, MCP 설정 변경, 자동 동기화 구성은 수행하지 않았다.
+- 등록 원고·작업 UUID·검증 근거는 `docs/changes/2026-10-04-hindsight-project-registration.md`에 기록한다.
+
 ## 2026-10-03 GMS 재점검 세션
 
 - `computer-use`의 `SKILL.md`, guidance와 confirmations를 읽었다. 현재 세션은 native app 제어가 비활성이고 `mcp__cua_repl` 브라우저 제어가 노출되어 Chrome GMS·이력·MMS에서 실제 탐색·재생·viewport 점검을 실행했다.
@@ -88,3 +95,7 @@ Codex에서 실제로 쓰던 구성을 기준으로 Claude Code에 맞춰 정리
 - 스크립트(`apply-harness.ps1`)의 재실행 해시 유지, 다른 프로젝트 적용, 원격 설치 출처의 현재 상태, 훅·플러그인 실제 실행은 전부 미검증이다.
 - 전역 스킬 58개의 설치 출처·버전·기능 실행은 이번 작업 범위가 아니었다. 필요한 작업이 생기면 그때 해당 스킬을 로드하고 실행 결과를 이 표에 추가한다.
 - 이 기록은 문서 준비 상태이며 `설치·동작 검증 완료`가 아니다.
+
+## 2026-10-09 K-Pop 섹션 추가에서 사용한 스킬
+
+- `ui-ux-pro-max`: 로컬 `C:/Users/jowoo/.agents/skills/ui-ux-pro-max/SKILL.md` 존재와 현재 세션 노출을 확인하고 읽었다. `search.py 'horizontal music rail keyboard mobile' --domain ux` exit 0, viewport overflow 가이드를 적용했다. 실제 운영 390px/1440px·기존 rail End/Home 키를 검증했다. 이번 작업에서 스킬이나 플러그인을 설치하지 않았다. 상세는 [K-Pop 섹션 결과](../changes/2026-10-09-kpop-screen-sections.md)에 있다.

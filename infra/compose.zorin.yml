@@ -98,7 +98,11 @@ services:
     environment:
       MUSICBRAINZ_WORK_ROOT: /data/musicbrainz
     volumes:
-      - /home/approid/apps/music-pie/shared/musicbrainz:/data/musicbrainz
+      - type: bind
+        source: /mnt/external-ssd/music-pie/musicbrainz
+        target: /data/musicbrainz
+        bind:
+          create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy
