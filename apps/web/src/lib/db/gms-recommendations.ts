@@ -165,6 +165,11 @@ export type RecommendationShadowPayload = {
   rhythmCoverageRatio: number;
   sameArtistRatio: number;
   selectorChangedCount: number;
+  /**
+   * 실제 baseline 응답(기존 pool)의 상위 K. 027에서 정의한 baseline 의미를 유지하며, hybrid-v0나
+   * baseline-v2가 제공돼도 바꾸지 않는다. 실제 제공 목록은 `user_recommendation_batches.track_ids`와
+   * `user_recommendation_exposures`(ranking_version 포함)에 남고 run의 `served_ranking_version`으로 구분한다.
+   */
   servedBaselineTrackIds: string[];
   textProfileId: string;
   textProfileVersion: string;
@@ -824,6 +829,7 @@ export async function preparePersonalizedEmsRecommendations(
         backfilledTrackIds: hybridRows
           .filter((row) => row.sourceRank > candidatePoolSize)
           .map((row) => row.id),
+        // baseline 의미 유지: v2/hybrid가 제공돼도 baseline 응답을 기록한다(타입 주석 참고).
         servedBaselineTrackIds: baseline.slice(0, safeLimit).map((row) => row.id),
       });
   const rowsById = new Map(hybridRows.map((row) => [row.id, row]));

@@ -622,6 +622,28 @@ describe("GMS personalized recommendation repository", () => {
     expect(unavailable.serving.fallbackReason).toBe("attribute_profile_unavailable");
   });
 
+  it("keeps baseline semantics in served_baseline_track_ids when baseline-v2 is served", async () => {
+    const harness = attributeExecutor(
+      [
+        attributeCandidate("a", 0.9, "por", 1),
+        attributeCandidate("b", 0.8, "eng", 2),
+      ],
+      englishDistribution(),
+    );
+    const prepared = await preparePersonalizedEmsRecommendations("auth0|listener", 2, harness.executor);
+    const selected = selectPreparedPersonalizedRecommendations("auth0|listener", prepared, {
+      GMS_RANKING_VERSION: "baseline-v2",
+    });
+
+    // 실제 제공 목록은 batch·exposure(ranking_version = baseline-v2)에 남고, shadow run 컬럼은
+    // 비교 기준인 baseline 응답을 그대로 기록한다(027 정의).
+    expect(selected.serving.servedRankingVersion).toBe("baseline-v2");
+    expect(selected.recommendations.tracks.map((track) => track.id)).toEqual(["b", "a"]);
+    expect(prepared.shadow?.servedBaselineTrackIds).toEqual(["a", "b"]);
+    expect(prepared.shadow?.servedBaselineTrackIds)
+      .toEqual(prepared.recommendations.tracks.map((track) => track.id));
+  });
+
   it("records a shadow run and candidates atomically", async () => {
     const prepared = await preparePersonalizedEmsRecommendations(
       "auth0|listener",
