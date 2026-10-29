@@ -546,6 +546,32 @@ describe("GMS personalized recommendation repository", () => {
     expect(params).toEqual(["user-a", -0.5]);
   });
 
+  it("uses the 24-track batch size by default", async () => {
+    const harness = attributeExecutor([attributeCandidate("a", 0.9, "eng", 1)], []);
+
+    await preparePersonalizedEmsRecommendations("auth0|listener", undefined, harness.executor);
+    expect(harness.candidateParams()?.[2]).toBe(600);
+
+    const listed = attributeExecutor([attributeCandidate("a", 0.9, "eng", 1)], []);
+    await listPersonalizedEmsRecommendations("auth0|listener", undefined, listed.executor);
+    expect(listed.candidateParams()?.[2]).toBe(600);
+  });
+
+  it("does not count an accepted EMS track again when it is already in the MMS", async () => {
+    const query = vi.fn(async () => ({ rows: [] }));
+
+    await loadUserAttributeDistributionInputs("user-a", {
+      query: query as unknown as TransactionExecutor["query"],
+    });
+
+    const [sql] = query.mock.calls[0] as unknown as [string];
+    const decisionArm = sql.slice(sql.indexOf("UNION ALL"));
+    expect(decisionArm).toMatch(
+      /NOT EXISTS \([\s\S]*FROM music_tracks AS owned[\s\S]*playlist\.selected = true[\s\S]*owned\.user_id = \$1[\s\S]*owned\.tidal_track_id = ems\.tidal_id/,
+    );
+    expect(decisionArm).toMatch(/INNER JOIN ems_tracks AS ems ON ems\.id = decided\.source_track_id/);
+  });
+
   it("serves baseline-v2 when requested", async () => {
     const harness = attributeExecutor(
       [

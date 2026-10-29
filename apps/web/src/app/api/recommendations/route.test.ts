@@ -121,6 +121,13 @@ describe("GET /api/recommendations", () => {
     expect(mocks.getBatch).not.toHaveBeenCalled();
   });
 
+  it("defaults to a 24-track batch when no limit is given", async () => {
+    const response = await GET(new Request("http://music.test/api/recommendations"));
+
+    expect(response.status).toBe(200);
+    expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 24);
+  });
+
   it("rejects an out-of-range limit", async () => {
     const response = await GET(new Request("http://music.test/api/recommendations?limit=25"));
 

@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { requireAuth0Subject } from "@/lib/auth/auth0";
 import { rotatePersonalizedRecommendationBatch } from "@/lib/db/gms-recommendation-batches";
 import { recordRecommendationShadow } from "@/lib/db/gms-recommendations";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     const batch = await rotatePersonalizedRecommendationBatch(
       auth0Subject,
       currentBatchId,
-      12,
+      DEFAULT_BATCH_SIZE,
     );
     if (batch.shadow && batch.serving) {
       after(async () => {

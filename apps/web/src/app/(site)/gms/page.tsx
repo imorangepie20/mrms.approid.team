@@ -12,6 +12,7 @@ import {
   getAllPersonalizedRecommendationHistory,
   type RecommendationHistoryEntry,
 } from "@/lib/db/gms-recommendation-batches";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 
 export default async function GmsPage() {
   const session = await auth0.getSession();
@@ -34,7 +35,10 @@ export default async function GmsPage() {
   let history: RecommendationHistoryEntry[] = [];
   if (session && connectionStatus === "connected" && process.env.DATABASE_URL) {
     try {
-      const batch = await getOrCreatePersonalizedRecommendationBatch(session.user.sub, 12);
+      const batch = await getOrCreatePersonalizedRecommendationBatch(
+        session.user.sub,
+        DEFAULT_BATCH_SIZE,
+      );
       recommendations = batch.recommendations;
       batchId = batch.batchId;
       exhausted = batch.exhausted;

@@ -37,6 +37,7 @@ function genreBuckets(value: unknown): Record<string, number> {
  * accept 1·reject `rejectWeight`로 센다. skip은 넣지 않는다.
  * 같은 곡은 한 번만 센다: MMS 곡은 여러 플레이리스트에 있어도 한 번,
  * GMS 곡은 reject가 한 번이라도 있으면 reject(영구 제외 규칙과 같다)로 센다.
+ * 같은 TIDAL 곡이 이미 선택된 MMS 플레이리스트에 있으면 MMS 쪽으로만 센다.
  */
 export async function loadUserAttributeDistributionInputs(
   userId: string,
@@ -68,7 +69,18 @@ export async function loadUserAttributeDistributionInputs(
        WHERE decision.user_id = $1 AND decision.decision IN ('accept', 'reject')
        GROUP BY decision.source_track_id
      ) AS decided
-     INNER JOIN ems_track_attributes AS attribute ON attribute.track_id = decided.source_track_id`,
+     INNER JOIN ems_tracks AS ems ON ems.id = decided.source_track_id
+     INNER JOIN ems_track_attributes AS attribute ON attribute.track_id = decided.source_track_id
+     WHERE NOT EXISTS (
+       SELECT 1
+       FROM music_tracks AS owned
+       INNER JOIN user_playlist_tracks AS playlist_track ON playlist_track.track_id = owned.id
+       INNER JOIN user_playlists AS playlist
+         ON playlist.id = playlist_track.playlist_id
+        AND playlist.user_id = $1
+        AND playlist.selected = true
+       WHERE owned.user_id = $1 AND owned.tidal_track_id = ems.tidal_id
+     )`,
     [userId, ATTRIBUTE_RANKING.rejectWeight],
   );
   return result.rows.flatMap((row) => {

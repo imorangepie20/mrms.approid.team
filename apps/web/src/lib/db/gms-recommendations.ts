@@ -9,6 +9,7 @@ import {
   type TrackAttributes,
 } from "@/lib/recommendations/attribute-affinity";
 import { AUDIO_PREDICTION_LABELS } from "@/lib/recommendations/audio-taste-profile";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 import { evaluateShadowRanking } from "@/lib/recommendations/candidates";
 import { filterRankingCandidates } from "@/lib/recommendations/filters";
 import { calculateEmsScore } from "@/lib/recommendations/gms";
@@ -549,7 +550,7 @@ async function loadDistributionInputsSafely(
 
 export async function preparePersonalizedEmsRecommendations(
   auth0Subject: string,
-  limit = 12,
+  limit = DEFAULT_BATCH_SIZE,
   executor?: TransactionExecutor,
 ): Promise<PreparedPersonalizedRecommendations> {
   const safeLimit = Math.max(1, Math.min(24, Math.trunc(limit)));
@@ -883,7 +884,7 @@ export function selectPreparedPersonalizedRecommendations(
 
 export async function listPersonalizedEmsRecommendations(
   auth0Subject: string,
-  limit = 12,
+  limit = DEFAULT_BATCH_SIZE,
   executor?: TransactionExecutor,
 ): Promise<PersonalizedRecommendations> {
   const prepared = await preparePersonalizedEmsRecommendations(

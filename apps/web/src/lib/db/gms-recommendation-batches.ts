@@ -1,5 +1,6 @@
 import type { RecommendationServingDecision } from "@/lib/recommendations/serving";
 import type { Track } from "@/lib/music/types";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 
 import {
   preparePersonalizedEmsRecommendations,
@@ -11,7 +12,6 @@ import {
 import type { TransactionExecutor } from "./music-library";
 import { getDatabasePool } from "./pool";
 
-const DEFAULT_BATCH_SIZE = 24;
 const MAX_BATCH_SIZE = 24;
 const DEFAULT_HISTORY_PAGE_SIZE = 10;
 const MAX_HISTORY_PAGE_SIZE = 24;
