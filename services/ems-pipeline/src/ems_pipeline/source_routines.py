@@ -20,7 +20,11 @@ from .musicbrainz import DownloadError, MusicBrainzSnapshotClient, safe_extract_
 from .select import Candidate, CanonicalRow, _is_eligible, write_candidate_artifacts
 
 
-CORE_MEMBERS = frozenset({"mbdump/recording", "mbdump/isrc", "mbdump/artist_credit"})
+CORE_MEMBERS = frozenset({
+    "mbdump/recording", "mbdump/isrc", "mbdump/artist_credit",
+    "mbdump/track", "mbdump/medium", "mbdump/release", "mbdump/language",
+    "mbdump/artist_credit_name", "mbdump/artist",
+})
 VERSION_PATTERN = re.compile(r"^\d{8}-\d{6}$")
 CANONICAL_INDEX_PATTERN = re.compile(r"musicbrainz-canonical-dump-(\d{8}-\d{6})/")
 
