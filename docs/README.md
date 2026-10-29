@@ -16,6 +16,9 @@
 
 ### 개인화 추천·GMS
 
+- [GMS 추천 언어·장르 반영 변경(baseline-v2, 미배포)](changes/2026-10-29-language-genre-ranking.md)
+- [GMS 추천 언어·장르 반영 설계](superpowers/specs/2026-10-29-language-genre-ranking-design.md)
+- [GMS 추천 언어·장르 반영 계획](superpowers/plans/2026-10-29-language-genre-ranking.md)
 - [GMS 트랙 정보 압축 회귀 수정](changes/2026-10-04-gms-track-layout.md)
 - [GMS 트랙 정보 반응형 수정 계획](plans/2026-10-04-gms-track-layout.md)
 - [GMS 추천 그룹 커밋·푸시·배포 결과](changes/2026-10-04-gms-grouped-deploy.md)

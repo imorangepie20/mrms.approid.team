@@ -16,6 +16,8 @@
 
 ## 현재 구현
 
+- 2026-10-29 GMS 추천에 사용자 MMS 기준 언어·장르 적합도를 반영하는 `baseline-v2`를 구현했다(MusicBrainz·Last.fm 속성 수집, migration 035, 24곡 배치, 탐색 2곡·배지). Web 648·ems-pipeline 177 테스트, lint(error 0)·tsc·build 통과. 운영 배포·migration·속성 수집·커버리지 측정·오프라인 평가·`GMS_RANKING_VERSION=baseline-v2` 전환은 하지 않았다(미배포). 자세한 내용은 [변경 기록](../changes/2026-10-29-language-genre-ranking.md).
+
 - 2026-10-09 메인·EMS 상단에 K-Pop 히트곡·클래식·카페 3개 섹션 각 12곡을 운영 반영했다. 기존 노출과 개인 테이블 18개·비대상 container 68개·SSD/Melon을 보존했다. Python 121·Web 관련 56·Admin 13·두 lint/build·격리 DB 적용 11개 assertion, 운영 4개 viewport/page 조건·End/Home 키·API exact 비교를 통과했다. 관리자 갱신은 8섹션·budget 36으로 확장했고 운영 읽기 전용 미리보기 26요청·8×12곡을 확인했다. [K-Pop 섹션 결과](../changes/2026-10-09-kpop-screen-sections.md) 참조.
 
 - 2026-10-09 사용자 요청으로 기존 Hindsight `music-pie` 뱅크의 등록을 확인하고 SSD 이전·멜론 수정 완료 결과를 별도 날짜 문서에 저장했다. retain operation 완료·원문/hash 일치·memory 10개·recall 10개와 기존 등록·다른 뱅크 4개 보존을 확인했다. [Hindsight 등록 결과](../changes/2026-10-09-ems-recovery-hindsight.md) 참조.

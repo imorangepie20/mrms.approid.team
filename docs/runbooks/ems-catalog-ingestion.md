@@ -121,6 +121,19 @@ docker run --rm --network container:music-pie-web-1 \
 
 운영 전에는 migration을 먼저 적용하고, Web과 EMS 워커를 새 이미지로 재생성한다. Web 요청은 TIDAL에 직접 연결하지 않으며, 비밀값은 기존 서버 secret에서만 읽는다.
 
+## 언어·장르 속성 (baseline-v2)
+
+`035_music_attributes.sql`을 Web 배포보다 먼저 적용한다. 후보 SQL이 `ems_track_attributes`를 LEFT JOIN한다.
+
+- `python -m ems_pipeline.cli collect-musicbrainz-attributes`: MusicBrainz 덤프에서 트랙의 언어·태그 사실을 수집한다.
+- `python -m ems_pipeline.cli fetch-lastfm-artist-tags [--limit N]`: Last.fm 아티스트 top tag를 수집한다. 처음에는 `--limit 500` 샘플로 시작한다.
+- `python -m ems_pipeline.cli resolve-music-attributes [--all]`: 근거를 합쳐 트랙별 `language`·`genre_buckets`를 확정한다. `--all`은 이미 확정한 곡도 다시 계산한다.
+- 루틴(`ems-source-routines`): `lastfm_artist_tags` 매시간, `music_attributes` 6시간마다. 관리자 `/admin/ems/routines`에서 확인한다. `music_attributes`·`musicbrainz_metadata` disk gate 예약량은 12 GiB다.
+- `LASTFM_API_KEY`는 서버 `shared/secrets/ems.env`에 둔다. compose가 ems-pipeline과 source-routines에 이미 로드하는 파일이며 저장소에는 넣지 않는다.
+- Last.fm 약관 메모: 비상업 용도로만 사용한다. 화면에 Last.fm 출처를 표기한다. 저장하는 Last.fm 데이터는 100MB 이하로 유지한다. 약관을 종료하면 Last.fm 데이터를 삭제한다.
+- 서빙 전환: 오프라인 평가 통과 뒤 `GMS_RANKING_VERSION=baseline-v2`. 되돌릴 때는 값을 지우거나 `baseline`으로 둔다.
+- 오프라인 평가(읽기 전용, SSH 터널 필요): `cd apps/web && ATTRIBUTE_RANKING_EVAL_DATABASE_URL=<연결 문자열> ATTRIBUTE_RANKING_EVAL_AUTH0_SUBJECT=<auth0 subject> npx vitest run src/lib/db/attribute-ranking.eval.test.ts`. 환경변수가 없으면 skipped다. 테스트는 `BEGIN READ ONLY`로 실행하고 ROLLBACK한다. 운영 터널은 사용자가 요청할 때만 연다.
+
 ## Pause·rollback
 
 - health gate 실패 또는 예산 초과: 신규 candidate lease를 만들지 않고 run을 `paused`로 기록한다.
