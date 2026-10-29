@@ -65,17 +65,26 @@
 - rollback: 이전 image를 `music-pie-rollback:{web,ems-pipeline,ems-source-routines}-pre-lang-genre-20261029`로 tag했다(web `gms-mms-progress-fdcaa16`, ems-pipeline `kpop-sections-6b19816`, source-routines `ssd-storage-20261009`). 035는 추가 테이블·CHECK 확장이라 rollback 시 자동 down하지 않는다
 - 서버 증거: `shared/artifacts/20261029-lang-genre-c7214f1/`(build/backup/migrate/deploy/verify scripts, build·migrate log, `rollback-images.txt`, `others-before/after.txt`, `verification.txt`)
 
+## 첫 운영 수집(2026-10-29)
+
+사용자 요청으로 첫 수집을 별도 container(루틴과 같은 `--memory 2g --cpus 1.0`)에서 관찰하며 실행했다. 같은 `selected` 디렉터리 추출 충돌을 피하려고 그동안 `musicbrainz_metadata` 루틴을 끄고, 끝난 뒤 다시 켰다.
+
+- 스냅샷 `20261028-002228`. 소요 시간: core 추출 1,220초, MB 수집 470초, 전체 resolve 78초. 2분 간격 측정의 최대 메모리 1.107GiB, OOM 없음, exit 0. `selected` 5.1G → 15G
+- MB 수집: scanned 170,133, matched_recordings 152,958, with_language 135,656, with_tags 60,931, artists 32,617
+- 활성 EMS 언어 출처: `musicbrainz_release` 79.9%, `musicbrainz_artist` 12.3%, `script` 1.6%, `none` 6.2%. 장르 출처: `musicbrainz_recording` 33.3%, `artist` 23.8%, `melon` 3.6%, `none` 39.3%. 언어 상위 eng 117,320·fra 9,352·deu 7,012·jpn 4,550·spa 3,614·kor 2,856·por 2,505
+- 선택 플레이리스트 MMS 언어 판별률(zxx 제외): `8534d93b` 0.685(318/464), `fb45ff56` 0.584, `6498b7b2` 0.592. 모두 `languageMinCoverage` 0.3 이상이다. `8534d93b`는 eng 260·kor 34(script 31)·unknown 146, 장르 판별 267곡(jazz 115·pop 46.6·rock 19.1)
+- Last.fm 샘플 500명: ok 415·not_found 85·failed 0, 502초, 회로 차단 없음. 500명 기준 `lastfm_tags` 183kB(전체 약 32,600명이면 약 12MB로 추정, 100MB 상한 이내). 이후 stale resolve 752행
+- 새 루틴 2개는 아직 `enabled=false`다. 루틴 enable SQL은 자동 권한 판단에서 막혀 사용자가 관리자 `정기 수집`에서 켜기로 했다
+
 ## 미검증
 
-- 운영 수집(`collect-musicbrainz-attributes`·`fetch-lastfm-artist-tags`·`resolve-music-attributes`) 실행. 새 루틴은 꺼져 있다
-- 속성 커버리지 수치(활성 EMS와 사용자 MMS의 `language <> 'unknown'`, `genre_buckets <> '{}'` 비율)와 MMS 언어 판별 표본이 `minimumSample` 20을 넘는지
+- 새 루틴(`lastfm_artist_tags`·`music_attributes`)의 정기 실행. 아직 꺼져 있다
 - 실제 사용자 데이터로 오프라인 평가 실행(`attribute-ranking.eval.test.ts`가 PASS하는지, `ATTRIBUTE_RANKING` 상수 조정 필요 여부)
 - `*.postgres.test.ts`의 격리 DB SQL 실행(환경변수 없이 skipped)
 - 375px 폭 시각 확인, 탐색 배지의 스크린 리더 낭독
 - 관리자 `정기 수집` 화면의 실제 브라우저 확인(새 카드는 서버 렌더 단위 테스트로만 확인)
 - 실제 Last.fm API에 대한 회로 차단·`Retry-After` 동작(가짜 transport와 가짜 시계로만 확인)
 - 런북의 Last.fm 데이터 삭제 SQL·`resolve-music-attributes --all` 실제 실행
-- 실제 사용자 데이터의 `languageCoverage`가 0.3을 넘는지. 스펙 1절의 MMS 문자 분포(라틴 425·한글 36)에서 언어 판별이 script fallback뿐이면 coverage가 낮아 언어 차원이 꺼질 수 있다
 
 ## 배포 순서 메모
 
@@ -88,7 +97,7 @@
 
 사용자가 요청하면 다음을 순서대로 진행한다.
 
-1. (migration 035 적용·이미지 배포는 2026-10-29 완료) 속성 수집을 수동으로 관찰하며 실행(`collect-musicbrainz-attributes`, `fetch-lastfm-artist-tags --limit 500` 샘플, `resolve-music-attributes`), 메모리·디스크·시간과 커버리지 기록, 이상 없으면 두 루틴 enable
+1. (배포·첫 수집·Last.fm 샘플은 2026-10-29 완료) 관리자 `정기 수집`에서 `lastfm_artist_tags`·`music_attributes` enable
 2. 탐색 자리 중복 제거가 일치하는 차원까지 비교해 탐색 곡이 1곡만 채워지는 문제 수정(최종 재검토 잔여)
 3. SSH 터널로 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
 4. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
