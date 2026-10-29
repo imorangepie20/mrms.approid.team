@@ -34,9 +34,9 @@ export type AttributeFit = {
   multiplier: number;
   mismatchKey: string | null;
   reasonCodes: string[];
-  /** 탐색 슬롯 중복 판정용 후보 언어(unknown·zxx는 null). */
+  /** 탐색 슬롯 중복 판정용: 사용자에게 낯선 후보 언어. 언어가 맞거나 판정하지 않으면 null. */
   language?: string | null;
-  /** 탐색 슬롯 중복 판정용 후보의 가장 큰 장르 버킷. */
+  /** 탐색 슬롯 중복 판정용: 후보의 가장 큰 장르 버킷이 사용자에게 낯설 때만 그 버킷. */
   dominantGenre?: string | null;
 };
 
@@ -116,6 +116,7 @@ export function scoreAttributeFit(
   let genreFit: number | null = null;
   let languageKey: string | null = null;
   let genreKey: string | null = null;
+  let unfamiliarDominantGenre: string | null = null;
 
   if (
     candidate
@@ -140,6 +141,10 @@ export function scoreAttributeFit(
       }
       genreFit = rounded(weighted / total);
       if (genreFit < 1 && worst) genreKey = `genre:${worst.bucket}`;
+      const dominant = dominantBucket(candidate.genreBuckets);
+      if (dominant && (distribution.genres[dominant] ?? 0) < ATTRIBUTE_RANKING.genreFullShare) {
+        unfamiliarDominantGenre = dominant;
+      }
     }
   }
 
@@ -148,9 +153,9 @@ export function scoreAttributeFit(
   if (genreFit !== null && genreFit < 1) reasonCodes.push("genre_mismatch");
 
   return {
-    dominantGenre: candidate ? dominantBucket(candidate.genreBuckets) : null,
+    dominantGenre: unfamiliarDominantGenre,
     genreFit,
-    language: candidate && !NEUTRAL_LANGUAGES.has(candidate.language) ? candidate.language : null,
+    language: languageKey && candidate ? candidate.language : null,
     languageFit,
     mismatchKey: languageKey ?? genreKey,
     multiplier: rounded(
@@ -183,8 +188,8 @@ export function placeExplorationSlots<T extends { id: string; fit: AttributeFit;
   const seenKeys = new Set<string>();
   for (const candidate of pool) {
     if (explorers.length >= ATTRIBUTE_RANKING.explorationSlots) break;
-    // 같은 언어·장르가 두 슬롯을 다 차지하지 않게 한다(spec 4.3): mismatchKey 종류가 달라도
-    // 후보의 언어와 대표 장르가 겹치면 건너뛴다.
+    // 같은 낯선 언어·장르가 두 슬롯을 다 차지하지 않게 한다(spec 4.3): mismatchKey 종류가 달라도
+    // 후보의 낯선 언어나 낯선 대표 장르가 겹치면 건너뛴다. 사용자에게 익숙한 차원은 비교하지 않는다.
     const keys = explorationKeys(candidate.fit);
     if (keys.some((key) => seenKeys.has(key))) continue;
     keys.forEach((key) => seenKeys.add(key));

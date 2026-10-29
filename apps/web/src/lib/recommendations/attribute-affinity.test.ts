@@ -180,6 +180,24 @@ describe("placeExplorationSlots", () => {
     expect(out.filter((c) => c.exploration).map((c) => c.id)).toEqual(["t026"]);
   });
 
+  it("keeps two genre explorers that share the user's own language", () => {
+    const dist = buildAttributeDistribution([...items("eng", 30, "jazz")]);
+    const ranked = candidates(30);
+    ranked[26] = { ...ranked[26], fit: scoreAttributeFit(dist, { genreBuckets: { trot: 1 }, language: "eng" }) };
+    ranked[27] = { ...ranked[27], fit: scoreAttributeFit(dist, { genreBuckets: { metal: 1 }, language: "eng" }) };
+    const out = placeExplorationSlots(ranked, 24);
+    expect(out.filter((c) => c.exploration).map((c) => c.id)).toEqual(["t026", "t027"]);
+  });
+
+  it("keeps two language explorers that share a familiar genre", () => {
+    const dist = buildAttributeDistribution([...items("eng", 30, "pop")]);
+    const ranked = candidates(30);
+    ranked[26] = { ...ranked[26], fit: scoreAttributeFit(dist, { genreBuckets: { pop: 1 }, language: "por" }) };
+    ranked[27] = { ...ranked[27], fit: scoreAttributeFit(dist, { genreBuckets: { pop: 1 }, language: "jpn" }) };
+    const out = placeExplorationSlots(ranked, 24);
+    expect(out.filter((c) => c.exploration).map((c) => c.id)).toEqual(["t026", "t027"]);
+  });
+
   it("returns min(limit, ranked length) when candidates are scarce", () => {
     expect(placeExplorationSlots(candidates(10), 24)).toHaveLength(10);
   });

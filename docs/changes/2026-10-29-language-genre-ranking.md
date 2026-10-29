@@ -93,11 +93,19 @@
 3. ems-pipeline·source-routines 이미지를 갱신하고 속성 수집을 돌려 커버리지를 측정한다. disk gate는 `music_attributes`·`musicbrainz_metadata`가 12 GiB를 예약한다.
 4. 오프라인 평가가 통과한 뒤에만 `GMS_RANKING_VERSION=baseline-v2`로 서빙을 전환한다. 문제가 생기면 값을 되돌려 `baseline`으로 복귀한다.
 
+## 탐색 자리 중복 판정 수정(2026-10-29)
+
+최종 재검토 잔여 지적: `explorationKeys`가 사용자에게 익숙한 언어·장르까지 중복 판정 키로 써서, 예를 들어 영어 트로트와 영어 메탈 두 탐색 후보가 `lang:eng`로 겹쳐 탐색 곡이 1곡만 채워졌다.
+
+- `apps/web/src/lib/recommendations/attribute-affinity.ts`: `AttributeFit.language`는 언어가 맞지 않을 때만, `dominantGenre`는 후보의 대표 장르 점유율이 `genreFullShare` 미만일 때만 채운다. 같은 낯선 언어·장르가 두 자리를 차지하지 않는 규칙(spec 4.3)은 유지한다
+- 테스트 2개 추가(같은 사용자 언어의 두 장르 탐색, 같은 익숙한 장르의 두 언어 탐색): 변경 전 2개 실패, 변경 후 `attribute-affinity.test.ts` 21개 통과. 기존 한국어 트로트·영어 트로트 중복 테스트도 통과
+- 전체 `npm test` 669 통과·11 skipped, `npx tsc --noEmit` 통과, `npm run lint` error 0(기존 warning 8), `npm run build` 통과
+
 ## 다음 작업
 
 사용자가 요청하면 다음을 순서대로 진행한다.
 
 1. (배포·첫 수집·Last.fm 샘플은 2026-10-29 완료) 관리자 `정기 수집`에서 `lastfm_artist_tags`·`music_attributes` enable
-2. 탐색 자리 중복 제거가 일치하는 차원까지 비교해 탐색 곡이 1곡만 채워지는 문제 수정(최종 재검토 잔여)
+2. (완료, 아래 `탐색 자리 중복 판정 수정` 참조) 탐색 자리 중복 제거 수정. 운영 Web 반영은 서빙 전환과 함께 한다
 3. SSH 터널로 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
 4. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
