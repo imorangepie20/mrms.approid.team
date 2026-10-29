@@ -13,6 +13,7 @@ export type UserAttributeDistributionInput = DistributionInput & {
 type DistributionRow = {
   genre_buckets: unknown;
   language: unknown;
+  language_source?: unknown;
   taxonomy_version: unknown;
   weight: unknown;
 };
@@ -45,7 +46,8 @@ export async function loadUserAttributeDistributionInputs(
 ): Promise<UserAttributeDistributionInput[]> {
   const result = await (executor ?? getDatabasePool()).query<DistributionRow>(
     `/* user_attribute_distribution */
-     SELECT attribute.language, attribute.genre_buckets, attribute.taxonomy_version,
+     SELECT attribute.language, attribute.language_source, attribute.genre_buckets,
+       attribute.taxonomy_version,
        1::float8 AS weight
      FROM music_track_attributes AS attribute
      WHERE attribute.track_id IN (
@@ -59,7 +61,8 @@ export async function loadUserAttributeDistributionInputs(
        WHERE owned.user_id = $1
      )
      UNION ALL
-     SELECT attribute.language, attribute.genre_buckets, attribute.taxonomy_version,
+     SELECT attribute.language, attribute.language_source, attribute.genre_buckets,
+       attribute.taxonomy_version,
        decided.weight
      FROM (
        SELECT decision.source_track_id,
@@ -89,6 +92,7 @@ export async function loadUserAttributeDistributionInputs(
     return [{
       genreBuckets: genreBuckets(row.genre_buckets),
       language: row.language,
+      languageSource: typeof row.language_source === "string" ? row.language_source : null,
       taxonomyVersion: typeof row.taxonomy_version === "string" ? row.taxonomy_version : null,
       weight,
     }];

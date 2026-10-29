@@ -95,14 +95,16 @@ function executorWithRows(rows = candidateRows) {
 type AttributeRow = {
   genre_buckets: Record<string, number> | null;
   language: string | null;
+  language_source?: string | null;
   taxonomy_version: string | null;
   weight: number;
 };
 
-function englishDistribution(count = 30): AttributeRow[] {
+function englishDistribution(count = 30, language = "eng"): AttributeRow[] {
   return Array.from({ length: count }, () => ({
     genre_buckets: {},
-    language: "eng",
+    language,
+    language_source: "musicbrainz_release",
     taxonomy_version: "genre-v1",
     weight: 1,
   }));
@@ -456,11 +458,24 @@ describe("GMS personalized recommendation repository", () => {
     expect(v2?.attributeProfile).toEqual({
       genreSample: 0,
       genres: {},
+      languageCoverage: 1,
       languageSample: 30,
+      languageSources: { musicbrainz_release: 30 },
       languages: { eng: 1 },
       taxonomyVersion: "genre-v1",
     });
     expect(prepared.recommendations).not.toHaveProperty("attributeProfile");
+  });
+
+  it("skips baseline-v2 when language coverage is below the gate and genres are too sparse", async () => {
+    const harness = attributeExecutor(
+      [attributeCandidate("a", 0.9, "por", 1), attributeCandidate("b", 0.8, "eng", 2)],
+      [...englishDistribution(20), ...englishDistribution(80, "unknown")],
+    );
+
+    const prepared = await preparePersonalizedEmsRecommendations("auth0|listener", 2, harness.executor);
+
+    expect(prepared.attributeRecommendations ?? null).toBeNull();
   });
 
   it("marks exploration tracks", async () => {
@@ -525,7 +540,7 @@ describe("GMS personalized recommendation repository", () => {
 
   it("loads MMS and decided-track attribute inputs once per track", async () => {
     const query = vi.fn(async () => ({ rows: [
-      { genre_buckets: { pop: 1 }, language: "eng", taxonomy_version: "genre-v1", weight: 1 },
+      { genre_buckets: { pop: 1 }, language: "eng", language_source: "script", taxonomy_version: "genre-v1", weight: 1 },
       { genre_buckets: "{\"rock\":0.5}", language: "kor", taxonomy_version: "genre-v1", weight: -0.5 },
       { genre_buckets: {}, language: null, taxonomy_version: null, weight: 1 },
     ] }));
@@ -535,14 +550,15 @@ describe("GMS personalized recommendation repository", () => {
     });
 
     expect(inputs).toEqual([
-      { genreBuckets: { pop: 1 }, language: "eng", taxonomyVersion: "genre-v1", weight: 1 },
-      { genreBuckets: { rock: 0.5 }, language: "kor", taxonomyVersion: "genre-v1", weight: -0.5 },
+      { genreBuckets: { pop: 1 }, language: "eng", languageSource: "script", taxonomyVersion: "genre-v1", weight: 1 },
+      { genreBuckets: { rock: 0.5 }, language: "kor", languageSource: null, taxonomyVersion: "genre-v1", weight: -0.5 },
     ]);
     const [sql, params] = query.mock.calls[0] as unknown as [string, unknown[]];
     expect(sql).toMatch(/\/\* user_attribute_distribution \*\//);
     expect(sql).toMatch(/playlist\.selected = true/);
     expect(sql).toMatch(/decision\.decision IN \('accept', 'reject'\)/);
     expect(sql).toMatch(/GROUP BY decision\.source_track_id/);
+    expect(sql.match(/attribute\.language_source/g)).toHaveLength(2);
     expect(params).toEqual(["user-a", -0.5]);
   });
 

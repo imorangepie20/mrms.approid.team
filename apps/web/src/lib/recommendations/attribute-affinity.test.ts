@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ATTRIBUTE_RANKING,
   buildAttributeDistribution,
   placeExplorationSlots,
   scoreAttributeFit,
@@ -13,10 +14,31 @@ function items(language: string, count: number, genre = "pop", weight = 1): Dist
 }
 
 describe("buildAttributeDistribution", () => {
-  it("excludes zxx and unknown from language shares and sample", () => {
+  it("excludes zxx but keeps unknown in the language denominator", () => {
     const d = buildAttributeDistribution([...items("eng", 30), ...items("zxx", 50), ...items("unknown", 5)]);
     expect(d.languageSample).toBe(30);
-    expect(d.languages).toEqual({ eng: 1 });
+    expect(d.languages).toEqual({ eng: Number((30 / 35).toFixed(6)), unknown: Number((5 / 35).toFixed(6)) });
+    expect(d.languageCoverage).toBe(Number((30 / 35).toFixed(6)));
+  });
+
+  it("dilutes known languages by unknown items (R10 a)", () => {
+    const d = buildAttributeDistribution([...items("unknown", 425), ...items("kor", 36), ...items("eng", 30)]);
+    expect(d.languageSample).toBe(66);
+    expect(d.languages.kor).toBeCloseTo(0.0733, 3);
+    expect(d.languages.kor).toBeLessThan(ATTRIBUTE_RANKING.languageFullShare);
+    expect(d.languageCoverage).toBeCloseTo(66 / 491, 5);
+  });
+
+  it("counts the language source mix over positive non-zxx items", () => {
+    const d = buildAttributeDistribution([
+      ...items("kor", 3).map((item) => ({ ...item, languageSource: "musicbrainz_release" })),
+      ...items("kor", 2).map((item) => ({ ...item, languageSource: "script" })),
+      ...items("unknown", 1).map((item) => ({ ...item, languageSource: "none" })),
+      ...items("zxx", 4).map((item) => ({ ...item, languageSource: "musicbrainz_release" })),
+      ...items("kor", 2, "pop", -0.5).map((item) => ({ ...item, languageSource: "lastfm_tag" })),
+      ...items("eng", 1),
+    ]);
+    expect(d.languageSources).toEqual({ musicbrainz_release: 3, none: 2, script: 2 });
   });
 
   it("reject lowers but never removes a language", () => {
@@ -62,6 +84,40 @@ describe("scoreAttributeFit", () => {
     expect(fit.multiplier).toBe(1);
   });
 
+  it("penalizes a language diluted by unknown items when coverage is high enough", () => {
+    const d = buildAttributeDistribution([...items("unknown", 100), ...items("kor", 10), ...items("eng", 90)]);
+    expect(d.languageCoverage).toBe(0.5);
+    const fit = scoreAttributeFit(d, { genreBuckets: { pop: 1 }, language: "kor" });
+    expect(fit.languageFit).toBeCloseTo(0.05 / 0.15, 5);
+    expect(fit.multiplier).toBeLessThan(1);
+    expect(fit.reasonCodes).toContain("language_mismatch");
+  });
+
+  it("disables the language dimension in the R10 a scenario because coverage is 66/491", () => {
+    const d = buildAttributeDistribution([...items("unknown", 425), ...items("kor", 36), ...items("eng", 30)]);
+    const fit = scoreAttributeFit(d, { genreBuckets: { pop: 1 }, language: "kor" });
+    expect(fit.languageFit).toBeNull();
+  });
+
+  it("does not penalize Korean for a Korean-heavy user (R10 b, spec criterion 2)", () => {
+    const d = buildAttributeDistribution([...items("kor", 40), ...items("eng", 5)]);
+    const fit = scoreAttributeFit(d, { genreBuckets: { pop: 1 }, language: "kor" });
+    expect(fit.languageFit).toBe(1);
+    expect(fit.multiplier).toBe(1);
+    const withUnknown = buildAttributeDistribution([...items("kor", 40), ...items("eng", 5), ...items("unknown", 20)]);
+    expect(scoreAttributeFit(withUnknown, { genreBuckets: { pop: 1 }, language: "kor" }).multiplier).toBe(1);
+  });
+
+  it("disables the language dimension when coverage is below the minimum (R10 c)", () => {
+    const d = buildAttributeDistribution([...items("kor", 20), ...items("unknown", 80)]);
+    expect(d.languageSample).toBe(20);
+    expect(d.languageCoverage).toBe(0.2);
+    const fit = scoreAttributeFit(d, { genreBuckets: { pop: 1 }, language: "por" });
+    expect(fit.languageFit).toBeNull();
+    expect(fit.reasonCodes).not.toContain("language_mismatch");
+    expect(fit.multiplier).toBe(1);
+  });
+
   it("penalizes a rare genre with genre floor and key", () => {
     const fit = scoreAttributeFit(dist, { genreBuckets: { trot: 1 }, language: "eng" });
     expect(fit.multiplier).toBe(0.7);
@@ -71,7 +127,7 @@ describe("scoreAttributeFit", () => {
 
   it("returns neutral fit for a null candidate", () => {
     expect(scoreAttributeFit(dist, null)).toEqual({
-      genreFit: null, languageFit: null, mismatchKey: null, multiplier: 1, reasonCodes: [],
+      dominantGenre: null, genreFit: null, language: null, languageFit: null, mismatchKey: null, multiplier: 1, reasonCodes: [],
     });
   });
 });
@@ -111,6 +167,17 @@ describe("placeExplorationSlots", () => {
     const out = placeExplorationSlots(candidates(10, { 8: "lang:por", 9: "genre:trot" }), 5);
     expect(out.map((c) => c.id)).toEqual(["t000", "t001", "t002", "t003", "t004"]);
     expect(out.some((c) => c.exploration)).toBe(false);
+  });
+
+  it("does not let the same language or genre hold both slots through different key kinds", () => {
+    const dist = buildAttributeDistribution([...items("eng", 30, "rock")]);
+    const ranked = candidates(30);
+    ranked[26] = { ...ranked[26], fit: scoreAttributeFit(dist, { genreBuckets: { trot: 1 }, language: "kor" }) };
+    ranked[27] = { ...ranked[27], fit: scoreAttributeFit(dist, { genreBuckets: { trot: 0.7, rock: 0.3 }, language: "eng" }) };
+    expect(ranked[26].fit.mismatchKey).toBe("lang:kor");
+    expect(ranked[27].fit.mismatchKey).toBe("genre:trot");
+    const out = placeExplorationSlots(ranked, 24);
+    expect(out.filter((c) => c.exploration).map((c) => c.id)).toEqual(["t026"]);
   });
 
   it("returns min(limit, ranked length) when candidates are scarce", () => {

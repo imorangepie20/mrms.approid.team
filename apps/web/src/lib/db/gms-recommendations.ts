@@ -2,6 +2,7 @@ import type { Track } from "@/lib/music/types";
 import {
   ATTRIBUTE_RANKING,
   buildAttributeDistribution,
+  languageDimensionActive,
   placeExplorationSlots,
   scoreAttributeFit,
   type AttributeDistribution,
@@ -484,7 +485,7 @@ function buildAttributeRecommendations(
 ): PersonalizedRecommendations | null {
   const distribution = buildAttributeDistribution(inputs);
   if (
-    distribution.languageSample < ATTRIBUTE_RANKING.minimumSample
+    !languageDimensionActive(distribution)
     && distribution.genreSample < ATTRIBUTE_RANKING.minimumSample
   ) {
     return null;

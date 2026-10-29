@@ -20,6 +20,17 @@ type TrackAttributeRow = {
   track_id: string;
 };
 
+// 언어 판정과 독립적인 MMS 문자 체계 점검. 한 곡이 여러 문자 체계에 동시에 걸릴 수 있다.
+const SCRIPT_PATTERNS = {
+  hangul: "[\u1100-\u11ff\u3130-\u318f\uac00-\ud7af]",
+  kana: "[\u3040-\u30ff]",
+  han: "[\u4e00-\u9fff]",
+  cyrillic: "[\u0400-\u04ff]",
+  latin: "[A-Za-z\u00c0-\u024f]",
+} as const;
+
+type ScriptBreakdownRow = { total: number } & Record<keyof typeof SCRIPT_PATTERNS, number>;
+
 function isExploration(track: EmsRecommendationTrack): boolean {
   return track.recommendation.reasonCodes.includes("exploration");
 }
@@ -95,14 +106,22 @@ describe.runIf(Boolean(databaseUrl))("attribute ranking offline evaluation", () 
       dominantBucket(attributes.get(track.id)?.genre_buckets);
 
     const v2General = v2Tracks.filter((track) => !isExploration(track));
+    expect(v2General.length).toBeGreaterThan(0);
     const v2Exploration = v2Tracks.filter(isExploration);
     const baselineGeneral = baselineTracks.slice(0, v2General.length);
 
     const known = (tracks: EmsRecommendationTrack[]) =>
       tracks.map(languageOf).filter((language) => !NEUTRAL_LANGUAGES.has(language));
     const mmsLanguages = v2!.attributeProfile?.languages ?? {};
-    const baselineTvd = totalVariation(distribution(known(baselineGeneral)), mmsLanguages);
-    const v2Tvd = totalVariation(distribution(known(v2General)), mmsLanguages);
+    // 프로필 점유율에는 unknown이 분모로 들어가므로 비교용으로는 확인된 언어만 다시 정규화한다.
+    const mmsKnownTotal = Object.entries(mmsLanguages)
+      .filter(([language]) => !NEUTRAL_LANGUAGES.has(language))
+      .reduce((sum, [, share]) => sum + share, 0);
+    const mmsKnown = Object.fromEntries(Object.entries(mmsLanguages)
+      .filter(([language]) => !NEUTRAL_LANGUAGES.has(language))
+      .map(([language, share]) => [language, mmsKnownTotal > 0 ? share / mmsKnownTotal : 0]));
+    const baselineTvd = totalVariation(distribution(known(baselineGeneral)), mmsKnown);
+    const v2Tvd = totalVariation(distribution(known(v2General)), mmsKnown);
 
     console.table({
       baseline: distribution(baselineTracks.map(languageOf)),
@@ -121,6 +140,30 @@ describe.runIf(Boolean(databaseUrl))("attribute ranking offline evaluation", () 
       title: track.title,
     })));
     console.table({ baselineTvd, v2Tvd });
+    console.table({
+      languageCoverage: v2!.attributeProfile?.languageCoverage,
+      languageSample: v2!.attributeProfile?.languageSample,
+      ...v2!.attributeProfile?.languageSources,
+    });
+
+    const scriptKeys = Object.keys(SCRIPT_PATTERNS) as Array<keyof typeof SCRIPT_PATTERNS>;
+    const scriptResult = await client.query<ScriptBreakdownRow>(
+      `WITH selected AS (
+         SELECT DISTINCT owned.id, owned.title || ' ' || owned.artist_name AS text
+         FROM music_tracks AS owned
+         INNER JOIN app_users AS app_user ON app_user.id = owned.user_id AND app_user.auth0_subject = $1
+         INNER JOIN user_playlist_tracks AS playlist_track ON playlist_track.track_id = owned.id
+         INNER JOIN user_playlists AS playlist
+           ON playlist.id = playlist_track.playlist_id
+          AND playlist.user_id = owned.user_id
+          AND playlist.selected = true
+       )
+       SELECT count(*)::int AS total,
+         ${scriptKeys.map((key, index) => `count(*) FILTER (WHERE text ~ $${index + 2})::int AS ${key}`).join(",\n         ")}
+       FROM selected`,
+      [auth0Subject, ...scriptKeys.map((key) => SCRIPT_PATTERNS[key])],
+    );
+    console.table(scriptResult.rows);
 
     expect(v2General.some((track) => (attributes.get(track.id)?.genre_buckets?.trot ?? 0) > 0)).toBe(false);
     expect(v2Tvd).toBeLessThan(baselineTvd);
