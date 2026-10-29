@@ -1,14 +1,14 @@
 # 현재 개발 상태
 
-최종 갱신: 2026-10-09
+최종 갱신: 2026-10-29
 
-최신 기능 기준 커밋: `6b19816` (메인·EMS K-Pop 섹션 3개 추가)
+최신 기능 기준 커밋: `c7214f1` (GMS 언어·장르 반영 랭킹 `baseline-v2`, 배치 24곡, 탐색 자리)
 
-최신 Zorin Web 배포: `music-pie-web:kpop-sections-6b19816` (K-Pop 3개·메인 6개/EMS 8개 표시). 소스 release는 `20261009-kpop-sections-6b19816`이며 공통 current symlink는 기존 `20261004-gms-layout-9171051`을 유지하고 image override를 사용한다.
+최신 Zorin Web 배포: `music-pie-web:lang-genre-c7214f1` (2026-10-29, migration 035 적용). 소스 release는 `20261029-lang-genre-c7214f1`이며 공통 current symlink는 기존 `20261004-gms-layout-9171051`을 유지하고 `shared/compose.lang-genre.yml` image override를 사용한다. 서빙 랭킹은 아직 `baseline`이다.
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS pipeline 배포: `music-pie-ems-pipeline:kpop-sections-6b19816` (Melon 수정 image 기반 에디토리얼 두 모듈만 변경). `shared/compose.kpop-sections.yml`이 Web/pipeline image를 지정하며 SSD override와 함께 적용한다. source-routines는 SSD 저장소와 기존 image·실행 상태를 유지하며, 현재 노출 회피 선곡과 Melon 5곡·8장르 순환도 유지한다.
+최신 Zorin EMS pipeline 배포: `music-pie-ems-pipeline:lang-genre-c7214f1` (2026-10-29). ems-pipeline과 ems-source-routines 둘 다 이 image이며 `shared/compose.lang-genre.yml`이 `compose.kpop-sections.yml`·SSD override 뒤에 붙는다. 새 루틴 `lastfm_artist_tags`·`music_attributes`는 첫 수집을 수동으로 관찰하기 위해 `enabled=false`로 두었다.
 
 ## 이번 목표
 

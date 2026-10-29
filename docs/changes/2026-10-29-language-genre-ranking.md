@@ -51,9 +51,23 @@
 - `cd apps/admin && npm run build`: 통과(chunk 크기 경고만 있음)
 - `cd services/ems-pipeline && python -m pytest -q`: 195 passed
 
+## 운영 배포(2026-10-29)
+
+사용자 `1 하고 커밋 푸시 배포해` 요청에 따라 `feat/language-genre-ranking`을 `main`에 병합(`c7214f1`)·push하고 Zorin에 배포했다. 서빙 랭킹 전환(`GMS_RANKING_VERSION`)은 하지 않았다.
+
+- source: `git archive c7214f1`, 7,157,760bytes, SHA-256 `1063020c836f071be90118420ef0724ce5a654c9cf795a87b79277b4145357da`
+- release `/home/approid/apps/music-pie/releases/20261029-lang-genre-c7214f1`, image `music-pie-web:lang-genre-c7214f1`·`music-pie-ems-pipeline:lang-genre-c7214f1`(revision·source-sha256 label 일치). ems-pipeline image에서 새 모듈 import 확인
+- DB 백업: `shared/backups/20261029-lang-genre-c7214f1-before-035.dump`, 772,176,537bytes, SHA-256 `eec047d04e7a6a1d4e38fb499fa3003800828cf06ddee28377f61a07b9e8319f`, `pg_restore --list` 통과, 권한 600. 적용 전 migration 34개
+- migration: compose `migrate`(새 Web image)로 `1 pending migrations applied`, 적용 후 35개. 새 테이블 `ems_track_attributes` 0행
+- 새 루틴 `lastfm_artist_tags`·`music_attributes`는 첫 수집의 메모리·디스크·시간을 수동으로 관찰하기 위해 `enabled=false`로 바꿨다. 관리자 `정기 수집`에서 켤 수 있다
+- override `shared/compose.lang-genre.yml`(web·migrate·ems-pipeline·ems-source-routines image)을 `compose.zorin.yml`·`compose.musicbrainz-ssd.yml`·`compose.kpop-sections.yml` 뒤에 붙여 `up -d --no-deps --no-build --force-recreate --pull never web ems-pipeline ems-source-routines`
+- 결과: web·ems-pipeline healthy, 세 container restart 0, source-routines running. 내부 `/`·`/ems`·`/gms` 200, `/admin` 307 → 로그인, 없는 경로 404, readiness 200. Web image에 관리자 bundle의 `lastfm_artist_tags`, `.next/static`의 `gms-attribution` 포함. source-routines container에 `LASTFM_API_KEY` 값 존재(값은 확인하지 않음). 최근 5분 Web 로그 error 0. 나머지 4개 container(postgres·embedding·audio-analysis·tunnel) ID 전후 동일. 공개 `https://mrms.approid.team`의 `/`·`/gms` 200, `/admin` 307, readiness 200
+- rollback: 이전 image를 `music-pie-rollback:{web,ems-pipeline,ems-source-routines}-pre-lang-genre-20261029`로 tag했다(web `gms-mms-progress-fdcaa16`, ems-pipeline `kpop-sections-6b19816`, source-routines `ssd-storage-20261009`). 035는 추가 테이블·CHECK 확장이라 rollback 시 자동 down하지 않는다
+- 서버 증거: `shared/artifacts/20261029-lang-genre-c7214f1/`(build/backup/migrate/deploy/verify scripts, build·migrate log, `rollback-images.txt`, `others-before/after.txt`, `verification.txt`)
+
 ## 미검증
 
-- 운영 migration 035 적용, 운영 수집(`collect-musicbrainz-attributes`·`fetch-lastfm-artist-tags`·`resolve-music-attributes`) 실행
+- 운영 수집(`collect-musicbrainz-attributes`·`fetch-lastfm-artist-tags`·`resolve-music-attributes`) 실행. 새 루틴은 꺼져 있다
 - 속성 커버리지 수치(활성 EMS와 사용자 MMS의 `language <> 'unknown'`, `genre_buckets <> '{}'` 비율)와 MMS 언어 판별 표본이 `minimumSample` 20을 넘는지
 - 실제 사용자 데이터로 오프라인 평가 실행(`attribute-ranking.eval.test.ts`가 PASS하는지, `ATTRIBUTE_RANKING` 상수 조정 필요 여부)
 - `*.postgres.test.ts`의 격리 DB SQL 실행(환경변수 없이 skipped)
@@ -74,6 +88,7 @@
 
 사용자가 요청하면 다음을 순서대로 진행한다.
 
-1. 운영에 migration 035 적용과 이미지 배포, 속성 수집(`fetch-lastfm-artist-tags --limit 500` 샘플부터), 커버리지 측정 및 기록
-2. SSH 터널로 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
-3. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
+1. (migration 035 적용·이미지 배포는 2026-10-29 완료) 속성 수집을 수동으로 관찰하며 실행(`collect-musicbrainz-attributes`, `fetch-lastfm-artist-tags --limit 500` 샘플, `resolve-music-attributes`), 메모리·디스크·시간과 커버리지 기록, 이상 없으면 두 루틴 enable
+2. 탐색 자리 중복 제거가 일치하는 차원까지 비교해 탐색 곡이 1곡만 채워지는 문제 수정(최종 재검토 잔여)
+3. SSH 터널로 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
+4. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
