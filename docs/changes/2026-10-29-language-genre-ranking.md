@@ -112,6 +112,16 @@
 - 탐색 2곡 모두 채워짐: Joanne Shaw Taylor(blues, eng), Victoria Monét(r&b-soul, eng). 둘 다 `genre_mismatch`
 - 독립 MMS 문자 분포: 464곡 중 hangul 36·han 4·latin 456·kana 0·cyrillic 0
 
+## 서빙 전환(2026-10-29)
+
+사용자 `전환 배포 진행` 승인으로 Web만 `a1aeedf`로 교체하고 `baseline-v2`로 전환했다.
+
+- source `git archive a1aeedf`, SHA-256 `bf28896b86ae7b0c72d36b0fc60fb39cc1da1e6f596d8a167f9fb565f5ab6c42`, release `releases/20261029-v2-switch-a1aeedf`, image `music-pie-web:v2-switch-a1aeedf`(revision label 일치)
+- `shared/compose.lang-genre.yml`의 web에 `environment: GMS_RANKING_VERSION: baseline-v2`를 추가했다(비밀값 파일 미변경). 이전 파일은 `shared/artifacts/20261029-lang-genre-c7214f1/compose.lang-genre.pre-v2.yml`
+- 결과: healthy·restart 0, container 안 `GMS_RANKING_VERSION=baseline-v2`, 내부 `/`·`/ems`·`/gms` 200·`/admin` 307·readiness 200, 최근 3분 Web 로그 error 0, Web 외 container ID 전후 동일. 공개 `/`·`/gms`·readiness 200
+- rollback: `music-pie-rollback:web-pre-v2-switch-20261029`(이전 `lang-genre-c7214f1`). 백업 compose 파일로 되돌리고 web만 다시 올린다
+- 이미 만들어진 현재 배치는 그대로 보이고, `다시 추천 받기` 등으로 새 배치가 생성될 때부터 `baseline-v2`가 적용된다. 운영 계정의 새 배치 생성은 개인 데이터를 바꾸므로 실행하지 않았다
+
 ## 다음 작업
 
 사용자가 요청하면 다음을 순서대로 진행한다.
@@ -119,4 +129,4 @@
 1. (배포·첫 수집·Last.fm 샘플은 2026-10-29 완료) 관리자 `정기 수집`에서 `lastfm_artist_tags`·`music_attributes` enable
 2. (완료, 아래 `탐색 자리 중복 판정 수정` 참조) 탐색 자리 중복 제거 수정. 운영 Web 반영은 서빙 전환과 함께 한다
 3. (완료, 위 `운영 오프라인 평가` 참조, PASS) 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
-4. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
+4. (전환 완료) 375px·스크린 리더 확인, 새 배치의 `ranking_version='baseline-v2'` 기록 확인

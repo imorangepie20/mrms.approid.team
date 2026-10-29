@@ -2,13 +2,13 @@
 
 최종 갱신: 2026-10-29
 
-최신 기능 기준 커밋: `c7214f1` (GMS 언어·장르 반영 랭킹 `baseline-v2`, 배치 24곡, 탐색 자리)
+최신 기능 기준 커밋: `a1aeedf` (탐색 자리 중복 판정 수정; 언어·장르 반영 `baseline-v2` 서빙 중)
 
-최신 Zorin Web 배포: `music-pie-web:lang-genre-c7214f1` (2026-10-29, migration 035 적용). 소스 release는 `20261029-lang-genre-c7214f1`이며 공통 current symlink는 기존 `20261004-gms-layout-9171051`을 유지하고 `shared/compose.lang-genre.yml` image override를 사용한다. 서빙 랭킹은 아직 `baseline`이다.
+최신 Zorin Web 배포: `music-pie-web:v2-switch-a1aeedf` (2026-10-29). 서빙 랭킹 `GMS_RANKING_VERSION=baseline-v2`(`shared/compose.lang-genre.yml`의 web environment). 소스 release `20261029-v2-switch-a1aeedf`, current symlink는 기존 `20261004-gms-layout-9171051` 유지.
 
 최신 Zorin audio-analysis 배포 기준 커밋: `db8c230` (긴 TIDAL preview 30초 bounded 분석)
 
-최신 Zorin EMS pipeline 배포: `music-pie-ems-pipeline:lang-genre-c7214f1` (2026-10-29). ems-pipeline과 ems-source-routines 둘 다 이 image이며 `shared/compose.lang-genre.yml`이 `compose.kpop-sections.yml`·SSD override 뒤에 붙는다. 새 루틴 `lastfm_artist_tags`·`music_attributes`는 첫 수집을 수동으로 관찰하기 위해 `enabled=false`로 두었다.
+최신 Zorin EMS pipeline 배포: `music-pie-ems-pipeline:lang-genre-c7214f1` (2026-10-29). ems-pipeline과 ems-source-routines 둘 다 이 image이며 `shared/compose.lang-genre.yml`이 `compose.kpop-sections.yml`·SSD override 뒤에 붙는다. 첫 MB 수집·Last.fm 샘플 500명은 완료했고, 새 루틴 `lastfm_artist_tags`·`music_attributes`는 사용자가 관리자 `정기 수집`에서 켤 예정이다(2026-10-29 기준 `enabled=false`).
 
 ## 이번 목표
 
