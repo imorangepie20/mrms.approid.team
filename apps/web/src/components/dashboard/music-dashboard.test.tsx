@@ -412,3 +412,21 @@ it("shows the GMS reject action as an accessible icon button", () => {
   expect(rejectButton).toHaveTextContent("");
   expect(rejectButton.querySelector("svg")).toBeInTheDocument();
 });
+
+it("renders Last.fm attribution link", () => {
+  renderDashboard(
+    <MusicDashboard
+      access={{ connectionStatus: "connected", isAuthenticated: true }}
+      recommendationBatchId="f17870e2-b297-4451-adf5-9856f257b720"
+      recommendationReady
+      space="gms"
+      tracks={[catalog[0]]}
+    />,
+  );
+
+  expect(screen.getByText(/장르 정보 일부 제공/)).toBeInTheDocument();
+  const link = screen.getByRole("link", { name: "Last.fm" });
+  expect(link).toHaveAttribute("href", "https://www.last.fm");
+  expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  expect(link).toHaveAttribute("target", "_blank");
+});

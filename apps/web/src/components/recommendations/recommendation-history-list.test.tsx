@@ -353,3 +353,16 @@ it("allows removing an empty group", async () => {
   await user.click(screen.getByRole("button",{name:"삭제"}));
   await waitFor(()=>expect(screen.queryByRole("article")).not.toBeInTheDocument());
 });
+
+it("shows exploration badge only for exploration tracks", () => {
+  const explored = [{
+    ...tracks[0],
+    track: { ...tracks[0].track, recommendation: { ...tracks[0].track.recommendation, reasonCodes: ["taste_match", "exploration"] } },
+  }, tracks[1]];
+  render(<LikesProvider initialLikes={[]} isAuthenticated><RecommendationHistoryList batches={[{ ...batches[0], tracks: explored }]} /></LikesProvider>);
+
+  const badges = screen.getAllByText("새로운 시도");
+  expect(badges).toHaveLength(1);
+  expect(badges[0]).toHaveAttribute("title", "평소 취향과 다른 언어·장르에서 골랐어요");
+  expect(screen.getAllByText("평소 취향과 다른 언어·장르에서 골랐어요")).toHaveLength(1);
+});
