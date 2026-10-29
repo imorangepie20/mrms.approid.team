@@ -69,6 +69,20 @@ ALTER TABLE user_recommendation_shadow_runs DROP CONSTRAINT user_recommendation_
 ALTER TABLE user_recommendation_shadow_runs ADD CONSTRAINT user_recommendation_shadow_runs_served_ranking_version_check
   CHECK (served_ranking_version IN ('baseline', 'hybrid-v0', 'baseline-v2'));
 
+ALTER TABLE user_recommendation_shadow_runs
+  DROP CONSTRAINT IF EXISTS user_recommendation_shadow_runs_serving_fallback_reason_check;
+ALTER TABLE user_recommendation_shadow_runs
+  ADD CONSTRAINT user_recommendation_shadow_runs_serving_fallback_reason_check
+  CHECK (serving_fallback_reason IN (
+    'ranking_disabled',
+    'subject_not_allowlisted',
+    'coverage_threshold_unconfigured',
+    'audio_profile_unavailable',
+    'audio_coverage_below_threshold',
+    'component_coverage_incomplete',
+    'attribute_profile_unavailable'
+  ));
+
 ALTER TABLE ems_source_routines DROP CONSTRAINT ems_source_routines_source_key_check;
 ALTER TABLE ems_source_routines ADD CONSTRAINT ems_source_routines_source_key_check
   CHECK (source_key IN ('tidal_editorial', 'musicbrainz_core', 'musicbrainz_canonical',

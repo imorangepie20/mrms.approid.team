@@ -20,7 +20,7 @@ function parseDecision(value: unknown): RecommendationDecision | null {
     && body.sourceTrackId.trim().length > 0
     && typeof body.profileVersion === "string"
     && body.profileVersion.trim().length > 0
-    && (rankingVersion === "baseline" || rankingVersion === "hybrid-v0")
+    && (rankingVersion === "baseline" || rankingVersion === "baseline-v2" || rankingVersion === "hybrid-v0")
     && typeof body.decision === "string"
     && decisions.has(body.decision as RecommendationDecision["decision"])
     && Array.isArray(body.reasonCodes)

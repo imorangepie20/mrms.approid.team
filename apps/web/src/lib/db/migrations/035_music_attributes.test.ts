@@ -25,6 +25,15 @@ describe("music attributes migration", () => {
     expect(sql).not.toMatch(/user_recommendation_shadow_runs_ranking_version_check/);
   });
 
+  it("allows attribute_profile_unavailable as a serving fallback reason", async () => {
+    const up = await readFile(migrationPath, "utf8");
+    const down = await readFile(rollbackPath, "utf8");
+
+    expect(up).toMatch(/user_recommendation_shadow_runs_serving_fallback_reason_check[\s\S]*'attribute_profile_unavailable'/);
+    expect(down).toMatch(/user_recommendation_shadow_runs_serving_fallback_reason_check/);
+    expect(down).not.toMatch(/attribute_profile_unavailable/);
+  });
+
   it("registers both routines", async () => {
     const sql = await readFile(migrationPath, "utf8");
 

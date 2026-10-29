@@ -21,7 +21,7 @@ export type Track = {
   tags?: string[];
   tidalTrackId?: string;
   recommendation?: {
-    rankingVersion: "baseline" | "hybrid-v0";
+    rankingVersion: "baseline" | "baseline-v2" | "hybrid-v0";
     reasonCodes: string[];
     score: number;
     scoreComponents: {

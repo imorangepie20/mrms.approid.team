@@ -1,4 +1,4 @@
-export type RecommendationRankingVersion = "baseline" | "hybrid-v0";
+export type RecommendationRankingVersion = "baseline" | "baseline-v2" | "hybrid-v0";
 
 export type RecommendationServingFallbackReason =
   | "ranking_disabled"
@@ -6,7 +6,8 @@ export type RecommendationServingFallbackReason =
   | "coverage_threshold_unconfigured"
   | "audio_profile_unavailable"
   | "audio_coverage_below_threshold"
-  | "component_coverage_incomplete";
+  | "component_coverage_incomplete"
+  | "attribute_profile_unavailable";
 
 export type RecommendationServingConfig = {
   hybridAuth0Subjects: string[];
@@ -43,19 +44,23 @@ function parseCoverage(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : null;
 }
 
+function parseRankingVersion(value: string | undefined): RecommendationRankingVersion {
+  const version = value?.trim();
+  return version === "hybrid-v0" || version === "baseline-v2" ? version : "baseline";
+}
+
 export function parseRecommendationServingConfig(
   environment: ServingEnvironment = process.env,
 ): RecommendationServingConfig {
   return {
     hybridAuth0Subjects: parseSubjects(environment.GMS_HYBRID_AUTH0_SUBJECTS),
     minimumAudioCoverage: parseCoverage(environment.GMS_HYBRID_MIN_AUDIO_COVERAGE),
-    requestedRankingVersion: environment.GMS_RANKING_VERSION?.trim() === "hybrid-v0"
-      ? "hybrid-v0"
-      : "baseline",
+    requestedRankingVersion: parseRankingVersion(environment.GMS_RANKING_VERSION),
   };
 }
 
 export function decideRecommendationServing(input: {
+  attributeRankingAvailable: boolean;
   audioCoverageRatio: number;
   audioProfileAvailable: boolean;
   auth0Subject: string;
@@ -73,6 +78,15 @@ export function decideRecommendationServing(input: {
     servedRankingVersion: "baseline",
   });
 
+  if (config.requestedRankingVersion === "baseline-v2") {
+    if (!input.attributeRankingAvailable) return fallback("attribute_profile_unavailable");
+    return {
+      fallbackReason: null,
+      minimumAudioCoverage: config.minimumAudioCoverage,
+      requestedRankingVersion: config.requestedRankingVersion,
+      servedRankingVersion: "baseline-v2",
+    };
+  }
   if (config.requestedRankingVersion !== "hybrid-v0") {
     return fallback("ranking_disabled");
   }

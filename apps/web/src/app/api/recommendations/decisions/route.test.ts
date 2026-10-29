@@ -85,6 +85,22 @@ describe("POST /api/recommendations/decisions", () => {
     expect(mocks.refreshTasteProfile).not.toHaveBeenCalled();
   });
 
+  it("accepts baseline-v2 decisions", async () => {
+    const body = {
+      decision: "accept",
+      profileVersion: "ems-v1",
+      rankingVersion: "baseline-v2",
+      reasonCodes: [],
+      scoreComponents: { similarity: 0.7 },
+      sourceTrackId: "track-a",
+    };
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(204);
+    expect(mocks.save).toHaveBeenCalledWith("auth0|listener", body);
+  });
+
   it("rejects an unknown ranking version", async () => {
     const response = await POST(request({
       decision: "reject",

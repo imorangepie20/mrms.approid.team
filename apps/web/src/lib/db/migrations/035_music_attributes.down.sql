@@ -24,6 +24,19 @@ ALTER TABLE user_recommendation_batches DROP CONSTRAINT user_recommendation_batc
 ALTER TABLE user_recommendation_batches ADD CONSTRAINT user_recommendation_batches_ranking_version_check
   CHECK (ranking_version IN ('baseline', 'hybrid-v0'));
 
+ALTER TABLE user_recommendation_shadow_runs
+  DROP CONSTRAINT IF EXISTS user_recommendation_shadow_runs_serving_fallback_reason_check;
+ALTER TABLE user_recommendation_shadow_runs
+  ADD CONSTRAINT user_recommendation_shadow_runs_serving_fallback_reason_check
+  CHECK (serving_fallback_reason IN (
+    'ranking_disabled',
+    'subject_not_allowlisted',
+    'coverage_threshold_unconfigured',
+    'audio_profile_unavailable',
+    'audio_coverage_below_threshold',
+    'component_coverage_incomplete'
+  ));
+
 DROP TABLE IF EXISTS music_track_attributes;
 DROP TABLE IF EXISTS ems_track_attributes;
 DROP TABLE IF EXISTS music_artist_attributes;

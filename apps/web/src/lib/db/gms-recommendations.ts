@@ -702,6 +702,7 @@ export function selectPreparedPersonalizedRecommendations(
   environment: ServingEnvironment = process.env,
 ): SelectedPersonalizedRecommendations {
   const serving = decideRecommendationServing({
+    attributeRankingAvailable: false,
     audioCoverageRatio: prepared.shadow?.audioCoverageRatio ?? 0,
     audioProfileAvailable: Boolean(prepared.shadow?.audioProfileId),
     auth0Subject,

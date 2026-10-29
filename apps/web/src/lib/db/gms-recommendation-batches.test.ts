@@ -104,6 +104,28 @@ describe("persistent recommendation batches", () => {
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
 
+  it("accepts a stored baseline-v2 batch", async () => {
+    const stored = {
+      ...recommendations(),
+      rankingVersion: "baseline-v2" as const,
+    };
+    const database = executor((sql) => {
+      if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
+      if (sql.includes("FROM user_recommendation_batches")) return { rows: [{
+        created_at: "2026-09-29T00:00:00.000Z",
+        id: batchId,
+        recommendations: stored,
+        status: "current",
+      }] };
+      if (sql.includes("FROM user_recommendation_decisions")) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getOrCreatePersonalizedRecommendationBatch("auth0|listener", 12, database);
+
+    expect(result.recommendations.rankingVersion).toBe("baseline-v2");
+  });
+
   it("hides decided tracks from the current view while retaining its stored snapshot", async () => {
     const database = executor((sql) => {
       if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
