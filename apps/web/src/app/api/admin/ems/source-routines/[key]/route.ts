@@ -1,7 +1,7 @@
 import { adminErrorResponse } from "@/lib/api/admin-response";
 import { requireAdminAuth0Subject } from "@/lib/auth/admin";
 import { getDatabasePool } from "@/lib/db/pool";
-import { updateEmsSourceRoutine } from "@/lib/ems/source-routines";
+import { isEmsSourceRoutineKey, updateEmsSourceRoutine } from "@/lib/ems/source-routines";
 
 type Context = { params: Promise<{ key: string }> };
 
@@ -16,7 +16,7 @@ export async function PATCH(request: Request, context: Context) {
       return Response.json({ code: "invalid_ems_source_action" }, { status: 400 });
     }
     const { key } = await context.params;
-    if (!["tidal_editorial", "musicbrainz_core", "musicbrainz_canonical", "musicbrainz_metadata"].includes(key)) {
+    if (!isEmsSourceRoutineKey(key)) {
       return Response.json({ code: "invalid_ems_source_key" }, { status: 400 });
     }
     return Response.json(await updateEmsSourceRoutine(key, body.action, getDatabasePool()));

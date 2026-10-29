@@ -159,7 +159,8 @@ export type EmsAdminIngestion = {
 };
 
 export type EmsSourceRoutine = {
-  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical" | "musicbrainz_metadata" | "melon_genres";
+  key: "tidal_editorial" | "musicbrainz_core" | "musicbrainz_canonical" | "musicbrainz_metadata" | "melon_genres"
+    | "lastfm_artist_tags" | "music_attributes";
   enabled: boolean;
   intervalSeconds: number;
   status: string;

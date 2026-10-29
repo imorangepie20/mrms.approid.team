@@ -4,13 +4,21 @@ import { RefreshCw } from "lucide-react";
 import { changeEmsSourceRoutine, getEmsSourceRoutines, type EmsSourceRoutine } from "../lib/api";
 import { apiErrorMessage } from "../lib/ui";
 
-const labels: Record<EmsSourceRoutine["key"], { title: string; role: string; interval: string }> = {
+type RoutineLabel = { title: string; role: string; interval: string };
+
+const labels: Record<EmsSourceRoutine["key"], RoutineLabel> = {
   melon_genres: { title: "멜론 한국대중음악", role: "장르별 최신곡을 저장하고 TIDAL에서 확인", interval: "24시간마다 재탐색" },
   tidal_editorial: { title: "TIDAL 에디토리얼", role: "공개 플레이리스트의 재생 가능곡 탐색", interval: "매일 재탐색" },
   musicbrainz_core: { title: "MusicBrainz core", role: "녹음·ISRC 신규 항목 확인", interval: "12시간마다 버전 확인" },
   musicbrainz_canonical: { title: "MusicBrainz canonical", role: "대표 녹음·발매 순위 갱신", interval: "24시간마다 버전 확인" },
   musicbrainz_metadata: { title: "MusicBrainz 메타데이터", role: "새 EMS 곡의 태그·최초 발매일 대조", interval: "6시간마다 새 곡 확인" },
+  lastfm_artist_tags: { title: "Last.fm 아티스트 태그", role: "아티스트 이름으로 상위 태그만 받아 장르 보강(비상업 이용)", interval: "1시간마다 새·만료 아티스트 확인" },
+  music_attributes: { title: "언어·장르 속성", role: "MusicBrainz 스냅샷과 태그로 EMS·MMS 곡의 언어·장르 판정", interval: "6시간마다 새 곡 확인" },
 };
+
+export function routineLabel(key: string): RoutineLabel {
+  return (labels as Record<string, RoutineLabel | undefined>)[key] ?? { title: key, role: "설명 없음", interval: "—" };
+}
 
 const statusLabels: Record<string, string> = {
   idle: "대기", checking: "버전 확인", downloading: "다운로드", staging: "후보 준비",
@@ -19,6 +27,34 @@ const statusLabels: Record<string, string> = {
 
 function date(value: string | null) {
   return value ? new Date(value).toLocaleString("ko-KR") : "—";
+}
+
+const processedCountKeys = new Set<string>(["musicbrainz_metadata", "lastfm_artist_tags", "music_attributes"]);
+
+type RoutineAction = "enable" | "disable" | "check_now";
+
+export function RoutineCard({ routine, busy, onAction }: { routine: EmsSourceRoutine; busy: boolean; onAction: (action: RoutineAction) => void }) {
+  const label = routineLabel(routine.key);
+  return <article className="hud-card rounded-2xl p-5">
+    <div className="flex items-start justify-between gap-3">
+      <div><h2 className="text-lg font-semibold">{label.title}</h2><p className="mt-1 text-sm text-hud-text-secondary">{label.role}</p></div>
+      <span className={`rounded-full px-2 py-1 text-xs ${routine.enabled ? "bg-hud-accent-success/15 text-hud-accent-success" : "bg-hud-bg-hover text-hud-text-muted"}`}>{routine.enabled ? routine.key === "musicbrainz_metadata" && routine.status === "staging" ? "메타데이터 대조" : statusLabels[routine.status] ?? routine.status : "중지"}</span>
+    </div>
+    <dl className="mt-5 space-y-3 text-sm">
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">주기</dt><dd>{label.interval}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">다음 확인</dt><dd className="text-right">{routine.enabled ? date(routine.nextCheckAt) : "중지"}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">최근 확인</dt><dd className="text-right">{date(routine.lastCheckedAt)}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">적용 버전</dt><dd className="max-w-[55%] break-all text-right font-mono text-xs">{routine.lastVersion ?? "—"}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">최근 성공</dt><dd className="text-right">{date(routine.lastSuccessAt)}</dd></div>
+      <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">{processedCountKeys.has(routine.key) ? "최근 처리" : "최근 후보"}</dt><dd>{routine.lastCandidateCount.toLocaleString("ko-KR")}</dd></div>
+      {routine.currentRunId && <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">후보 처리</dt><dd>{routine.currentRunMatchedCount.toLocaleString("ko-KR")} 매칭 · {routine.currentRunPendingCount.toLocaleString("ko-KR")} 대기</dd></div>}
+      {routine.errorCode && <div className="flex justify-between gap-3 text-hud-accent-danger"><dt>오류</dt><dd className="break-all text-right">{routine.errorCode}</dd></div>}
+    </dl>
+    <div className="mt-5 flex flex-wrap gap-2">
+      <button type="button" disabled={busy} onClick={() => { onAction(routine.enabled ? "disable" : "enable"); }} className="rounded-lg border border-hud-border-secondary px-3 py-2 text-sm hover:bg-hud-bg-hover disabled:opacity-50">{routine.enabled ? "정기 수집 중지" : "정기 수집 켜기"}</button>
+      <button type="button" disabled={!routine.enabled || busy} onClick={() => { onAction("check_now"); }} className="rounded-lg border border-hud-border-secondary px-3 py-2 text-sm hover:bg-hud-bg-hover disabled:opacity-50">지금 확인</button>
+    </div>
+  </article>;
 }
 
 export default function SourceRoutines() {
@@ -43,7 +79,7 @@ export default function SourceRoutines() {
     return () => window.clearInterval(timer);
   }, [refresh]);
 
-  async function act(key: EmsSourceRoutine["key"], action: "enable" | "disable" | "check_now") {
+  async function act(key: EmsSourceRoutine["key"], action: RoutineAction) {
     setBusy(key);
     try {
       await changeEmsSourceRoutine(key, action);
@@ -68,26 +104,7 @@ export default function SourceRoutines() {
     {error && <div role="alert" className="rounded-xl border border-hud-accent-danger/40 bg-hud-accent-danger/10 px-4 py-3 text-sm text-hud-accent-danger">{error}</div>}
 
     <section aria-label="원천별 갱신 루틴" className="grid gap-4 xl:grid-cols-2">
-      {routines.map((routine) => <article key={routine.key} className="hud-card rounded-2xl p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div><h2 className="text-lg font-semibold">{labels[routine.key].title}</h2><p className="mt-1 text-sm text-hud-text-secondary">{labels[routine.key].role}</p></div>
-          <span className={`rounded-full px-2 py-1 text-xs ${routine.enabled ? "bg-hud-accent-success/15 text-hud-accent-success" : "bg-hud-bg-hover text-hud-text-muted"}`}>{routine.enabled ? routine.key === "musicbrainz_metadata" && routine.status === "staging" ? "메타데이터 대조" : statusLabels[routine.status] ?? routine.status : "중지"}</span>
-        </div>
-        <dl className="mt-5 space-y-3 text-sm">
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">주기</dt><dd>{labels[routine.key].interval}</dd></div>
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">다음 확인</dt><dd className="text-right">{routine.enabled ? date(routine.nextCheckAt) : "중지"}</dd></div>
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">최근 확인</dt><dd className="text-right">{date(routine.lastCheckedAt)}</dd></div>
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">적용 버전</dt><dd className="max-w-[55%] break-all text-right font-mono text-xs">{routine.lastVersion ?? "—"}</dd></div>
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">최근 성공</dt><dd className="text-right">{date(routine.lastSuccessAt)}</dd></div>
-          <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">{routine.key === "musicbrainz_metadata" ? "최근 처리" : "최근 후보"}</dt><dd>{routine.lastCandidateCount.toLocaleString("ko-KR")}</dd></div>
-          {routine.currentRunId && <div className="flex justify-between gap-3"><dt className="text-hud-text-secondary">후보 처리</dt><dd>{routine.currentRunMatchedCount.toLocaleString("ko-KR")} 매칭 · {routine.currentRunPendingCount.toLocaleString("ko-KR")} 대기</dd></div>}
-          {routine.errorCode && <div className="flex justify-between gap-3 text-hud-accent-danger"><dt>오류</dt><dd className="break-all text-right">{routine.errorCode}</dd></div>}
-        </dl>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" disabled={busy === routine.key} onClick={() => { void act(routine.key, routine.enabled ? "disable" : "enable"); }} className="rounded-lg border border-hud-border-secondary px-3 py-2 text-sm hover:bg-hud-bg-hover disabled:opacity-50">{routine.enabled ? "정기 수집 중지" : "정기 수집 켜기"}</button>
-          <button type="button" disabled={!routine.enabled || busy === routine.key} onClick={() => { void act(routine.key, "check_now"); }} className="rounded-lg border border-hud-border-secondary px-3 py-2 text-sm hover:bg-hud-bg-hover disabled:opacity-50">지금 확인</button>
-        </div>
-      </article>)}
+      {routines.map((routine) => <RoutineCard key={routine.key} routine={routine} busy={busy === routine.key} onAction={(action) => { void act(routine.key, action); }} />)}
       {loaded && routines.length === 0 && <p className="text-sm text-hud-text-muted">등록된 루틴이 없습니다.</p>}
     </section>
 
