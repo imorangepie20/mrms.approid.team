@@ -101,11 +101,22 @@
 - 테스트 2개 추가(같은 사용자 언어의 두 장르 탐색, 같은 익숙한 장르의 두 언어 탐색): 변경 전 2개 실패, 변경 후 `attribute-affinity.test.ts` 21개 통과. 기존 한국어 트로트·영어 트로트 중복 테스트도 통과
 - 전체 `npm test` 669 통과·11 skipped, `npx tsc --noEmit` 통과, `npm run lint` error 0(기존 warning 8), `npm run build` 통과
 
+## 운영 오프라인 평가(2026-10-29)
+
+서버에서 일회용 Node container(`web.env`를 env-file로 전달, 접속 정보는 확인하지 않음)로 `a1aeedf`의 `attribute-ranking.eval.test.ts`를 `BEGIN READ ONLY`·ROLLBACK으로 실행했다. 기본 5초 timeout에 걸려 첫 실행은 실패했고(후보 쿼리 약 10초), `--testTimeout=180000`으로 다시 실행해 **PASS**했다. 로그: 서버 `shared/artifacts/20261029-lang-genre-c7214f1/eval-a1aeedf.log`
+
+- 대상 `8534d93b`, 24곡 배치. `languageCoverage` 0.692, `languageSample` 333, 언어 출처 musicbrainz_release 221·musicbrainz_artist 81·script 30·lastfm_tag 1·none 148
+- 언어(언어가 확인된 곡 기준): baseline eng 0.50·kor 0.21·por 0.08·fra 0.08·pol·spa·rus 각 0.04 → v2 일반 22곡 eng 1.0
+- 장르: baseline trot 0.21·r&b-soul 0.21·pop 0.125·jazz 0.125·fado 0.04 → v2 trot 0·fado 0, 장르 미확인 0.75
+- MMS 대비 언어 TVD: baseline 0.320 → v2 0.162
+- 탐색 2곡 모두 채워짐: Joanne Shaw Taylor(blues, eng), Victoria Monét(r&b-soul, eng). 둘 다 `genre_mismatch`
+- 독립 MMS 문자 분포: 464곡 중 hangul 36·han 4·latin 456·kana 0·cyrillic 0
+
 ## 다음 작업
 
 사용자가 요청하면 다음을 순서대로 진행한다.
 
 1. (배포·첫 수집·Last.fm 샘플은 2026-10-29 완료) 관리자 `정기 수집`에서 `lastfm_artist_tags`·`music_attributes` enable
 2. (완료, 아래 `탐색 자리 중복 판정 수정` 참조) 탐색 자리 중복 제거 수정. 운영 Web 반영은 서빙 전환과 함께 한다
-3. SSH 터널로 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
+3. (완료, 위 `운영 오프라인 평가` 참조, PASS) 읽기 전용 오프라인 평가 실행(`docs/runbooks/ems-catalog-ingestion.md`의 환경변수 참고). 실패하면 `ATTRIBUTE_RANKING` 상수와 `attribute-affinity.test.ts` 기대값을 함께 조정
 4. 통과 시 `GMS_RANKING_VERSION=baseline-v2` 전환, 375px·스크린 리더 확인
