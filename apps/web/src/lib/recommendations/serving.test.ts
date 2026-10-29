@@ -48,6 +48,7 @@ describe("recommendation serving", () => {
     }, "coverage_threshold_unconfigured"],
   ])("returns baseline for disabled configuration %#", (environment, fallbackReason) => {
     expect(decideRecommendationServing({
+      attributeRankingAvailable: false,
       audioCoverageRatio: 0.8,
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
@@ -68,6 +69,7 @@ describe("recommendation serving", () => {
     };
 
     expect(decideRecommendationServing({
+      attributeRankingAvailable: false,
       audioCoverageRatio: 0.8,
       audioProfileAvailable: false,
       auth0Subject: "auth0|listener",
@@ -79,6 +81,7 @@ describe("recommendation serving", () => {
       servedRankingVersion: "baseline",
     });
     expect(decideRecommendationServing({
+      attributeRankingAvailable: false,
       audioCoverageRatio: 0.59,
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
@@ -90,6 +93,7 @@ describe("recommendation serving", () => {
       servedRankingVersion: "baseline",
     });
     expect(decideRecommendationServing({
+      attributeRankingAvailable: false,
       audioCoverageRatio: 1,
       audioProfileAvailable: true,
       auth0Subject: "auth0|listener",
@@ -112,6 +116,7 @@ describe("recommendation serving", () => {
     "fails closed unless audio, mood, and rhythm coverage are all complete (%s, %s, %s)",
     (audioCoverageRatio, moodCoverageRatio, rhythmCoverageRatio) => {
       expect(decideRecommendationServing({
+        attributeRankingAvailable: false,
         audioCoverageRatio,
         audioProfileAvailable: true,
         auth0Subject: "auth0|listener",
@@ -128,4 +133,38 @@ describe("recommendation serving", () => {
       });
     },
   );
+
+  it("serves baseline-v2 without allowlist", () => {
+    const environment = { GMS_RANKING_VERSION: "baseline-v2" };
+    expect(parseRecommendationServingConfig(environment).requestedRankingVersion).toBe("baseline-v2");
+    expect(decideRecommendationServing({
+      attributeRankingAvailable: true,
+      audioCoverageRatio: 0,
+      audioProfileAvailable: false,
+      auth0Subject: "auth0|anyone",
+      environment,
+      moodCoverageRatio: 0,
+      rhythmCoverageRatio: 0,
+    })).toMatchObject({
+      fallbackReason: null,
+      requestedRankingVersion: "baseline-v2",
+      servedRankingVersion: "baseline-v2",
+    });
+  });
+
+  it("falls back when attribute ranking is unavailable", () => {
+    expect(decideRecommendationServing({
+      attributeRankingAvailable: false,
+      audioCoverageRatio: 1,
+      audioProfileAvailable: true,
+      auth0Subject: "auth0|anyone",
+      environment: { GMS_RANKING_VERSION: "baseline-v2" },
+      moodCoverageRatio: 1,
+      rhythmCoverageRatio: 1,
+    })).toMatchObject({
+      fallbackReason: "attribute_profile_unavailable",
+      requestedRankingVersion: "baseline-v2",
+      servedRankingVersion: "baseline",
+    });
+  });
 });

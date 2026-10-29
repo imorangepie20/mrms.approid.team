@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import logging
 import os
 import re
 import shutil
@@ -20,7 +21,11 @@ from .musicbrainz import DownloadError, MusicBrainzSnapshotClient, safe_extract_
 from .select import Candidate, CanonicalRow, _is_eligible, write_candidate_artifacts
 
 
-CORE_MEMBERS = frozenset({"mbdump/recording", "mbdump/isrc", "mbdump/artist_credit"})
+CORE_MEMBERS = frozenset({
+    "mbdump/recording", "mbdump/isrc", "mbdump/artist_credit",
+    "mbdump/track", "mbdump/medium", "mbdump/release", "mbdump/language",
+    "mbdump/artist_credit_name", "mbdump/artist",
+})
 VERSION_PATTERN = re.compile(r"^\d{8}-\d{6}$")
 CANONICAL_INDEX_PATTERN = re.compile(r"musicbrainz-canonical-dump-(\d{8}-\d{6})/")
 
@@ -283,6 +288,90 @@ def _check_core(connection: Any, work_root: Path, client: MusicBrainzSnapshotCli
     _prune_old_snapshots(work_root, canonical=False)
 
 
+# _core_files also extracts track/release/artist_credit_name, so reserve more than before.
+METADATA_DISK_RESERVE_GIB = 12
+
+
+def _check_lastfm_artist_tags(connection: Any) -> None:
+    from .lastfm import fetch_lastfm_artist_tags
+    from .music_attributes import resolve_all
+
+    key = "lastfm_artist_tags"
+    if not os.environ.get("LASTFM_API_KEY", "").strip():
+        connection.execute(
+            """UPDATE ems_source_routines SET status = 'failed', error_code = 'lastfm_key_missing',
+                      last_checked_at = now(), next_check_at = now() + make_interval(secs => check_interval_seconds),
+                      updated_at = now() WHERE source_key = %s""",
+            (key,),
+        )
+        print(json.dumps({"source": key, "status": "skipped", "error_code": "lastfm_key_missing"}), flush=True)
+        return
+    connection.execute("UPDATE ems_source_routines SET status = 'staging' WHERE source_key = %s", (key,))
+    fetched = fetch_lastfm_artist_tags()
+    resolved = resolve_all(connection, only_stale=True)
+    stopped = fetched.get("stopped_reason")
+    if stopped in ("key_invalid", "consecutive_failures"):
+        # Circuit breaker tripped: keep what was fetched, surface a key-free code, retry next interval.
+        code = "lastfm_key_invalid" if stopped == "key_invalid" else "lastfm_unavailable"
+        connection.execute(
+            """UPDATE ems_source_routines SET status = 'failed', error_code = %s,
+                      last_checked_at = now(), last_candidate_count = %s,
+                      next_check_at = now() + make_interval(secs => check_interval_seconds),
+                      updated_at = now() WHERE source_key = %s""",
+            (code, fetched["requested"], key),
+        )
+        print(json.dumps({"source": key, "status": "failed", "error_code": code, **fetched}), flush=True)
+        return
+    _mark_check(connection, key, count=fetched["requested"])
+    print(json.dumps({"source": key, **fetched, **{f"resolve_{k}": v for k, v in resolved.items()}}), flush=True)
+
+
+def _check_music_attributes(connection: Any, work_root: Path, client: MusicBrainzSnapshotClient, row: dict[str, Any]) -> None:
+    from .music_attributes import resolve_all
+    from .music_attributes_mb import collect_musicbrainz_attributes
+
+    key = "music_attributes"
+    core_row = connection.execute(
+        "SELECT last_version FROM ems_source_routines WHERE source_key = 'musicbrainz_core'"
+    ).fetchone()
+    version = core_row["last_version"] if core_row else None
+    if not version or not VERSION_PATTERN.fullmatch(version):
+        raise DownloadError("core snapshot unavailable")
+    pending = connection.execute(
+        """SELECT (
+                 (SELECT count(*) FROM ems_tracks t
+                    LEFT JOIN ems_track_attributes a ON a.track_id = t.id
+                   WHERE t.status = 'active' AND a.mb_snapshot_id IS DISTINCT FROM %s)
+               + (SELECT count(*) FROM music_tracks m
+                    LEFT JOIN music_track_attributes a ON a.track_id = m.id
+                   WHERE a.mb_snapshot_id IS DISTINCT FROM %s
+                     AND EXISTS (SELECT 1 FROM user_playlist_tracks pt
+                                   JOIN user_playlists p ON p.id = pt.playlist_id
+                                  WHERE pt.track_id = m.id AND p.selected))
+               )::int AS count""",
+        (version, version),
+    ).fetchone()["count"]
+    if not pending:
+        _mark_check(connection, key, version=version, count=0)
+        return
+    if not _available_disk(METADATA_DISK_RESERVE_GIB, work_root):
+        raise DownloadError("disk_gate")
+    connection.execute("UPDATE ems_source_routines SET status = 'downloading' WHERE source_key = %s", (key,))
+    derived = client.download_derived(work_root, version)
+    core = _core_files(work_root, version)
+    connection.execute("UPDATE ems_source_routines SET status = 'staging' WHERE source_key = %s", (key,))
+    result = collect_musicbrainz_attributes(core, derived, version)
+    resolved: dict[str, int] = {}
+    if result["scanned"] > 0:
+        # A new core snapshot changes mb_* facts on existing rows in place, so it needs a full
+        # DB-only pass. With the same snapshot only newly collected rows changed, and those have
+        # resolved_at NULL, so the stale-only pass picks them up.
+        new_snapshot = version != row.get("last_version")
+        resolved = resolve_all(connection, only_stale=not new_snapshot)
+    _mark_check(connection, key, version=version, count=result["scanned"])
+    print(json.dumps({"source": key, "version": version, **result, **{f"resolve_{k}": v for k, v in resolved.items()}}), flush=True)
+
+
 def _check_metadata(connection: Any, work_root: Path, client: MusicBrainzSnapshotClient) -> None:
     from .musicbrainz_tags import backfill_musicbrainz_tags
 
@@ -302,7 +391,7 @@ def _check_metadata(connection: Any, work_root: Path, client: MusicBrainzSnapsho
     if not pending:
         _mark_check(connection, key, version=version, count=0)
         return
-    if not _available_disk(2, work_root):
+    if not _available_disk(METADATA_DISK_RESERVE_GIB, work_root):
         raise DownloadError("disk_gate")
     connection.execute("UPDATE ems_source_routines SET status = 'downloading' WHERE source_key = %s", (key,))
     derived = client.download_derived(work_root, version)
@@ -314,6 +403,7 @@ def _check_metadata(connection: Any, work_root: Path, client: MusicBrainzSnapsho
 
 
 def serve_source_routines() -> None:
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     database_url = os.environ["DATABASE_URL"].strip()
     work_root = Path(os.environ.get("MUSICBRAINZ_WORK_ROOT", "/data/musicbrainz")).resolve()
     work_root.mkdir(parents=True, exist_ok=True)
@@ -334,12 +424,13 @@ def serve_source_routines() -> None:
                 while True:
                     row = connection.execute(
                         """SELECT source_key, last_version FROM ems_source_routines s
-                            WHERE enabled AND source_key IN ('musicbrainz_canonical', 'musicbrainz_core', 'musicbrainz_metadata')
+                            WHERE enabled AND source_key IN ('musicbrainz_canonical', 'musicbrainz_core', 'musicbrainz_metadata',
+                                                'lastfm_artist_tags', 'music_attributes')
                               AND next_check_at <= now()
                               AND NOT EXISTS (
                                 SELECT 1 FROM ems_ingest_runs r WHERE r.id = s.current_run_id
                                   AND r.status IN ('pending', 'running', 'paused'))
-                            ORDER BY CASE source_key WHEN 'musicbrainz_canonical' THEN 0 WHEN 'musicbrainz_core' THEN 1 ELSE 2 END LIMIT 1"""
+                            ORDER BY CASE source_key WHEN 'musicbrainz_canonical' THEN 0 WHEN 'musicbrainz_core' THEN 1 WHEN 'musicbrainz_metadata' THEN 2 WHEN 'music_attributes' THEN 3 ELSE 4 END LIMIT 1"""
                     ).fetchone()
                     if row is None:
                         time.sleep(30)
@@ -354,8 +445,12 @@ def serve_source_routines() -> None:
                             _check_canonical(connection, work_root, client, row)
                         elif key == "musicbrainz_core":
                             _check_core(connection, work_root, client, row)
-                        else:
+                        elif key == "musicbrainz_metadata":
                             _check_metadata(connection, work_root, client)
+                        elif key == "music_attributes":
+                            _check_music_attributes(connection, work_root, client, row)
+                        else:
+                            _check_lastfm_artist_tags(connection)
                     except Exception as error:
                         code = str(error) if isinstance(error, DownloadError) and str(error) == "disk_gate" else type(error).__name__.lower()
                         connection.execute(

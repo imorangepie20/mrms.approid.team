@@ -15,6 +15,8 @@ const statusCopy = {
   replaced: "지난 추천",
 } as const;
 
+const explorationHint = "평소 취향과 다른 언어·장르에서 골랐어요";
+
 const decisionCopy = {
   accept: "MMS로 보냄",
   reject: "싫어요",
@@ -207,9 +209,15 @@ export function RecommendationHistoryList({ batches, disabled = false, pendingDe
                 }}
                 renderMeta={(track) => {
                   const decision = decisions.get(track.id);
+                  const exploration = track.recommendation?.reasonCodes.includes("exploration") === true;
                   return (
-                    <span className={`w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${decision === "accept" ? "bg-violet-400/15 text-violet-200" : decision === "reject" ? "bg-rose-400/10 text-rose-200" : "bg-white/[0.04] text-[var(--subtle)]"}`}>
-                      {decision ? decisionCopy[decision] : "결정 없음"}
+                    <span className="flex flex-wrap items-center gap-1">
+                      <span className={`w-fit whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold ${decision === "accept" ? "bg-violet-400/15 text-violet-200" : decision === "reject" ? "bg-rose-400/10 text-rose-200" : "bg-white/[0.04] text-[var(--subtle)]"}`}>
+                        {decision ? decisionCopy[decision] : "결정 없음"}
+                      </span>
+                      {exploration ? <span className="w-fit whitespace-nowrap rounded-full border border-teal-400/35 bg-teal-400/10 px-2 py-0.5 text-[10px] font-semibold text-teal-200" title={explorationHint}>
+                        새로운 시도<span className="sr-only">{explorationHint}</span>
+                      </span> : null}
                     </span>
                   );
                 }}

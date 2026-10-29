@@ -54,7 +54,7 @@ describe("POST /api/recommendations/refresh", () => {
     const response = await POST(request({ currentBatchId: batchId }));
 
     expect(response.status).toBe(200);
-    expect(mocks.rotate).toHaveBeenCalledWith("auth0|listener", batchId, 12);
+    expect(mocks.rotate).toHaveBeenCalledWith("auth0|listener", batchId, 24);
     await expect(response.json()).resolves.toMatchObject({
       batchId: "8acb99e4-78ba-410c-aefd-e1638be9fbb8",
       exhausted: false,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -69,6 +70,14 @@ def build_parser() -> argparse.ArgumentParser:
     musicbrainz_tags.add_argument("--core", type=Path, required=True)
     musicbrainz_tags.add_argument("--derived-archive", type=Path, required=True)
     musicbrainz_tags.add_argument("--snapshot-id", required=True)
+    collect_attributes = subparsers.add_parser("collect-musicbrainz-attributes")
+    collect_attributes.add_argument("--core", type=Path, required=True)
+    collect_attributes.add_argument("--derived-archive", type=Path, required=True)
+    collect_attributes.add_argument("--snapshot-id", required=True)
+    lastfm_tags = subparsers.add_parser("fetch-lastfm-artist-tags")
+    lastfm_tags.add_argument("--limit", type=int, default=3000)
+    resolve_attributes = subparsers.add_parser("resolve-music-attributes")
+    resolve_attributes.add_argument("--all", action="store_true", help="re-resolve every row, not only stale ones")
     return parser
 
 
@@ -115,6 +124,8 @@ def execute_run(
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Last.fm sends api_key in the query string; keep httpx request logs from exposing it.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     args = build_parser().parse_args(argv)
     if args.command == "serve-admin-jobs":
         from .admin_ingestion import serve_admin_jobs
@@ -343,6 +354,32 @@ def main(argv: list[str] | None = None) -> int:
         from .musicbrainz_tags import backfill_musicbrainz_tags
 
         result = backfill_musicbrainz_tags(args.core, args.derived_archive, args.snapshot_id)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    if args.command == "collect-musicbrainz-attributes":
+        from .music_attributes_mb import collect_musicbrainz_attributes
+
+        result = collect_musicbrainz_attributes(args.core, args.derived_archive, args.snapshot_id)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    if args.command == "fetch-lastfm-artist-tags":
+        from .lastfm import fetch_lastfm_artist_tags
+
+        try:
+            result = fetch_lastfm_artist_tags(limit=args.limit)
+        except RuntimeError as error:
+            raise SystemExit(str(error)) from error
+        print(json.dumps(result, sort_keys=True))
+        return 1 if result.get("stopped_reason") == "key_invalid" else 0
+    if args.command == "resolve-music-attributes":
+        from .music_attributes import resolve_all
+
+        database_url = os.environ.get("DATABASE_URL", "").strip()
+        if not database_url:
+            raise SystemExit("DATABASE_URL is required")
+        # autocommit so each resolve_all batch transaction commits on its own instead of becoming a savepoint.
+        with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
+            result = resolve_all(connection, only_stale=not args.all)
         print(json.dumps(result, sort_keys=True))
         return 0
     raise SystemExit(f"unsupported command: {args.command}")

@@ -93,7 +93,7 @@ describe("GMS page recommendation serving", () => {
     expect(screen.getByTestId("gms-dashboard")).toHaveTextContent(
       "ems-v1:true:f17870e2-b297-4451-adf5-9856f257b720:false:track-a",
     );
-    expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 12);
+    expect(mocks.getBatch).toHaveBeenCalledWith("auth0|listener", 24);
     expect(mocks.after).toHaveBeenCalledTimes(1);
     await mocks.afterCallbacks[0]?.();
     expect(mocks.recordShadow).toHaveBeenCalledWith(

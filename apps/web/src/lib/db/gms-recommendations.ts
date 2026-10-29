@@ -1,5 +1,16 @@
 import type { Track } from "@/lib/music/types";
+import {
+  ATTRIBUTE_RANKING,
+  buildAttributeDistribution,
+  languageDimensionActive,
+  placeExplorationSlots,
+  scoreAttributeFit,
+  type AttributeDistribution,
+  type AttributeFit,
+  type TrackAttributes,
+} from "@/lib/recommendations/attribute-affinity";
 import { AUDIO_PREDICTION_LABELS } from "@/lib/recommendations/audio-taste-profile";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 import { evaluateShadowRanking } from "@/lib/recommendations/candidates";
 import { filterRankingCandidates } from "@/lib/recommendations/filters";
 import { calculateEmsScore } from "@/lib/recommendations/gms";
@@ -17,6 +28,11 @@ import {
 
 import type { TransactionExecutor } from "./music-library";
 import { getDatabasePool } from "./pool";
+import {
+  dominantTaxonomyVersion,
+  loadUserAttributeDistributionInputs,
+  type UserAttributeDistributionInput,
+} from "./user-attribute-distribution";
 
 type ProfileRow = {
   algorithm_version: string;
@@ -33,6 +49,7 @@ export type EmsCandidateRow = {
   album: string | null;
   artist: string;
   artwork_url: string | null;
+  attribute_multiplier?: number;
   audio_discarded?: boolean;
   audio_error_code?: string | null;
   audio_job_status?: string | null;
@@ -43,9 +60,11 @@ export type EmsCandidateRow = {
   catalog_priority: number;
   duration_ms: number;
   freshness: number;
+  genre_buckets?: Record<string, number> | null;
   id: string;
   is_active?: boolean;
   is_playable?: boolean;
+  language?: string | null;
   match_confidence: number;
   similarity_cluster: number | null;
   similarity_global: number;
@@ -72,12 +91,15 @@ export function isTerminalAudioCandidateFailure(
 }
 
 export type RecommendationScoreComponents = {
+  attributeMultiplier?: number;
   audio?: number;
   baseScore?: number;
   catalogPriority: number;
   diversity: number;
   freshness: number;
+  genreFit?: number;
   hybridSimilarity?: number;
+  languageFit?: number;
   matchConfidence: number;
   mood?: number;
   rhythm?: number;
@@ -96,6 +118,7 @@ export type EmsRecommendationTrack = Track & {
 };
 
 export type PersonalizedRecommendations = {
+  attributeProfile?: AttributeDistribution & { taxonomyVersion: string | null };
   profileReady: boolean;
   profileVersion: string | null;
   rankingVersion: RecommendationRankingVersion;
@@ -142,6 +165,11 @@ export type RecommendationShadowPayload = {
   rhythmCoverageRatio: number;
   sameArtistRatio: number;
   selectorChangedCount: number;
+  /**
+   * 실제 baseline 응답(기존 pool)의 상위 K. 027에서 정의한 baseline 의미를 유지하며, hybrid-v0나
+   * baseline-v2가 제공돼도 바꾸지 않는다. 실제 제공 목록은 `user_recommendation_batches.track_ids`와
+   * `user_recommendation_exposures`(ranking_version 포함)에 남고 run의 `served_ranking_version`으로 구분한다.
+   */
   servedBaselineTrackIds: string[];
   textProfileId: string;
   textProfileVersion: string;
@@ -149,6 +177,7 @@ export type RecommendationShadowPayload = {
 };
 
 export type PreparedPersonalizedRecommendations = {
+  attributeRecommendations: PersonalizedRecommendations | null;
   hybridRecommendations: PersonalizedRecommendations | null;
   recommendations: PersonalizedRecommendations;
   shadow: RecommendationShadowPayload | null;
@@ -221,15 +250,21 @@ function score(row: EmsCandidateRow, diversity: number) {
     matchConfidence: row.match_confidence,
     similarity: similarity(row),
   };
+  const baseScore = calculateEmsScore({
+    catalogPriority: components.catalogPriority,
+    diversity: components.diversity,
+    freshness: components.freshness,
+    matchConfidence: components.matchConfidence,
+    similarity: components.similarity,
+  });
+  if (row.attribute_multiplier === undefined) return { components, score: baseScore };
   return {
-    components,
-    score: calculateEmsScore({
-      catalogPriority: components.catalogPriority,
-      diversity: components.diversity,
-      freshness: components.freshness,
-      matchConfidence: components.matchConfidence,
-      similarity: components.similarity,
-    }),
+    components: {
+      ...components,
+      attributeMultiplier: row.attribute_multiplier,
+      baseScore,
+    },
+    score: Number((baseScore * row.attribute_multiplier).toFixed(6)),
   };
 }
 
@@ -245,17 +280,22 @@ export function rankEmsCandidates(
     };
   }> = [];
 
+  const selectedArtists = new Set<string>();
+
   while (remaining.length > 0 && selected.length < limit) {
-    const ranked = remaining.map((row) => {
-      const repeatedArtist = selected.some((candidate) => candidate.artist === row.artist);
-      const rankedScore = score(row, repeatedArtist ? 0.25 : 1);
-      return { row, ...rankedScore };
-    });
-    ranked.sort((left, right) =>
-      right.score - left.score || left.row.id.localeCompare(right.row.id),
-    );
-    const next = ranked[0];
+    let next: ({ row: EmsCandidateRow } & ReturnType<typeof score>) | null = null;
+    for (const row of remaining) {
+      const candidate = { row, ...score(row, selectedArtists.has(row.artist) ? 0.25 : 1) };
+      if (
+        !next
+        || candidate.score > next.score
+        || (candidate.score === next.score && candidate.row.id.localeCompare(next.row.id) < 0)
+      ) {
+        next = candidate;
+      }
+    }
     if (!next) break;
+    selectedArtists.add(next.row.artist);
     selected.push({
       ...next.row,
       recommendation: {
@@ -263,7 +303,8 @@ export function rankEmsCandidates(
         scoreComponents: next.components,
       },
     });
-    const index = remaining.findIndex((row) => row.id === next.row.id);
+    const chosenId = next.row.id;
+    const index = remaining.findIndex((row) => row.id === chosenId);
     remaining.splice(index, 1);
   }
 
@@ -355,17 +396,30 @@ function buildShadowPayload(
   };
 }
 
+type RankedEmsCandidate = EmsCandidateRow & {
+  recommendation: {
+    score: number;
+    scoreComponents: RecommendationScoreComponents;
+  };
+};
+
 function mapRecommendation(
-  row: EmsCandidateRow & {
-    recommendation: {
-      score: number;
-      scoreComponents: RecommendationScoreComponents;
-    };
-  },
+  row: RankedEmsCandidate & { exploration?: boolean; fit?: AttributeFit },
+  rankingVersion: "baseline" | "baseline-v2",
 ): EmsRecommendationTrack {
   const reasons = ["taste_match"];
   if (row.recommendation.scoreComponents.freshness >= 0.8) {
     reasons.push("fresh_release");
+  }
+  let scoreComponents = row.recommendation.scoreComponents;
+  if (rankingVersion === "baseline-v2" && row.fit) {
+    reasons.push(...row.fit.reasonCodes);
+    if (row.exploration) reasons.push("exploration");
+    scoreComponents = {
+      ...scoreComponents,
+      ...(row.fit.languageFit === null ? {} : { languageFit: row.fit.languageFit }),
+      ...(row.fit.genreFit === null ? {} : { genreFit: row.fit.genreFit }),
+    };
   }
   return {
     album: row.album ?? "Unknown Album",
@@ -376,10 +430,10 @@ function mapRecommendation(
     id: row.id,
     playbackAvailable: true,
     recommendation: {
-      rankingVersion: "baseline",
-      reasonCodes: reasons,
+      rankingVersion,
+      reasonCodes: [...new Set(reasons)],
       score: row.recommendation.score,
-      scoreComponents: row.recommendation.scoreComponents,
+      scoreComponents,
     },
     tidalTrackId: row.tidal_id,
     title: row.title,
@@ -423,9 +477,86 @@ function mapHybridRecommendation(
   };
 }
 
+function candidateAttributes(row: EmsCandidateRow): TrackAttributes | null {
+  if (typeof row.language !== "string") return null;
+  return { genreBuckets: numericRecord(row.genre_buckets) ?? {}, language: row.language };
+}
+
+function buildAttributeRecommendations(
+  profileVersion: string,
+  rows: EmsCandidateRow[],
+  inputs: UserAttributeDistributionInput[],
+  limit: number,
+): PersonalizedRecommendations | null {
+  const distribution = buildAttributeDistribution(inputs);
+  if (
+    !languageDimensionActive(distribution)
+    && distribution.genreSample < ATTRIBUTE_RANKING.minimumSample
+  ) {
+    return null;
+  }
+  const fits = new Map(rows.map((row) => [
+    row.id,
+    scoreAttributeFit(distribution, candidateAttributes(row)),
+  ]));
+  const ranked = rankEmsCandidates(
+    rows.map((row) => ({ ...row, attribute_multiplier: fits.get(row.id)!.multiplier })),
+    rows.length,
+  );
+  const placed = placeExplorationSlots(ranked.map((row) => ({
+    ...row,
+    baseScore: row.recommendation.scoreComponents.baseScore ?? row.recommendation.score,
+    fit: fits.get(row.id)!,
+  })), limit);
+  return {
+    attributeProfile: { ...distribution, taxonomyVersion: dominantTaxonomyVersion(inputs) },
+    profileReady: true,
+    profileVersion,
+    rankingVersion: "baseline-v2",
+    tracks: placed.map((row) => mapRecommendation(row, "baseline-v2")),
+  };
+}
+
+const ATTRIBUTE_DISTRIBUTION_SAVEPOINT = "user_attribute_distribution";
+
+/**
+ * 분포 조회 실패가 baseline 응답을 깨지 않게 한다. 배치 경로는 트랜잭션 안에서
+ * 호출하므로 savepoint로 실패를 격리한다. savepoint를 만들 수 없으면 트랜잭션
+ * 밖이므로 단독 조회로 처리한다. 실패하면 null을 돌려주고 v2를 만들지 않는다.
+ */
+async function loadDistributionInputsSafely(
+  userId: string,
+  executor?: TransactionExecutor,
+): Promise<UserAttributeDistributionInput[] | null> {
+  if (executor) {
+    let savepoint = true;
+    try {
+      await executor.query(`SAVEPOINT ${ATTRIBUTE_DISTRIBUTION_SAVEPOINT}`);
+    } catch {
+      savepoint = false;
+    }
+    if (savepoint) {
+      try {
+        const inputs = await loadUserAttributeDistributionInputs(userId, executor);
+        await executor.query(`RELEASE SAVEPOINT ${ATTRIBUTE_DISTRIBUTION_SAVEPOINT}`);
+        return inputs;
+      } catch {
+        await executor.query(`ROLLBACK TO SAVEPOINT ${ATTRIBUTE_DISTRIBUTION_SAVEPOINT}`)
+          .catch(() => undefined);
+        return null;
+      }
+    }
+  }
+  try {
+    return await loadUserAttributeDistributionInputs(userId, executor);
+  } catch {
+    return null;
+  }
+}
+
 export async function preparePersonalizedEmsRecommendations(
   auth0Subject: string,
-  limit = 12,
+  limit = DEFAULT_BATCH_SIZE,
   executor?: TransactionExecutor,
 ): Promise<PreparedPersonalizedRecommendations> {
   const safeLimit = Math.max(1, Math.min(24, Math.trunc(limit)));
@@ -457,6 +588,7 @@ export async function preparePersonalizedEmsRecommendations(
   const profile = profileResult.rows[0];
   if (!profile) {
     return {
+      attributeRecommendations: null,
       hybridRecommendations: null,
       recommendations: {
         profileReady: false,
@@ -567,10 +699,13 @@ export async function preparePersonalizedEmsRecommendations(
          audio.candidate_bpm,
          audio.candidate_predictions,
          candidate_audio_job.status AS audio_job_status,
-         candidate_audio_job.last_error_code AS audio_error_code
+         candidate_audio_job.last_error_code AS audio_error_code,
+         attribute.language,
+         attribute.genre_buckets
        FROM ems_tracks AS e
        INNER JOIN centroid_similarity AS cs ON cs.id = e.id
        LEFT JOIN audio_candidate AS audio ON audio.track_id = e.id
+       LEFT JOIN ems_track_attributes AS attribute ON attribute.track_id = e.id
        LEFT JOIN ems_track_audio_jobs AS candidate_audio_job
          ON candidate_audio_job.track_id = e.id
        JOIN LATERAL (
@@ -634,21 +769,30 @@ export async function preparePersonalizedEmsRecommendations(
     [
       profile.id,
       profile.user_id,
-      Math.min(120, safeLimit * 5),
+      Math.min(600, safeLimit * 25),
       profile.audio_profile_id,
       [...AUDIO_PREDICTION_LABELS],
       [...TERMINAL_AUDIO_CANDIDATE_ERROR_CODES],
     ],
   );
   const candidatePoolSize = Math.min(120, safeLimit * 5);
-  const filteredRows = filterRankingCandidates(candidateResult.rows.map((row, index) => ({
+  const candidateRows = candidateResult.rows.map((row, index) => ({
     ...row,
     audioDiscarded: row.audio_discarded
       ?? isTerminalAudioCandidateFailure(row.audio_job_status, row.audio_error_code),
     isActive: row.is_active ?? true,
     isPlayable: row.is_playable ?? true,
     sourceRank: row.source_rank ?? index + 1,
-  })), new Set());
+  }));
+  // baseline과 hybrid는 SQL 한도가 candidatePoolSize이던 때와 같은 행만 본다:
+  // source_rank <= pool OR (NOT audio_discarded AND eligible_source_rank <= pool)
+  let eligibleSourceRank = 0;
+  const legacyWindowRows = candidateRows.filter((row) => {
+    if (!row.audioDiscarded) eligibleSourceRank += 1;
+    return row.sourceRank <= candidatePoolSize
+      || (!row.audioDiscarded && eligibleSourceRank <= candidatePoolSize);
+  });
+  const filteredRows = filterRankingCandidates(legacyWindowRows, new Set());
   const baselineRows = filteredRows.filter((row) => row.sourceRank <= candidatePoolSize);
   const hybridRows = filteredRows
     .filter((row) => !row.audioDiscarded)
@@ -659,8 +803,22 @@ export async function preparePersonalizedEmsRecommendations(
     profileReady: true,
     profileVersion: profile.algorithm_version,
     rankingVersion: "baseline" as const,
-    tracks: baseline.slice(0, safeLimit).map(mapRecommendation),
+    tracks: baseline.slice(0, safeLimit).map((row) => mapRecommendation(row, "baseline")),
   };
+  const distributionInputs = await loadDistributionInputsSafely(profile.user_id, executor);
+  let attributeRecommendations: PersonalizedRecommendations | null = null;
+  if (distributionInputs) {
+    try {
+      attributeRecommendations = buildAttributeRecommendations(
+        profile.algorithm_version,
+        filterRankingCandidates(candidateRows, new Set()),
+        distributionInputs,
+        safeLimit,
+      );
+    } catch {
+      attributeRecommendations = null;
+    }
+  }
   const shadow = hybridRows.length === 0
     ? null
     : buildShadowPayload(profile, hybridRows, hybridBaseline, safeLimit, {
@@ -671,6 +829,7 @@ export async function preparePersonalizedEmsRecommendations(
         backfilledTrackIds: hybridRows
           .filter((row) => row.sourceRank > candidatePoolSize)
           .map((row) => row.id),
+        // baseline 의미 유지: v2/hybrid가 제공돼도 baseline 응답을 기록한다(타입 주석 참고).
         servedBaselineTrackIds: baseline.slice(0, safeLimit).map((row) => row.id),
       });
   const rowsById = new Map(hybridRows.map((row) => [row.id, row]));
@@ -683,6 +842,7 @@ export async function preparePersonalizedEmsRecommendations(
     return row && candidate ? [mapHybridRecommendation(row, candidate)] : [];
   }) ?? [];
   return {
+    attributeRecommendations,
     hybridRecommendations: shadow
       ? {
           profileReady: true,
@@ -702,6 +862,7 @@ export function selectPreparedPersonalizedRecommendations(
   environment: ServingEnvironment = process.env,
 ): SelectedPersonalizedRecommendations {
   const serving = decideRecommendationServing({
+    attributeRankingAvailable: prepared.attributeRecommendations !== null,
     audioCoverageRatio: prepared.shadow?.audioCoverageRatio ?? 0,
     audioProfileAvailable: Boolean(prepared.shadow?.audioProfileId),
     auth0Subject,
@@ -709,6 +870,9 @@ export function selectPreparedPersonalizedRecommendations(
     moodCoverageRatio: prepared.shadow?.moodCoverageRatio ?? 0,
     rhythmCoverageRatio: prepared.shadow?.rhythmCoverageRatio ?? 0,
   });
+  if (serving.servedRankingVersion === "baseline-v2" && prepared.attributeRecommendations) {
+    return { recommendations: prepared.attributeRecommendations, serving };
+  }
   return {
     recommendations: serving.servedRankingVersion === "hybrid-v0"
       && prepared.hybridRecommendations
@@ -727,7 +891,7 @@ export function selectPreparedPersonalizedRecommendations(
 
 export async function listPersonalizedEmsRecommendations(
   auth0Subject: string,
-  limit = 12,
+  limit = DEFAULT_BATCH_SIZE,
   executor?: TransactionExecutor,
 ): Promise<PersonalizedRecommendations> {
   const prepared = await preparePersonalizedEmsRecommendations(

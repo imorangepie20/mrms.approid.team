@@ -319,6 +319,7 @@ function Gateway({ batches, pendingCount, removalPending, onRemovalPending, batc
       {decisionNotice ? <p className="notice" role="status">“{decisionNotice.title}” {decisionNotice.accepted ? "MMS에 추가했습니다." : "이후 추천에서 제외했습니다."}{decisionNotice.accepted ? <> <Link href="/mms" prefetch={false}>MMS 보기 <span aria-hidden="true">→</span></Link></> : null}</p> : null}
       {exhausted ? <GatewayEmptyState variant="exhausted" /> : null}
       {batches.length ? <RecommendationHistoryList batches={batches} disabled={decisionPending || refreshState === "loading"} pendingDecision={pendingDecision} onBusyChange={onRemovalPending} onAccept={onAccept} onReject={onReject} /> : !exhausted ? <GatewayEmptyState variant="empty" /> : null}
+      <p className="gms-attribution">장르 정보 일부 제공: <a href="https://www.last.fm" rel="noopener noreferrer" target="_blank">Last.fm</a></p>
     </section>
   );
 }

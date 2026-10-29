@@ -104,6 +104,28 @@ describe("persistent recommendation batches", () => {
     expect(mocks.prepare).not.toHaveBeenCalled();
   });
 
+  it("accepts a stored baseline-v2 batch", async () => {
+    const stored = {
+      ...recommendations(),
+      rankingVersion: "baseline-v2" as const,
+    };
+    const database = executor((sql) => {
+      if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
+      if (sql.includes("FROM user_recommendation_batches")) return { rows: [{
+        created_at: "2026-09-29T00:00:00.000Z",
+        id: batchId,
+        recommendations: stored,
+        status: "current",
+      }] };
+      if (sql.includes("FROM user_recommendation_decisions")) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getOrCreatePersonalizedRecommendationBatch("auth0|listener", 12, database);
+
+    expect(result.recommendations.rankingVersion).toBe("baseline-v2");
+  });
+
   it("hides decided tracks from the current view while retaining its stored snapshot", async () => {
     const database = executor((sql) => {
       if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
@@ -184,6 +206,63 @@ describe("persistent recommendation batches", () => {
     expect(mocks.prepare).toHaveBeenCalledWith("auth0|listener", 12, database);
     expect(queries.find((query) => query.sql.includes("INSERT INTO user_recommendation_exposures"))?.values)
       .toEqual([userId, nextBatchId, "baseline", [nextTrackId]]);
+  });
+
+  it("creates a 24-track batch by default", async () => {
+    const database = executor((sql) => {
+      if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
+      if (sql.includes("FROM user_recommendation_batches")) return { rows: [] };
+      if (sql.includes("INSERT INTO user_recommendation_batches")) {
+        return { rows: [{ created_at: "2026-09-29T01:00:00.000Z", id: nextBatchId }] };
+      }
+      if (sql.includes("INSERT INTO user_recommendation_exposures")) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    await getOrCreatePersonalizedRecommendationBatch("auth0|listener", undefined, database);
+
+    expect(mocks.prepare).toHaveBeenCalledWith("auth0|listener", 24, database);
+  });
+
+  it("stores the attribute profile with the v2 batch", async () => {
+    const attributeProfile = {
+      genreSample: 0,
+      genres: {},
+      languageSample: 30,
+      languages: { eng: 1 },
+      taxonomyVersion: "genre-v1",
+    };
+    mocks.select.mockReturnValue({
+      recommendations: {
+        ...recommendations(nextTrackId),
+        attributeProfile,
+        rankingVersion: "baseline-v2",
+      },
+      serving: {
+        fallbackReason: null,
+        minimumAudioCoverage: null,
+        requestedRankingVersion: "baseline-v2",
+        servedRankingVersion: "baseline-v2",
+      },
+    });
+    const queries: Array<{ sql: string; values?: unknown[] }> = [];
+    const database = executor((sql, values) => {
+      queries.push({ sql, values });
+      if (sql.includes("FROM app_users")) return { rows: [{ id: userId }] };
+      if (sql.includes("FROM user_recommendation_batches")) return { rows: [] };
+      if (sql.includes("INSERT INTO user_recommendation_batches")) {
+        return { rows: [{ created_at: "2026-09-29T01:00:00.000Z", id: nextBatchId }] };
+      }
+      if (sql.includes("INSERT INTO user_recommendation_exposures")) return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+    const result = await getOrCreatePersonalizedRecommendationBatch("auth0|listener", 24, database);
+
+    const inserted = queries.find((query) => query.sql.includes("INSERT INTO user_recommendation_batches"));
+    expect(inserted?.values?.[3]).toBe("baseline-v2");
+    expect(JSON.parse(inserted?.values?.[4] as string)).toMatchObject({ attributeProfile });
+    expect(result.recommendations.attributeProfile).toEqual(attributeProfile);
   });
 
   it("persists exhaustion without recycling or creating an exposure", async () => {

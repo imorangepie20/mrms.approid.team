@@ -1,5 +1,6 @@
 import type { RecommendationServingDecision } from "@/lib/recommendations/serving";
 import type { Track } from "@/lib/music/types";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 
 import {
   preparePersonalizedEmsRecommendations,
@@ -11,7 +12,6 @@ import {
 import type { TransactionExecutor } from "./music-library";
 import { getDatabasePool } from "./pool";
 
-const DEFAULT_BATCH_SIZE = 12;
 const MAX_BATCH_SIZE = 24;
 const DEFAULT_HISTORY_PAGE_SIZE = 10;
 const MAX_HISTORY_PAGE_SIZE = 24;
@@ -27,7 +27,7 @@ export type RecommendationHistoryEntry = {
   batchId: string;
   createdAt: string;
   profileVersion?: string | null;
-  rankingVersion: "baseline" | "hybrid-v0";
+  rankingVersion: "baseline" | "baseline-v2" | "hybrid-v0";
   status: "current" | "replaced" | "exhausted";
   tracks: Array<{
     decidedAt: string | null;
@@ -83,7 +83,7 @@ function parseRecommendations(value: unknown): PersonalizedRecommendations {
   const result = parsed as Partial<PersonalizedRecommendations>;
   if (typeof result.profileReady !== "boolean"
     || (result.profileVersion !== null && typeof result.profileVersion !== "string")
-    || (result.rankingVersion !== "baseline" && result.rankingVersion !== "hybrid-v0")
+    || (result.rankingVersion !== "baseline" && result.rankingVersion !== "baseline-v2" && result.rankingVersion !== "hybrid-v0")
     || !Array.isArray(result.tracks)
     || !result.tracks.every(isRecommendationTrack)) {
     throw new Error("Stored recommendation batch is invalid.");

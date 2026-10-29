@@ -12,7 +12,7 @@ export type RecommendationDecisionInput = {
   userId: string;
   sourceTrackId: string;
   profileVersion: string;
-  rankingVersion: "baseline" | "hybrid-v0";
+  rankingVersion: "baseline" | "baseline-v2" | "hybrid-v0";
   decision: "accept" | "reject" | "skip";
   reasonCodes: string[];
   scoreComponents: Record<string, number>;

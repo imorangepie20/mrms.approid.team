@@ -920,6 +920,17 @@
   margin-top: 0;
 }
 
+.gms-attribution {
+  margin-top: 20px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.gms-attribution a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .gms-recommendation-heading {
   display: flex;
   align-items: flex-start;

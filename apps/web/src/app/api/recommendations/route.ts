@@ -5,6 +5,7 @@ import {
   recordRecommendationShadow,
 } from "@/lib/db/gms-recommendations";
 import { getOrCreatePersonalizedRecommendationBatch } from "@/lib/db/gms-recommendation-batches";
+import { DEFAULT_BATCH_SIZE } from "@/lib/recommendations/batch-size";
 
 const MAX_LIMIT = 24;
 
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   }
 
   const rawLimit = new URL(request.url).searchParams.get("limit");
-  const limit = rawLimit === null ? 12 : Number(rawLimit);
+  const limit = rawLimit === null ? DEFAULT_BATCH_SIZE : Number(rawLimit);
   if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
     return Response.json({ code: "invalid_limit" }, { status: 400 });
   }

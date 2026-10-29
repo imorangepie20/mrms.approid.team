@@ -121,6 +121,54 @@ docker run --rm --network container:music-pie-web-1 \
 
 운영 전에는 migration을 먼저 적용하고, Web과 EMS 워커를 새 이미지로 재생성한다. Web 요청은 TIDAL에 직접 연결하지 않으며, 비밀값은 기존 서버 secret에서만 읽는다.
 
+## 언어·장르 속성 (baseline-v2)
+
+`035_music_attributes.sql`을 Web 배포보다 먼저 적용한다. 후보 SQL이 `ems_track_attributes`를 LEFT JOIN한다.
+
+- `python -m ems_pipeline.cli collect-musicbrainz-attributes`: MusicBrainz 덤프에서 트랙의 언어·태그 사실을 수집한다.
+- `python -m ems_pipeline.cli fetch-lastfm-artist-tags [--limit N]`: Last.fm 아티스트 top tag를 수집한다. 처음에는 `--limit 500` 샘플로 시작한다.
+- `python -m ems_pipeline.cli resolve-music-attributes [--all]`: 근거를 합쳐 트랙별 `language`·`genre_buckets`를 확정한다. `--all`은 이미 확정한 곡도 다시 계산한다.
+- 루틴(`ems-source-routines`): `lastfm_artist_tags` 매시간, `music_attributes` 6시간마다. 관리자 `/admin/ems/routines`에서 확인한다. `music_attributes`·`musicbrainz_metadata` disk gate 예약량은 12 GiB다.
+- `LASTFM_API_KEY`는 서버 `shared/secrets/ems.env`에 둔다. compose가 ems-pipeline과 source-routines에 이미 로드하는 파일이며 저장소에는 넣지 않는다.
+- Last.fm 약관 메모: 비상업 용도로만 사용한다. 화면에 Last.fm 출처를 표기한다. 저장하는 Last.fm 데이터는 100MB 이하로 유지한다. 약관을 종료하면 Last.fm 데이터를 삭제한다.
+- 서빙 전환: 오프라인 평가 통과 뒤 `GMS_RANKING_VERSION=baseline-v2`. 되돌릴 때는 값을 지우거나 `baseline`으로 둔다.
+- 오프라인 평가(읽기 전용, SSH 터널 필요): `cd apps/web && ATTRIBUTE_RANKING_EVAL_DATABASE_URL=<연결 문자열> ATTRIBUTE_RANKING_EVAL_AUTH0_SUBJECT=<auth0 subject> npx vitest run src/lib/db/attribute-ranking.eval.test.ts`. 환경변수가 없으면 skipped다. 테스트는 `BEGIN READ ONLY`로 실행하고 ROLLBACK한다. 운영 터널은 사용자가 요청할 때만 연다.
+
+### Last.fm 루틴 회로 차단
+
+- 한 번 실행에서 `failed` 결과가 10회 연속이거나 20분 실행 예산을 쓰면 중단한다. 남은 아티스트는 다음 주기에 이어서 받는다.
+- Last.fm 오류 10(잘못된 키)·26(정지된 키)은 즉시 중단하고 루틴에 `lastfm_key_invalid`를 기록한다. 10회 연속 실패는 `lastfm_unavailable`로 기록한다. 오류 코드에는 API 키를 넣지 않는다.
+- 429는 `Retry-After`를 따르되 최대 120초만 기다린다. Last.fm 오류 11·16·29는 재시도한다.
+- `lastfm_key_invalid`가 보이면 `shared/secrets/ems.env`의 `LASTFM_API_KEY`를 확인한 뒤 관리자 화면에서 `지금 확인`을 누른다.
+
+### Last.fm 데이터 삭제
+
+Last.fm 이용을 끝내거나 약관상 삭제가 필요할 때 다음 순서로 실행한다. 운영 DB 변경이므로 사용자가 요청할 때만 실행한다.
+
+1. 관리자 `/admin/ems/routines`(사이드바 `정기 수집`)의 `Last.fm 아티스트 태그` 카드에서 `정기 수집 중지`를 눌러 루틴을 끈다. 카드 상태가 `중지`인지 확인한다. 다시 켜지 않으려면 `shared/secrets/ems.env`에서 `LASTFM_API_KEY`도 지운다.
+2. 저장한 Last.fm 태그를 모든 아티스트에서 비우고 상태를 `pending`으로 되돌린다.
+
+   ```bash
+   docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compose.zorin.yml \
+     exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+   UPDATE music_artist_attributes
+      SET lastfm_tags = '[]'::jsonb, lastfm_status = 'pending', lastfm_error_code = NULL,
+          lastfm_fetched_at = NULL, updated_at = now();
+   SELECT count(*) FILTER (WHERE lastfm_tags <> '[]'::jsonb) AS remaining_lastfm_rows
+     FROM music_artist_attributes;
+   SQL
+   ```
+
+   `remaining_lastfm_rows`가 0이어야 한다.
+3. 트랙 속성에서 Last.fm 근거를 지우도록 전체를 다시 계산한다. `language_source = 'lastfm_tag'`였던 곡도 이때 다른 근거로 다시 판정된다.
+
+   ```bash
+   docker compose -p music-pie -f /home/approid/apps/music-pie/current/infra/compose.zorin.yml \
+     run --rm ems-pipeline python -m ems_pipeline.cli resolve-music-attributes --all
+   ```
+
+4. 확인: `SELECT count(*) FROM ems_track_attributes WHERE language_source = 'lastfm_tag';`와 `music_track_attributes`의 같은 조회가 0이어야 한다.
+
 ## Pause·rollback
 
 - health gate 실패 또는 예산 초과: 신규 candidate lease를 만들지 않고 run을 `paused`로 기록한다.
