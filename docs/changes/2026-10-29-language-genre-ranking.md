@@ -25,6 +25,15 @@
   - `src/lib/recommendations/serving.ts`: `GMS_RANKING_VERSION=baseline-v2` 서빙 선택. 기본값은 기존 동작을 유지한다.
   - 배치 크기 12 → 24(`batch-size.ts`, `gms-recommendation-batches.ts`), MMS 이중 집계 방지.
   - UI: 탐색 곡에 배지 표시(`recommendation-history-list.tsx`, `dashboard.css`)와 Last.fm 출처 표기.
+- 브랜치 최종 리뷰 수정(2026-10-29)
+  - 관리자 `정기 수집`: `lastfm_artist_tags`·`music_attributes` 한국어 라벨과 알 수 없는 키의 원문 fallback을 추가해 화면이 깨지지 않게 했다. 활성·중지·`지금 확인` 허용 목록은 `EMS_SOURCE_ROUTINE_KEYS` 하나로 묶었고 PATCH route에 빠져 있던 `melon_genres`도 함께 허용된다. `apps/web/public/admin` 빌드 산출물을 갱신했다.
+  - Last.fm 회로 차단: 연속 `failed` 10회 또는 20분 예산에서 중단하고, 오류 10·26은 즉시 중단해 루틴에 `lastfm_key_invalid`(연속 실패는 `lastfm_unavailable`)를 기록한다. 429는 `Retry-After`(최대 120초)를 따르고 오류 11·16도 29처럼 재시도한다. 반환값에 `stopped_reason`이 추가됐다.
+  - 언어 coverage gate: 사용자 언어 점유율 분모를 zxx를 뺀 모든 양의 가중치 항목으로 바꾸고 `unknown`을 자기 키로 둔다. `languageCoverage`(확인 언어 ÷ zxx 제외 항목)와 `languageSources`(`language_source`별 개수)를 `attributeProfile`에 기록하고, coverage가 `languageMinCoverage` 0.3 미만이면 언어 차원을 끈다. 언어·장르가 모두 꺼지면 v2를 만들지 않는다.
+  - `music_attributes` 루틴은 core 버전이 이전 `last_version`과 다를 때만 전체 재계산하고, 같으면 stale 행만 계산한다. 수집이 덮어쓴 트랙 속성 행은 `resolved_at = NULL`로 표시해 stale 계산에 잡히게 했다.
+  - 탐색 자리 중복: `mismatchKey`가 달라도 후보 언어나 대표 장르 버킷이 같으면 두 자리를 함께 차지하지 않는다(spec 4.3).
+  - shadow run의 `served_baseline_track_ids`는 027에서 정한 대로 실제 baseline 응답을 기록하는 의미를 유지한다. v2·hybrid가 제공돼도 바꾸지 않으며, 실제 제공 목록은 `user_recommendation_batches.track_ids`와 `user_recommendation_exposures.ranking_version`에서 확인한다.
+  - 오프라인 평가에 MMS 제목·아티스트의 문자 체계(한글·가나·한자·키릴·라틴) 독립 집계와 `v2General.length > 0` 단언을 추가했다. TVD 비교는 MMS 분포에서 unknown을 뺀 확인 언어만 다시 정규화해 쓴다.
+  - 런북에 Last.fm 회로 차단 동작과 Last.fm 데이터 삭제 절차를 추가했다.
 - 오프라인 평가: `apps/web/src/lib/db/attribute-ranking.eval.test.ts`. `ATTRIBUTE_RANKING_EVAL_DATABASE_URL`이 있을 때만 실행하며 `BEGIN READ ONLY` 트랜잭션에서 baseline과 baseline-v2 각 24곡의 언어·장르 분포와 탐색 곡을 `console.table`로 출력하고 마지막에 ROLLBACK한다. 단언은 (1) v2 일반 22곡에 트로트 버킷이 없다, (2) v2 일반 곡의 언어 분포와 MMS 분포의 총변동거리가 baseline보다 작다.
 
 ## 검증
@@ -32,11 +41,15 @@
 실제로 실행해 통과한 명령만 적는다.
 
 - `cd apps/web && npx vitest run src/lib/db/attribute-ranking.eval.test.ts`: 환경변수가 없어 1 skipped(의도된 동작)
-- `cd apps/web && npm test`: 148 파일 통과·6 skipped, 648 테스트 통과·11 skipped
+최종 리뷰 수정 후(2026-10-29) 다시 실행한 결과:
+
+- `cd apps/web && npm test`: 150 파일 통과·6 skipped, 667 테스트 통과·11 skipped
 - `cd apps/web && npm run lint`: error 0, warning 8(기존 warning 수준)
 - `cd apps/web && npx tsc --noEmit`: 오류 없음
 - `cd apps/web && npm run build`: 통과
-- `cd services/ems-pipeline && python -m pytest -q`: 177 passed
+- `cd apps/admin && npm test`: 6 파일, 16 테스트 통과
+- `cd apps/admin && npm run build`: 통과(chunk 크기 경고만 있음)
+- `cd services/ems-pipeline && python -m pytest -q`: 195 passed
 
 ## 미검증
 
@@ -45,6 +58,10 @@
 - 실제 사용자 데이터로 오프라인 평가 실행(`attribute-ranking.eval.test.ts`가 PASS하는지, `ATTRIBUTE_RANKING` 상수 조정 필요 여부)
 - `*.postgres.test.ts`의 격리 DB SQL 실행(환경변수 없이 skipped)
 - 375px 폭 시각 확인, 탐색 배지의 스크린 리더 낭독
+- 관리자 `정기 수집` 화면의 실제 브라우저 확인(새 카드는 서버 렌더 단위 테스트로만 확인)
+- 실제 Last.fm API에 대한 회로 차단·`Retry-After` 동작(가짜 transport와 가짜 시계로만 확인)
+- 런북의 Last.fm 데이터 삭제 SQL·`resolve-music-attributes --all` 실제 실행
+- 실제 사용자 데이터의 `languageCoverage`가 0.3을 넘는지. 스펙 1절의 MMS 문자 분포(라틴 425·한글 36)에서 언어 판별이 script fallback뿐이면 coverage가 낮아 언어 차원이 꺼질 수 있다
 
 ## 배포 순서 메모
 
