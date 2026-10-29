@@ -377,7 +377,8 @@ def main(argv: list[str] | None = None) -> int:
         database_url = os.environ.get("DATABASE_URL", "").strip()
         if not database_url:
             raise SystemExit("DATABASE_URL is required")
-        with psycopg.connect(database_url, row_factory=dict_row) as connection:
+        # autocommit so each resolve_all batch transaction commits on its own instead of becoming a savepoint.
+        with psycopg.connect(database_url, row_factory=dict_row, autocommit=True) as connection:
             result = resolve_all(connection, only_stale=not args.all)
         print(json.dumps(result, sort_keys=True))
         return 0

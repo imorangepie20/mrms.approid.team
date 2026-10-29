@@ -325,10 +325,18 @@ def _check_music_attributes(connection: Any, work_root: Path, client: MusicBrain
     if not version or not VERSION_PATTERN.fullmatch(version):
         raise DownloadError("core snapshot unavailable")
     pending = connection.execute(
-        """SELECT count(*)::int AS count FROM ems_tracks t
-             LEFT JOIN ems_track_attributes a ON a.track_id = t.id
-            WHERE t.status = 'active' AND a.mb_snapshot_id IS DISTINCT FROM %s""",
-        (version,),
+        """SELECT (
+                 (SELECT count(*) FROM ems_tracks t
+                    LEFT JOIN ems_track_attributes a ON a.track_id = t.id
+                   WHERE t.status = 'active' AND a.mb_snapshot_id IS DISTINCT FROM %s)
+               + (SELECT count(*) FROM music_tracks m
+                    LEFT JOIN music_track_attributes a ON a.track_id = m.id
+                   WHERE a.mb_snapshot_id IS DISTINCT FROM %s
+                     AND EXISTS (SELECT 1 FROM user_playlist_tracks pt
+                                   JOIN user_playlists p ON p.id = pt.playlist_id
+                                  WHERE pt.track_id = m.id AND p.selected))
+               )::int AS count""",
+        (version, version),
     ).fetchone()["count"]
     if not pending:
         _mark_check(connection, key, version=version, count=0)

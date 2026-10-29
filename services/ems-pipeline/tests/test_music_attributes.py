@@ -64,3 +64,24 @@ def test_cli_registers_commands() -> None:
     assert parser.parse_args(["fetch-lastfm-artist-tags"]).limit == 3000
     args = parser.parse_args(["collect-musicbrainz-attributes", "--core", "c", "--derived-archive", "d", "--snapshot-id", "s"])
     assert args.snapshot_id == "s"
+
+
+def test_resolve_cli_uses_autocommit_connection(monkeypatch) -> None:
+    seen: dict[str, object] = {}
+
+    class Conn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+    def fake_connect(url, **kwargs):
+        seen.update(kwargs)
+        return Conn()
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://x")
+    monkeypatch.setattr("psycopg.connect", fake_connect)
+    monkeypatch.setattr("ems_pipeline.music_attributes.resolve_all", lambda c, only_stale=True: {"resolved": 0})
+    assert cli.main(["resolve-music-attributes"]) == 0
+    assert seen.get("autocommit") is True
