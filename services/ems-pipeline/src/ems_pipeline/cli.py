@@ -370,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
         except RuntimeError as error:
             raise SystemExit(str(error)) from error
         print(json.dumps(result, sort_keys=True))
-        return 0
+        return 1 if result.get("stopped_reason") == "key_invalid" else 0
     if args.command == "resolve-music-attributes":
         from .music_attributes import resolve_all
 

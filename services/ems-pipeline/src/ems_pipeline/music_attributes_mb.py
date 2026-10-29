@@ -316,6 +316,8 @@ def collect_musicbrainz_attributes(core: Path, derived_archive: Path, snapshot_i
                          json.dumps(artist.mb_tags), artist.mb_language, snapshot_id),
                     )
 
+        # resolved_at = NULL marks updated rows stale, so a stale-only resolve_all picks them up
+        # even when the snapshot version did not change (see source_routines._check_music_attributes).
         items = list(track_facts.items())
         for offset in range(0, len(items), 500):
             with connection.transaction():
@@ -328,7 +330,8 @@ def collect_musicbrainz_attributes(core: Path, derived_archive: Path, snapshot_i
                             ON CONFLICT (track_id) DO UPDATE SET
                               artist_key = EXCLUDED.artist_key, mb_recording_mbid = EXCLUDED.mb_recording_mbid,
                               mb_release_language = EXCLUDED.mb_release_language, mb_tags = EXCLUDED.mb_tags,
-                              mb_snapshot_id = EXCLUDED.mb_snapshot_id""",
+                              mb_snapshot_id = EXCLUDED.mb_snapshot_id,
+                              resolved_at = NULL""",
                         (track_id, facts.artist_key, facts.mb_recording_mbid, facts.mb_release_language,
                          json.dumps(facts.mb_tags), snapshot_id),
                     )

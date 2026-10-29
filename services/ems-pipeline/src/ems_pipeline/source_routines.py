@@ -309,11 +309,24 @@ def _check_lastfm_artist_tags(connection: Any) -> None:
     connection.execute("UPDATE ems_source_routines SET status = 'staging' WHERE source_key = %s", (key,))
     fetched = fetch_lastfm_artist_tags()
     resolved = resolve_all(connection, only_stale=True)
+    stopped = fetched.get("stopped_reason")
+    if stopped in ("key_invalid", "consecutive_failures"):
+        # Circuit breaker tripped: keep what was fetched, surface a key-free code, retry next interval.
+        code = "lastfm_key_invalid" if stopped == "key_invalid" else "lastfm_unavailable"
+        connection.execute(
+            """UPDATE ems_source_routines SET status = 'failed', error_code = %s,
+                      last_checked_at = now(), last_candidate_count = %s,
+                      next_check_at = now() + make_interval(secs => check_interval_seconds),
+                      updated_at = now() WHERE source_key = %s""",
+            (code, fetched["requested"], key),
+        )
+        print(json.dumps({"source": key, "status": "failed", "error_code": code, **fetched}), flush=True)
+        return
     _mark_check(connection, key, count=fetched["requested"])
     print(json.dumps({"source": key, **fetched, **{f"resolve_{k}": v for k, v in resolved.items()}}), flush=True)
 
 
-def _check_music_attributes(connection: Any, work_root: Path, client: MusicBrainzSnapshotClient) -> None:
+def _check_music_attributes(connection: Any, work_root: Path, client: MusicBrainzSnapshotClient, row: dict[str, Any]) -> None:
     from .music_attributes import resolve_all
     from .music_attributes_mb import collect_musicbrainz_attributes
 
@@ -350,8 +363,11 @@ def _check_music_attributes(connection: Any, work_root: Path, client: MusicBrain
     result = collect_musicbrainz_attributes(core, derived, version)
     resolved: dict[str, int] = {}
     if result["scanned"] > 0:
-        # New snapshot facts change mb_* columns in place, so a full DB-only pass is needed.
-        resolved = resolve_all(connection, only_stale=False)
+        # A new core snapshot changes mb_* facts on existing rows in place, so it needs a full
+        # DB-only pass. With the same snapshot only newly collected rows changed, and those have
+        # resolved_at NULL, so the stale-only pass picks them up.
+        new_snapshot = version != row.get("last_version")
+        resolved = resolve_all(connection, only_stale=not new_snapshot)
     _mark_check(connection, key, version=version, count=result["scanned"])
     print(json.dumps({"source": key, "version": version, **result, **{f"resolve_{k}": v for k, v in resolved.items()}}), flush=True)
 
@@ -432,7 +448,7 @@ def serve_source_routines() -> None:
                         elif key == "musicbrainz_metadata":
                             _check_metadata(connection, work_root, client)
                         elif key == "music_attributes":
-                            _check_music_attributes(connection, work_root, client)
+                            _check_music_attributes(connection, work_root, client, row)
                         else:
                             _check_lastfm_artist_tags(connection)
                     except Exception as error:
