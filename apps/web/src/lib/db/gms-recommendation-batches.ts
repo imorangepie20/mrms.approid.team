@@ -11,7 +11,7 @@ import {
 import type { TransactionExecutor } from "./music-library";
 import { getDatabasePool } from "./pool";
 
-const DEFAULT_BATCH_SIZE = 12;
+const DEFAULT_BATCH_SIZE = 24;
 const MAX_BATCH_SIZE = 24;
 const DEFAULT_HISTORY_PAGE_SIZE = 10;
 const MAX_HISTORY_PAGE_SIZE = 24;

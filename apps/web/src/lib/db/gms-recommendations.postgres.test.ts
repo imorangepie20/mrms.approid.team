@@ -160,6 +160,54 @@ suite("recommendation shadow PostgreSQL integration", () => {
     }
   });
 
+  it("joins candidate attributes and builds baseline-v2 from MMS and decisions", async () => {
+    const executor = client as unknown as TransactionExecutor;
+    await client.query("BEGIN");
+    try {
+      await client.query(`
+        INSERT INTO ems_track_attributes (track_id, artist_key, language, genre_buckets, taxonomy_version)
+        VALUES ($1, 'artist a', 'por', '{}'::jsonb, 'genre-v1'),
+               ($2, 'artist b', 'eng', '{"pop": 1}'::jsonb, 'genre-v1')
+      `, [trackIds[0], trackIds[2]]);
+      const playlist = await client.query<{ id: string }>(`
+        INSERT INTO user_playlists (user_id, tidal_playlist_id, name, selected)
+        VALUES ($1, 'shadow-playlist', 'Shadow', true)
+        RETURNING id
+      `, [userId]);
+      for (let index = 0; index < 20; index += 1) {
+        const track = await client.query<{ id: string }>(`
+          INSERT INTO music_tracks (
+            user_id, tidal_track_id, title, artist_name, album_name, duration_ms, mb_status
+          ) VALUES ($1, $2, $3, 'MMS Artist', 'MMS Album', 180000, 'pending')
+          RETURNING id
+        `, [userId, `mms-${index}`, `MMS ${index}`]);
+        const trackId = track.rows[0]!.id;
+        await client.query(
+          "INSERT INTO user_playlist_tracks (playlist_id, position, track_id) VALUES ($1, $2, $3)",
+          [playlist.rows[0]!.id, index, trackId],
+        );
+        await client.query(`
+          INSERT INTO music_track_attributes (track_id, artist_key, language, genre_buckets, taxonomy_version)
+          VALUES ($1, 'mms artist', 'eng', '{"pop": 1}'::jsonb, 'genre-v1')
+        `, [trackId]);
+      }
+
+      const prepared = await preparePersonalizedEmsRecommendations("auth0|shadow", 2, executor);
+
+      expect(prepared.attributeRecommendations).toMatchObject({
+        attributeProfile: { languageSample: 20, languages: { eng: 1 }, taxonomyVersion: "genre-v1" },
+        rankingVersion: "baseline-v2",
+      });
+      const fitById = new Map(prepared.attributeRecommendations!.tracks.map((track) => [
+        track.id,
+        track.recommendation.scoreComponents.languageFit,
+      ]));
+      expect(fitById.get(trackIds[0])).toBe(0);
+    } finally {
+      await client.query("ROLLBACK");
+    }
+  });
+
   afterAll(async () => {
     client?.release();
     await pool?.end();

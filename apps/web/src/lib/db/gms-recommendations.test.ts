@@ -10,6 +10,7 @@ import {
   saveRecommendationDecision,
   selectPreparedPersonalizedRecommendations,
 } from "./gms-recommendations";
+import { loadUserAttributeDistributionInputs } from "./user-attribute-distribution";
 
 const profileRow = {
   algorithm_version: "ems-v1",
@@ -87,6 +88,64 @@ function executorWithRows(rows = candidateRows) {
   }));
   return {
     query: query as unknown as TransactionExecutor["query"],
+    queryMock: query,
+  };
+}
+
+type AttributeRow = {
+  genre_buckets: Record<string, number> | null;
+  language: string | null;
+  taxonomy_version: string | null;
+  weight: number;
+};
+
+function englishDistribution(count = 30): AttributeRow[] {
+  return Array.from({ length: count }, () => ({
+    genre_buckets: {},
+    language: "eng",
+    taxonomy_version: "genre-v1",
+    weight: 1,
+  }));
+}
+
+function attributeCandidate(
+  id: string,
+  similarityGlobal: number,
+  language: string | null,
+  sourceRank: number,
+) {
+  return {
+    ...candidateRows[2],
+    artist: `Artist ${id}`,
+    genre_buckets: language === null ? null : {},
+    id,
+    language,
+    similarity_cluster: null,
+    similarity_global: similarityGlobal,
+    source_rank: sourceRank,
+    tidal_id: `tidal-${id}`,
+    title: `Track ${id}`,
+  };
+}
+
+function attributeExecutor(
+  rows: unknown[],
+  distribution: AttributeRow[] | Error,
+) {
+  let candidateParams: unknown[] | undefined;
+  const query = vi.fn(async (sql: string, params?: unknown[]) => {
+    if (sql.includes("/* recommendation_profiles */")) return { rows: [profileRow] };
+    if (sql.includes("/* user_attribute_distribution */")) {
+      if (distribution instanceof Error) throw distribution;
+      return { rows: distribution };
+    }
+    if (sql.includes("SAVEPOINT")) return { rows: [] };
+    if (sql.includes("WITH centroid_similarity")) candidateParams = params;
+    return { rows };
+  });
+  return {
+    candidateParams: () => candidateParams,
+    executor: { query: query as unknown as TransactionExecutor["query"] },
     queryMock: query,
   };
 }
@@ -246,7 +305,7 @@ describe("GMS personalized recommendation repository", () => {
     ];
     let candidateParams: unknown[] | undefined;
     const query = vi.fn(async (sql: string, params?: unknown[]) => {
-      if (!sql.includes("/* recommendation_profiles */")) candidateParams = params;
+      if (sql.includes("WITH centroid_similarity")) candidateParams = params;
       return {
         rows: sql.includes("/* recommendation_profiles */") ? [audioProfile] : rows,
       };
@@ -318,6 +377,207 @@ describe("GMS personalized recommendation repository", () => {
       fallbackReason: null,
       servedRankingVersion: "hybrid-v0",
     });
+  });
+
+  it("keeps baseline ranking unchanged when the pool grows", async () => {
+    const rows = [
+      ...candidateRows.map((row, index) => ({ ...row, source_rank: index + 1 })),
+      ...Array.from({ length: 7 }, (_, index) =>
+        attributeCandidate(`filler-${index}`, 0.3, "eng", index + 4)),
+      attributeCandidate("beyond-pool", 0.99, "eng", 11),
+    ];
+    const harness = attributeExecutor(rows, englishDistribution());
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    expect(harness.candidateParams()?.[2]).toBe(50);
+    expect(prepared.recommendations.tracks.map((track) => track.id)).toEqual(["track-a", "track-b"]);
+    expect(prepared.recommendations.tracks[0]?.recommendation.scoreComponents)
+      .not.toHaveProperty("attributeMultiplier");
+    expect(prepared.shadow?.candidates.map((candidate) => candidate.trackId))
+      .not.toContain("beyond-pool");
+    expect(prepared.attributeRecommendations?.tracks[0]?.id).toBe("beyond-pool");
+
+    const capped = attributeExecutor(rows, englishDistribution());
+    await preparePersonalizedEmsRecommendations("auth0|listener", 24, capped.executor);
+    expect(capped.candidateParams()?.[2]).toBe(600);
+  });
+
+  it("keeps candidates without attributes", async () => {
+    const harness = attributeExecutor(
+      [attributeCandidate("plain", 0.8, null, 1)],
+      englishDistribution(),
+    );
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    const track = prepared.attributeRecommendations?.tracks[0];
+    expect(track?.id).toBe("plain");
+    expect(track?.recommendation.scoreComponents.attributeMultiplier).toBe(1);
+    expect(track?.recommendation.scoreComponents).not.toHaveProperty("languageFit");
+    expect(track?.recommendation.scoreComponents).not.toHaveProperty("genreFit");
+  });
+
+  it("demotes mismatched language in baseline-v2", async () => {
+    const harness = attributeExecutor(
+      [
+        attributeCandidate("a", 0.9, "por", 1),
+        attributeCandidate("b", 0.8, "eng", 2),
+      ],
+      englishDistribution(30),
+    );
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    expect(prepared.recommendations.tracks[0]?.id).toBe("a");
+    const v2 = prepared.attributeRecommendations;
+    expect(v2?.rankingVersion).toBe("baseline-v2");
+    expect(v2?.tracks.map((track) => track.id)).toEqual(["b", "a"]);
+    expect(v2?.tracks[1]?.recommendation).toMatchObject({
+      rankingVersion: "baseline-v2",
+      reasonCodes: expect.arrayContaining(["taste_match", "language_mismatch"]),
+      scoreComponents: expect.objectContaining({
+        attributeMultiplier: 0.55,
+        languageFit: 0,
+      }),
+    });
+    expect(v2?.attributeProfile).toEqual({
+      genreSample: 0,
+      genres: {},
+      languageSample: 30,
+      languages: { eng: 1 },
+      taxonomyVersion: "genre-v1",
+    });
+    expect(prepared.recommendations).not.toHaveProperty("attributeProfile");
+  });
+
+  it("marks exploration tracks", async () => {
+    const rows = [
+      ...Array.from({ length: 8 }, (_, index) =>
+        attributeCandidate(`eng-${index}`, 0.8 - index * 0.01, "eng", index + 4)),
+      attributeCandidate("por-1", 0.95, "por", 1),
+      attributeCandidate("por-2", 0.94, "por", 2),
+      attributeCandidate("jpn-1", 0.93, "jpn", 3),
+    ];
+    const harness = attributeExecutor(rows, englishDistribution());
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      6,
+      harness.executor,
+    );
+
+    const tracks = prepared.attributeRecommendations?.tracks ?? [];
+    expect(tracks).toHaveLength(6);
+    const explorers = tracks.filter((track) =>
+      track.recommendation.reasonCodes.includes("exploration"));
+    expect(explorers.map((track) => track.id)).toEqual(["por-1", "jpn-1"]);
+    expect(tracks.findIndex((track) => track.id === "por-1")).toBe(1);
+    expect(tracks.findIndex((track) => track.id === "jpn-1")).toBe(3);
+  });
+
+  it("returns null attribute recommendations below sample", async () => {
+    const harness = attributeExecutor(
+      [attributeCandidate("a", 0.9, "por", 1)],
+      englishDistribution(19),
+    );
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    expect(prepared.attributeRecommendations).toBeNull();
+    expect(prepared.recommendations.tracks[0]?.id).toBe("a");
+  });
+
+  it("keeps baseline when the attribute distribution query fails", async () => {
+    const harness = attributeExecutor(
+      [attributeCandidate("a", 0.9, "por", 1)],
+      new Error("relation does not exist"),
+    );
+
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    expect(prepared.attributeRecommendations).toBeNull();
+    expect(prepared.recommendations.tracks.map((track) => track.id)).toEqual(["a"]);
+    const sql = harness.queryMock.mock.calls.map(([text]) => text);
+    expect(sql).toContain("SAVEPOINT user_attribute_distribution");
+    expect(sql).toContain("ROLLBACK TO SAVEPOINT user_attribute_distribution");
+  });
+
+  it("loads MMS and decided-track attribute inputs once per track", async () => {
+    const query = vi.fn(async () => ({ rows: [
+      { genre_buckets: { pop: 1 }, language: "eng", taxonomy_version: "genre-v1", weight: 1 },
+      { genre_buckets: "{\"rock\":0.5}", language: "kor", taxonomy_version: "genre-v1", weight: -0.5 },
+      { genre_buckets: {}, language: null, taxonomy_version: null, weight: 1 },
+    ] }));
+
+    const inputs = await loadUserAttributeDistributionInputs("user-a", {
+      query: query as unknown as TransactionExecutor["query"],
+    });
+
+    expect(inputs).toEqual([
+      { genreBuckets: { pop: 1 }, language: "eng", taxonomyVersion: "genre-v1", weight: 1 },
+      { genreBuckets: { rock: 0.5 }, language: "kor", taxonomyVersion: "genre-v1", weight: -0.5 },
+    ]);
+    const [sql, params] = query.mock.calls[0] as unknown as [string, unknown[]];
+    expect(sql).toMatch(/\/\* user_attribute_distribution \*\//);
+    expect(sql).toMatch(/playlist\.selected = true/);
+    expect(sql).toMatch(/decision\.decision IN \('accept', 'reject'\)/);
+    expect(sql).toMatch(/GROUP BY decision\.source_track_id/);
+    expect(params).toEqual(["user-a", -0.5]);
+  });
+
+  it("serves baseline-v2 when requested", async () => {
+    const harness = attributeExecutor(
+      [
+        attributeCandidate("a", 0.9, "por", 1),
+        attributeCandidate("b", 0.8, "eng", 2),
+      ],
+      englishDistribution(),
+    );
+    const prepared = await preparePersonalizedEmsRecommendations(
+      "auth0|listener",
+      2,
+      harness.executor,
+    );
+
+    const selected = selectPreparedPersonalizedRecommendations("auth0|listener", prepared, {
+      GMS_RANKING_VERSION: "baseline-v2",
+    });
+
+    expect(selected.recommendations.rankingVersion).toBe("baseline-v2");
+    expect(selected.recommendations.tracks[0]?.id).toBe("b");
+    expect(selected.serving).toMatchObject({
+      fallbackReason: null,
+      servedRankingVersion: "baseline-v2",
+    });
+
+    const unavailable = selectPreparedPersonalizedRecommendations(
+      "auth0|listener",
+      { ...prepared, attributeRecommendations: null },
+      { GMS_RANKING_VERSION: "baseline-v2" },
+    );
+    expect(unavailable.recommendations.rankingVersion).toBe("baseline");
+    expect(unavailable.serving.fallbackReason).toBe("attribute_profile_unavailable");
   });
 
   it("records a shadow run and candidates atomically", async () => {
